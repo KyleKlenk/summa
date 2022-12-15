@@ -560,6 +560,8 @@ contains
   case('scalarVolLatHt_fus'             ); get_ixdiag = iLookDIAG%scalarVolLatHt_fus               ! volumetric latent heat of fusion     (J m-3)
   ! number of function evaluations
   case('numFluxCalls'                   ); get_ixdiag = iLookDIAG%numFluxCalls                     ! number of flux calls (-)
+  ! operator splitting
+  case('ixCouplingMethod'               ); get_ixdiag = iLookDIAG%ixCouplingMethod                 ! coupling method (-) 1 = no splitting; 2 = splitting
   ! get to here if cannot find the variable
   case default
    get_ixdiag = integerMissing
