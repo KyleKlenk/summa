@@ -422,8 +422,6 @@ contains
  diag_meta(iLookDIAG%scalarVolLatHt_fus)              = var_info('scalarVolLatHt_fus'             , 'volumetric latent heat of fusion'                                 , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  ! number of function evaluations
  diag_meta(iLookDIAG%numFluxCalls)                    = var_info('numFluxCalls'                   , 'number of flux calls'                                             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
- ! opsplitting
- diag_meta(iLookDIAG%ixCouplingMethod)                = var_info('ixCouplingMethod'               , 'coupling method used'                                             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.) 
  ! -----
  ! * local model fluxes...
  ! -----------------------

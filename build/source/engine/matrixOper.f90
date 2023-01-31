@@ -41,6 +41,7 @@ private
 public::lapackSolv
 public::scaleMatrices
 public::computeGradient
+
 contains
 
  ! **********************************************************************************************************
@@ -150,64 +151,76 @@ contains
  end subroutine computeGradient
 
 
- ! *********************************************************************************************************
- ! public subroutine lapackSolv: use the lapack routines to solve the linear system A.X=B
- ! *********************************************************************************************************
- subroutine lapackSolv(ixMatrix,nState,aJac,rVec,xInc,err,message)
- implicit none
- ! dummy
- integer(i4b),intent(in)        :: ixMatrix      ! type of matrix (full Jacobian or band diagonal)
- integer(i4b),intent(in)        :: nState        ! number of state variables
- real(rkind),intent(inout)         :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
- real(rkind),intent(in)            :: rVec(:)       ! the residual vector B
- real(rkind),intent(out)           :: xInc(:)       ! the solution vector X
- integer(i4b),intent(out)       :: err           ! error code
- character(*),intent(out)       :: message       ! error message
- ! local
- real(rkind)                       :: rhs(nState,1) ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
- integer(i4b)                   :: iPiv(nState)  ! defines if row i of the matrix was interchanged with row iPiv(i)
- ! initialize error control
- select case(ixMatrix)
-  case(ixFullMatrix); message='lapackSolv/dgesv/'
-  case(ixBandMatrix); message='lapackSolv/dgbsv/'
-  case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
- end select
+! *********************************************************************************************************
+! public subroutine lapackSolv: use the lapack routines to solve the linear system A.X=B
+! *********************************************************************************************************
+subroutine lapackSolv(ixMatrix,nState,aJac,rVec,xInc,err,message)
+  USE newton_output,only: newton_file_created
+  USE newton_output,only: create_newton_file, write_linear_system_input, write_linear_system_output
+  implicit none
+  ! dummy
+  integer(i4b),intent(in)        :: ixMatrix      ! type of matrix (full Jacobian or band diagonal)
+  integer(i4b),intent(in)        :: nState        ! number of state variables
+  real(rkind),intent(inout)      :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
+  real(rkind),intent(in)         :: rVec(:)       ! the residual vector B
+  real(rkind),intent(out)        :: xInc(:)       ! the solution vector X
+  integer(i4b),intent(out)       :: err           ! error code
+  character(*),intent(out)       :: message       ! error message
+  ! local
+  real(rkind)                       :: rhs(nState,1) ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
+  integer(i4b)                   :: iPiv(nState)  ! defines if row i of the matrix was interchanged with row iPiv(i)
+    ! initialize error control
+    select case(ixMatrix)
+    case(ixFullMatrix); message='lapackSolv/dgesv/'
+    case(ixBandMatrix); message='lapackSolv/dgbsv/'
+    case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+    end select
 
- ! form the rhs matrix
- ! NOTE: copy the vector here to ensure that the residual vector is not overwritten
- rhs(:,1) = rVec(:)
+    ! form the rhs matrix
+    ! NOTE: copy the vector here to ensure that the residual vector is not overwritten
+    rhs(:,1) = rVec(:)
 
- ! identify option to solve the linear system A.X=B
- select case(ixMatrix)
+    ! identify option to solve the linear system A.X=B
+    select case(ixMatrix)
 
-  ! lapack: use the full Jacobian matrix to solve the linear system A.X=B
-  case(ixFullMatrix)
-   call dgesv(nState,    &  ! intent(in):    [i4b]               number of state variables
-              nRHS,      &  ! intent(in):    [i4b]               number of columns of the matrix B
-              aJac,      &  ! intent(inout): [dp(nState,nState)] input = the nState-by-nState Jacobian matrix A; output = decomposed matrix
-              nState,    &  ! intent(in):    [i4b]               the leading dimension of aJac
-              iPiv,      &  ! intent(out):   [i4b(nState)]       defines if row i of the matrix was interchanged with row iPiv(i)
-              rhs,       &  ! intent(inout): [dp(nState,nRHS)]   input = the nState-by-nRHS matrix of matrix B; output: the solution matrix X
-              nState,    &  ! intent(in):    [i4b]               the leading dimension of matrix rhs
-              err)          ! intent(out)    [i4b]               error code
+      ! lapack: use the full Jacobian matrix to solve the linear system A.X=B
+      case(ixFullMatrix)
+    
+        if (.not.newton_file_created) then
+          call create_newton_file(nState, nRHS)
+          newton_file_created = .true.
+        endif
+        
+        call write_linear_system_input(nState, nRHS, aJac, rhs)
 
-  ! lapack: use the band diagonal matrix to solve the linear system A.X=B
-  case(ixBandMatrix)
-   call dgbsv(nState,    &  ! intent(in):    [i4b]               number of state variables
-              kl,        &  ! intent(in):    [i4b]               number of subdiagonals within the band of A
-              ku,        &  ! intent(in):    [i4b]               number of superdiagonals within the band of A
-              nRHS,      &  ! intent(in):    [i4b]               number of columns of the matrix B
-              aJac,      &  ! intent(inout): [dp(nBands,nState)] input = the nBands-by-nState Jacobian matrix A; output = decomposed matrix
-              nBands,    &  ! intent(in):    [i4b]               the leading dimension of aJac
-              iPiv,      &  ! intent(out):   [i4b(nState)]       defines if row i of the matrix was interchanged with row iPiv(i)
-              rhs,       &  ! intent(inout): [dp(nState,nRHS)]   input = the nState-by-nRHS matrix of matrix B; output: the solution matrix X
-              nState,    &  ! intent(in):    [i4b]               the leading dimension of matrix rhs
-              err)          ! intent(out)    [i4b]               error code
+        call dgesv(nState,    &  ! intent(in):    [i4b]               number of state variables
+                    nRHS,      &  ! intent(in):    [i4b]               number of columns of the matrix B
+                    aJac,      &  ! intent(inout): [dp(nState,nState)] input = the nState-by-nState Jacobian matrix A; output = decomposed matrix
+                    nState,    &  ! intent(in):    [i4b]               the leading dimension of aJac
+                    iPiv,      &  ! intent(out):   [i4b(nState)]       defines if row i of the matrix was interchanged with row iPiv(i)
+                    rhs,       &  ! intent(inout): [dp(nState,nRHS)]   input = the nState-by-nRHS matrix of matrix B; output: the solution matrix X
+                    nState,    &  ! intent(in):    [i4b]               the leading dimension of matrix rhs
+                    err)          ! intent(out)    [i4b]               error code
 
-  ! check that we found a valid option (should not get here because of the check above; included for completeness)
-  case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+        call write_linear_system_output(nState, nRHS, aJac, rhs, iPiv)
+        
+      ! lapack: use the band diagonal matrix to solve the linear system A.X=B
+      case(ixBandMatrix)
+        call dgbsv(nState,    &  ! intent(in):    [i4b]               number of state variables
+                    kl,        &  ! intent(in):    [i4b]               number of subdiagonals within the band of A
+                    ku,        &  ! intent(in):    [i4b]               number of superdiagonals within the band of A
+                    nRHS,      &  ! intent(in):    [i4b]               number of columns of the matrix B
+                    aJac,      &  ! intent(inout): [dp(nBands,nState)] input = the nBands-by-nState Jacobian matrix A; output = decomposed matrix
+                    nBands,    &  ! intent(in):    [i4b]               the leading dimension of aJac
+                    iPiv,      &  ! intent(out):   [i4b(nState)]       defines if row i of the matrix was interchanged with row iPiv(i)
+                    rhs,       &  ! intent(inout): [dp(nState,nRHS)]   input = the nState-by-nRHS matrix of matrix B; output: the solution matrix X
+                    nState,    &  ! intent(in):    [i4b]               the leading dimension of matrix rhs
+                    err)          ! intent(out)    [i4b]               error code
 
- end select  ! (option to solve the linear system A.X=B)
+      ! check that we found a valid option (should not get here because of the check above; included for completeness)
+      case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+
+    end select  ! (option to solve the linear system A.X=B)
 
  ! identify any errors
  ! NOTE: return negative error code to force a time step reduction and another trial
@@ -224,8 +237,6 @@ contains
  ! extract the iteration increment
  xInc(1:nState) = rhs(1:nState,1)
 
- end subroutine lapackSolv
-
-
+end subroutine lapackSolv
 
 end module matrixOper_module

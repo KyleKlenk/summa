@@ -38,19 +38,19 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-##F_MASTER =
+F_MASTER = /Summa-Actors/build/summa
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 6 or higher. This variable is simply used to select the right
 # compiler flags in the ifeq statements in this Makefile. The compiler
 # executable is set separately as FC_EXE
 # Currently this is either gfortran or ifort
-##FC =
+FC = gfortran
 
 # Define the path for the compiler executable. This is the actual executable
 # that is invoked. For example, FC=gfortran and FC_EXE=/usr/bin-gfortran-mp-6
 # FC and FC_EXE have to be consistent
-##FC_EXE =
+FC_EXE = /usr/bin/gfortran
 
 # Define the NetCDF and LAPACK libraries and path to include files.
 # INCLUDES needs to be of the form (no quotes around the string):
@@ -59,8 +59,8 @@
 # LIBRARIES = '-L<netcdf library path> -lnetcdff -L<blas library path> -lblas -L<etc> -l<etc>'
 # If none of this makes sense, please talk to your system
 # administrator.
-##INCLUDES =
-##LIBRARIES =
+INCLUDES = -I/usr/local/include -I/usr/include
+LIBRARIES = -L/usr/local/lib -lnetcdff -lopenblas -lnetcdf
 
 # Eventually we plan move to a real configure script, but for now we like
 # to keep track of successful compilations of SUMMA on different platforms
@@ -91,14 +91,14 @@ ifeq "$(FC)" "gfortran"
 	endif
 
 # Production runs
-FLAGS_NOAH = -O3 -ffree-form -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
-FLAGS_COMM = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
-FLAGS_SUMMA = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+# FLAGS_NOAH = -O3 -ffree-form -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+# FLAGS_COMM = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+# FLAGS_SUMMA = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 
 # Debug runs
-#FLAGS_NOAH = -p -g -ffree-form -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
-#FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
-#FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
+FLAGS_NOAH = -p -g -O0 -ffree-form -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+FLAGS_COMM = -p -g -O0 -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
+FLAGS_SUMMA = -p -g -O0 -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
 
 endif
 
@@ -186,6 +186,7 @@ SUMMA_UTILMS= \
 		snow_utils.f90 \
 		soil_utils.f90 \
 		updatState.f90 \
+		newton_output.f90 \
 		matrixOper.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
 

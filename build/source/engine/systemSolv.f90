@@ -201,7 +201,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
- logical(lgt),parameter          :: forceFullMatrix=.false.       ! flag to force the use of the full Jacobian matrix
+ logical(lgt),parameter          :: forceFullMatrix=.true.       ! flag to force the use of the full Jacobian matrix
  integer(i4b)                    :: maxiter                       ! maximum number of iterations
  integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
  integer(i4b)                    :: localMaxIter                  ! maximum number of iterations (depends on solution type)
@@ -313,7 +313,6 @@ contains
   nLeadDim=nBands         ! length of the leading dimension
   ixMatrix=ixBandMatrix   ! named variable to denote the band-diagonal matrix
  endif
-
  ! initialize the model fluxes (some model fluxes are not computed in the iterations)
  do iVar=1,size(flux_temp%var)
   flux_init%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
