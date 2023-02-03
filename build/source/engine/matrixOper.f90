@@ -155,8 +155,8 @@ contains
 ! public subroutine lapackSolv: use the lapack routines to solve the linear system A.X=B
 ! *********************************************************************************************************
 subroutine lapackSolv(ixMatrix,nState,aJac,rVec,xInc,err,message)
-  USE newton_output,only: newton_file_created
-  USE newton_output,only: create_newton_file, write_linear_system_input, write_linear_system_output
+  ! USE newton_output,only: newton_file_created
+  ! USE newton_output,only: create_newton_file, write_linear_system_input, write_linear_system_output
   implicit none
   ! dummy
   integer(i4b),intent(in)        :: ixMatrix      ! type of matrix (full Jacobian or band diagonal)
@@ -186,12 +186,12 @@ subroutine lapackSolv(ixMatrix,nState,aJac,rVec,xInc,err,message)
       ! lapack: use the full Jacobian matrix to solve the linear system A.X=B
       case(ixFullMatrix)
     
-        if (.not.newton_file_created) then
-          call create_newton_file(nState, nRHS)
-          newton_file_created = .true.
-        endif
+        ! if (.not.newton_file_created) then
+        !   call create_newton_file(nState, nRHS)
+        !   newton_file_created = .true.
+        ! endif
         
-        call write_linear_system_input(nState, nRHS, aJac, rhs)
+        ! call write_linear_system_input(nState, nRHS, aJac, rhs)
 
         call dgesv(nState,    &  ! intent(in):    [i4b]               number of state variables
                     nRHS,      &  ! intent(in):    [i4b]               number of columns of the matrix B
@@ -202,7 +202,7 @@ subroutine lapackSolv(ixMatrix,nState,aJac,rVec,xInc,err,message)
                     nState,    &  ! intent(in):    [i4b]               the leading dimension of matrix rhs
                     err)          ! intent(out)    [i4b]               error code
 
-        call write_linear_system_output(nState, nRHS, aJac, rhs, iPiv)
+        ! call write_linear_system_output(nState, nRHS, aJac, rhs, iPiv)
         
       ! lapack: use the band diagonal matrix to solve the linear system A.X=B
       case(ixBandMatrix)

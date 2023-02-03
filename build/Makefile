@@ -211,7 +211,7 @@ SUMMA_SOLVER= \
 		computResid.f90 \
 		computJacob.f90 \
 		eval8summa.f90 \
-		summaSolve.f90 \
+		summaSolveCelia.f90 \
 		systemSolv.f90 \
 		varSubstep.f90 \
 		opSplittin.f90 \

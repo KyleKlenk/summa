@@ -378,7 +378,6 @@ contains
 
   ! check the need to compute the line search
   if(doLineSearch)then
-
    ! compute the gradient of the function vector
    call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
@@ -393,7 +392,6 @@ contains
 
   ! ***** LINE SEARCH LOOP...
   lineSearch: do iLine=1,maxLineSearch  ! try to refine the function by shrinking the step size
-
    ! back-track along the search direction
    ! NOTE: start with back-tracking the scaled step
    xInc(:) = xLambda*newtStepScaled(:)
