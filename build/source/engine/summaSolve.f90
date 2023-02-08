@@ -447,9 +447,9 @@ function checkConv(rVec,xInc,xVec)
     liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), rkind)
     ! (tighter convergence for the scalar solution)
     if(scalarSolution)then
-    liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten)   ! (based on the residual)
+      liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten)   ! (based on the residual)
     else
-    liquidConv = (liquid_max(1) < absConvTol_liquid)                 ! (based on the residual)
+      liquidConv = (liquid_max(1) < absConvTol_liquid)                 ! (based on the residual)
     endif
   else
     liquid_max = realMissing
