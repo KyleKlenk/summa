@@ -191,9 +191,6 @@ contains
  ! intialize additional terms on the RHS as zero
  rAdd(:) = 0._rkind
 
- ! compute energy associated with melt freeze for the vegetation canopy
- if(ixVegNrg/=integerMissing) rAdd(ixVegNrg) = rAdd(ixVegNrg) + LH_fus*(scalarCanopyIceTrial - scalarCanopyIce)/canopyDepth   ! energy associated with melt/freeze (J m-3)
-
  ! compute energy associated with melt/freeze for snow
  ! NOTE: allow expansion of ice during melt-freeze for snow; deny expansion of ice during melt-freeze for soil
  if(nSnowSoilNrg>0)then
@@ -220,18 +217,6 @@ contains
  ! * compute the residual vector...
  ! --------------------------------
 
- ! compute the residual vector for the vegetation canopy
- ! NOTE: sMul(ixVegHyd) = 1, but include as it converts all variables to quadruple precision
- ! --> energy balance
- if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempTrial - ( (sMul(ixCasNrg)*scalarCanairTemp + fVec(ixCasNrg)*dt) + rAdd(ixCasNrg) )
- if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*scalarCanopyTempTrial - ( (sMul(ixVegNrg)*scalarCanopyTemp + fVec(ixVegNrg)*dt) + rAdd(ixVegNrg) )
-
- ! --> mass balance
- if(ixVegHyd/=integerMissing)then
-  scalarCanopyHyd = merge(scalarCanopyWat, scalarCanopyLiq, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
-  rVec(ixVegHyd)  = sMul(ixVegHyd)*scalarCanopyHydTrial  - ( (sMul(ixVegHyd)*scalarCanopyHyd  + fVec(ixVegHyd)*dt) + rAdd(ixVegHyd) )
- endif
-
  ! compute the residual vector for the snow and soil sub-domains for energy
  if(nSnowSoilNrg>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
@@ -248,16 +233,6 @@ contains
    ! (compute the residual)
    rVec( ixSnowSoilHyd(iLayer) ) = mLayerVolFracHydTrial(iLayer) - ( (mLayerVolFracHyd(iLayer) + fVec( ixSnowSoilHyd(iLayer) )*dt) + rAdd( ixSnowSoilHyd(iLayer) ) )
   end do  ! looping through non-missing energy state variables in the snow+soil domain
- endif
-
- ! compute the residual vector for the aquifer
- if(ixAqWat/=integerMissing) rVec(ixAqWat) = sMul(ixAqWat)*scalarAquiferStorageTrial - ( (sMul(ixAqWat)*scalarAquiferStorage + fVec(ixAqWat)*dt) + rAdd(ixAqWat) )
-
- ! print result
- if(globalPrintFlag)then
-  write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
-  write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
-  !print*, 'PAUSE:'; read(*,*)
  endif
 
  ! check
