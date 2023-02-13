@@ -271,30 +271,23 @@ subroutine eval8summa(&
 
   ! loop through non-missing hydrology state variables in the snow+soil domain
   do iLayer=1,nLayers
-    
     if (ixSnowSoilHyd(iLayer)/=integerMissing) cycle
-
     ! check the minimum and maximum water constraints
     if(ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_liqLayer)then
-
       ! --> minimum
       if (layerType(iLayer) == iname_soil) then
         xMin = theta_sat(iLayer-nSnow)
       else
         xMin = 0._rkind
       endif
-
       ! --> maximum
       select case( layerType(iLayer) )
         case(iname_snow); xMax = merge(iden_ice,  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
         case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
       end select
-
       ! --> check
       if(stateVecTrial( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVecTrial( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
-
     endif  ! if water states
-
   end do  ! loop through non-missing hydrology state variables in the snow+soil domain
 
   ! early return for non-feasible solutions
