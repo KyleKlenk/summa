@@ -84,7 +84,7 @@ subroutine computJacob(&
   ! -----------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
-  real(rkind),intent(in)               :: dt              ! length of the time step (seconds)
+  real(rkind),intent(in)            :: dt              ! length of the time step (seconds)
   integer(i4b),intent(in)           :: nSnow           ! number of snow layers
   integer(i4b),intent(in)           :: nSoil           ! number of soil layers
   integer(i4b),intent(in)           :: nLayers         ! total number of layers in the snow+soil domain
