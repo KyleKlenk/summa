@@ -97,6 +97,7 @@ USE mDecisions_module,only:  &
 implicit none
 private
 public::eval8summa
+public::eval8summa_kinsol
 
 contains
 
@@ -476,4 +477,69 @@ subroutine eval8summa(&
   end associate
 
 end subroutine eval8summa
+
+
+integer(c_int) function eval8summa_kinsol(sunvec_y, sunvec_f, user_data) &
+                            result(ierr) bind(C,name='eval8summa_kinsol')
+  USE, intrinsic :: iso_c_binding
+  USE fsundials_nvector_mod
+  USE fnvector_serial_mod
+  USE kinsol_user_data_type
+
+  implicit none
+  type(N_Vector)             :: sunvec_y  ! solution N_Vector
+  type(N_Vector)             :: sunvec_f  ! rhs N_Vector
+  type(c_ptr),   value       :: user_data ! user-defined data
+
+  ! local variables
+  real(c_double),pointer     :: stateVec(:)
+  real(c_double),pointer     :: resVec(:)
+  type(kinsol_data), pointer :: kinsol_user_data
+  integer(i4b)               :: err
+  character(len=256)         :: message
+
+  call c_f_pointer(user_data, kinsol_user_data)  ! associate the user data with the data structure
+
+  stateVec(1:kinsol_user_data%nState) => FN_VGetArrayPointer(sunvec_y)
+  resVec(1:kinsol_user_data%nState)   => FN_VGetArrayPointer(sunvec_f)
+
+  call eval8summa(kinsol_user_data%dt,                &
+                  kinsol_user_data%nSnow,             &
+                  kinsol_user_data%nSoil,             &
+                  kinsol_user_data%nLayers,           &
+                  kinsol_user_data%nState,            &
+                  kinsol_user_data%firstSubStep,      &
+                  kinsol_user_data%firstFluxCall,     &
+                  kinsol_user_data%firstSplitOper,    &
+                  kinsol_user_data%computeVegFlux,    &
+                  kinsol_user_data%scalarSolution,    &
+                  stateVec,                           &
+                  kinsol_user_data%fScale,            &
+                  kinsol_user_data%sMul,              &
+                  kinsol_user_data%model_decisions,   &
+                  kinsol_user_data%type_data,         &
+                  kinsol_user_data%attr_data,         &
+                  kinsol_user_data%mpar_data,         &
+                  kinsol_user_data%forc_data,         &
+                  kinsol_user_data%bvar_data,         &
+                  kinsol_user_data%prog_data,         &
+                  kinsol_user_data%indx_data,         &
+                  kinsol_user_data%diag_data,         &
+                  kinsol_user_data%flux_data,         &
+                  kinsol_user_data%deriv_data,        &
+                  kinsol_user_data%ixSaturation,      &
+                  kinsol_user_data%dBaseflow_dMatric, &
+                  kinsol_user_data%feasible,          &
+                  kinsol_user_data%fluxVec,           &
+                  kinsol_user_data%resSink,           &
+                  resVec,                             &
+                  kinsol_user_data%fEval,             &
+                  err, message)
+
+
+
+
+
+end function eval8summa_kinsol
+
 end module eval8summa_module

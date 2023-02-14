@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module systemSolv_module
-
+USE, intrinsic :: iso_c_binding
 ! data types
 USE nrtype
 
@@ -103,13 +103,17 @@ real(rkind),parameter  :: verySmall=1.e-12_rkind        ! a very small number (u
 real(rkind),parameter  :: veryBig=1.e+20_rkind          ! a very big number
 real(rkind),parameter  :: dx = 1.e-8_rkind              ! finite difference increment
 
+! Sundials Parameters
+real(c_double),  parameter :: ftol = 1.d-5
+real(c_double),  parameter :: stol = 1.d-5
+
 contains
 
 
- ! **********************************************************************************************************
- ! public subroutine systemSolv: run the coupled energy-mass model for one timestep
- ! **********************************************************************************************************
- subroutine systemSolv(&
+! **********************************************************************************************************
+! public subroutine systemSolv: run the coupled energy-mass model for one timestep
+! **********************************************************************************************************
+subroutine systemSolv(&
                        ! input: model control
                        dt,                & ! intent(in):    time step (s)
                        nState,            & ! intent(in):    total number of state variables
@@ -139,421 +143,396 @@ contains
                        tooMuchMelt,       & ! intent(out):   flag to denote that there was too much melt
                        niter,             & ! intent(out):   number of iterations taken
                        err,message)         ! intent(out):   error code and error message
- ! ---------------------------------------------------------------------------------------
- ! structure allocations
- USE allocspace_module,only:allocLocal                ! allocate local data structures
- ! simulation of fluxes and residuals given a trial state vector
- USE eval8summa_module,only:eval8summa                ! simulation of fluxes and residuals given a trial state vector
- USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
- USE getVectorz_module,only:getScaling                ! get the scaling vectors
- USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
- implicit none
- ! ---------------------------------------------------------------------------------------
- ! * dummy variables
- ! ---------------------------------------------------------------------------------------
- ! input: model control
- real(rkind),intent(in)             :: dt                            ! time step (seconds)
- integer(i4b),intent(in)         :: nState                        ! total number of state variables
- logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
- logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
- logical(lgt),intent(in)         :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
- logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- logical(lgt),intent(in)         :: scalarSolution                ! flag to denote if implementing the scalar solution
- ! input/output: data structures
- type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
- type(var_d),intent(in)          :: attr_data                     ! spatial attributes
- type(var_d),intent(in)          :: forc_data                     ! model forcing data
- type(var_dlength),intent(in)    :: mpar_data                     ! model parameters
- type(var_ilength),intent(inout) :: indx_data                     ! indices for a local HRU
- type(var_dlength),intent(inout) :: prog_data                     ! prognostic variables for a local HRU
- type(var_dlength),intent(inout) :: diag_data                     ! diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_temp                     ! model fluxes for a local HRU
- type(var_dlength),intent(in)    :: bvar_data                     ! model variables for the local basin
- type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
- real(rkind),intent(in)             :: stateVecInit(:)               ! initial state vector (mixed units)
- ! output: model control
- type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
- integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(rkind),intent(out)            :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
- real(rkind),intent(out)            :: stateVecTrial(:)              ! trial state vector (mixed units)
- logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
- logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
- integer(i4b),intent(out)        :: niter                         ! number of iterations taken
- integer(i4b),intent(out)        :: err                           ! error code
- character(*),intent(out)        :: message                       ! error message
- ! *********************************************************************************************************************************************************
- ! *********************************************************************************************************************************************************
- ! ---------------------------------------------------------------------------------------
- ! * general local variables
- ! ---------------------------------------------------------------------------------------
- character(LEN=256)              :: cmessage                      ! error message of downwind routine
- integer(i4b)                    :: iter                          ! iteration index
- integer(i4b)                    :: iVar                          ! index of variable
- integer(i4b)                    :: iLayer                        ! index of layer in the snow+soil domain
- integer(i4b)                    :: iState                        ! index of model state
- integer(i4b)                    :: nLeadDim                      ! length of the leading dimension of the Jacobian matrix (nBands or nState)
- integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
- real(rkind)                        :: bulkDensity                   ! bulk density of a given layer (kg m-3)
- real(rkind)                        :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
- real(rkind),parameter              :: tempAccelerate=0.00_rkind        ! factor to force initial canopy temperatures to be close to air temperature
- real(rkind),parameter              :: xMinCanopyWater=0.0001_rkind     ! minimum value to initialize canopy water (kg m-2)
- real(rkind),parameter              :: tinyStep=0.000001_rkind          ! stupidly small time step (s)
- ! ------------------------------------------------------------------------------------------------------
- ! * model solver
- ! ------------------------------------------------------------------------------------------------------
- logical(lgt),parameter          :: forceFullMatrix=.true.       ! flag to force the use of the full Jacobian matrix
- integer(i4b)                    :: maxiter                       ! maximum number of iterations
- integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
- integer(i4b)                    :: localMaxIter                  ! maximum number of iterations (depends on solution type)
- integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution
- type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
- real(rkind),allocatable            :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
- real(rkind)                        :: stateVecNew(nState)           ! new state vector (mixed units)
- real(rkind)                        :: fluxVec0(nState)              ! flux vector (mixed units)
- real(rkind)                        :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
- real(rkind)                        :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
- real(rkind)                        :: dMat(nState)                  ! diagonal matrix (excludes flux derivatives)
- real(rkind)                        :: sMul(nState)    ! NOTE: qp    ! multiplier for state vector for the residual calculations
- real(rkind)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
- real(rkind)                        :: rAdd(nState)                  ! additional terms in the residual vector
- real(rkind)                        :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled
- real(rkind)                        :: xMin,xMax                     ! state minimum and maximum (mixed units)
- logical(lgt)                    :: converged                     ! convergence flag
- logical(lgt)                    :: feasible                      ! feasibility flag
- real(rkind)                        :: resSinkNew(nState)            ! additional terms in the residual vector
- real(rkind)                        :: fluxVecNew(nState)            ! new flux vector
- real(rkind)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector
- ! ---------------------------------------------------------------------------------------
- ! point to variables in the data structures
- ! ---------------------------------------------------------------------------------------
- globalVars: associate(&
- ! model decisions
- ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b]    groundwater parameterization
- ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b]    spatial representation of groundwater (local-column or single-basin)
- ! check the need to merge snow layers
- mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in):    [dp(:)]  temperature of each snow/soil layer (K)
- mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of liquid water (-)
- mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of ice (-)
- mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
- snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
- ! accelerate solution for temperature
- airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in):    [dp]     temperature of the upper boundary of the snow and soil domains (K)
- ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
- ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
- ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
- ! vector of energy and hydrology indices for the snow and soil domains
- ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
- ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
- ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
- nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
- nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
- nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the soil domain
- ! mapping from full domain to the sub-domain
- ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b]    mapping of full state vector to the state subset
- ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):    [i4b]    index of control volume for different domains (veg, snow, soil)
- ! type of state and domain for a given variable
- ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):    [i4b(:)] [state subset] type of desired model state variables
- ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):    [i4b(:)] [state subset] domain for desired model state variables
- ! layer geometry
- nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
- nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
- nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)                & ! intent(in):    [i4b]    total number of layers
- )
- ! ---------------------------------------------------------------------------------------
- ! initialize error control
- err=0; message="systemSolv/"
+  ! ---------------------------------------------------------------------------------------
+  ! structure allocations
+  USE allocspace_module,only:allocLocal                ! allocate local data structures
+  ! simulation of fluxes and residuals given a trial state vector
+  USE eval8summa_module,only:eval8summa                ! simulation of fluxes and residuals given a trial state vector
+  USE eval8summa_module,only:eval8summa_kinsol
+  USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
+  USE getVectorz_module,only:getScaling                ! get the scaling vectors
+  USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
+  USE computJacob_module,only:computJacob_kinsol
+  
+  ! Sundials modules
+  USE fsundials_context_mod                            ! Fortran interface to SUNContext
+  USE fkinsol_mod                                      ! Fortran interface to KINSOL
+  USE fnvector_serial_mod                              ! Fortran interface to N_Vector
+  USE fsundials_nvector_mod                            ! Fortran interface to SUNDIALS N_Vector
+  USE fsunmatrix_dense_mod                             ! Fortran interface to SUNMatrix
+  USE fsundials_matrix_mod                             ! Fortran interface to SUNDIALS Matrix
+  USE fsunlinsol_dense_mod                             ! Fortran interface to dense SUNLinearSolver
+  USE fsundials_linearsolver_mod                       ! Fortran interface to generic SUNLinearSolver
+  
+  USE kinsol_user_data_type                            ! user data type for KINSOL
+ USE var_lookup,only:maxvarDecisions ! maximum number of decisions
+  
+  implicit none
+  ! ---------------------------------------------------------------------------------------
+  ! * dummy variables
+  ! ---------------------------------------------------------------------------------------
+  ! input: model control
+  real(rkind),intent(in)          :: dt                            ! time step (seconds)
+  integer(i4b),intent(in)         :: nState                        ! total number of state variables
+  logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
+  logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
+  logical(lgt),intent(in)         :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
+  logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+  logical(lgt),intent(in)         :: scalarSolution                ! flag to denote if implementing the scalar solution
+  ! input/output: data structures
+  type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
+  type(var_d),intent(in)          :: attr_data                     ! spatial attributes
+  type(var_d),intent(in)          :: forc_data                     ! model forcing data
+  type(var_dlength),intent(in)    :: mpar_data                     ! model parameters
+  type(var_ilength),intent(inout) :: indx_data                     ! indices for a local HRU
+  type(var_dlength),intent(inout) :: prog_data                     ! prognostic variables for a local HRU
+  type(var_dlength),intent(inout) :: diag_data                     ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout) :: flux_temp                     ! model fluxes for a local HRU
+  type(var_dlength),intent(in)    :: bvar_data                     ! model variables for the local basin
+  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
+  real(rkind),intent(in)          :: stateVecInit(:)               ! initial state vector (mixed units)
+  ! output: model control
+  type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
+  integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+  real(rkind),intent(out)         :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
+  real(rkind),intent(out)         :: stateVecTrial(:)              ! trial state vector (mixed units)
+  logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
+  logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
+  integer(i4b),intent(out)        :: niter                         ! number of iterations taken
+  integer(i4b),intent(out)        :: err                           ! error code
+  character(*),intent(out)        :: message                       ! error message
+  ! *********************************************************************************************************************************************************
+  ! *********************************************************************************************************************************************************
+  ! ---------------------------------------------------------------------------------------
+  ! * general local variables
+  ! ---------------------------------------------------------------------------------------
+  character(LEN=256)              :: cmessage                      ! error message of downwind routine
+  integer(i4b)                    :: iter                          ! iteration index
+  integer(i4b)                    :: iVar                          ! index of variable
+  integer(i4b)                    :: iLayer                        ! index of layer in the snow+soil domain
+  integer(i4b)                    :: iState                        ! index of model state
+  integer(i4b)                    :: nLeadDim                      ! length of the leading dimension of the Jacobian matrix (nBands or nState)
+  integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
+  real(rkind)                     :: bulkDensity                   ! bulk density of a given layer (kg m-3)
+  real(rkind)                     :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
+  real(rkind),parameter           :: tempAccelerate=0.00_rkind        ! factor to force initial canopy temperatures to be close to air temperature
+  real(rkind),parameter           :: xMinCanopyWater=0.0001_rkind     ! minimum value to initialize canopy water (kg m-2)
+  real(rkind),parameter           :: tinyStep=0.000001_rkind          ! stupidly small time step (s)
+  ! ------------------------------------------------------------------------------------------------------
+  ! * model solver
+  ! ------------------------------------------------------------------------------------------------------
+  logical(lgt),parameter          :: forceFullMatrix=.true.       ! flag to force the use of the full Jacobian matrix
+  integer(i4b)                    :: maxiter                       ! maximum number of iterations
+  integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
+  integer(i4b)                    :: localMaxIter                  ! maximum number of iterations (depends on solution type)
+  integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution
+  type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
+  real(rkind),allocatable         :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
+  real(rkind)                     :: stateVecNew(nState)           ! new state vector (mixed units)
+  real(rkind)                     :: fluxVec0(nState)              ! flux vector (mixed units)
+  real(rkind)                     :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
+  real(rkind)                     :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
+  real(rkind)                     :: dMat(nState)                  ! diagonal matrix (excludes flux derivatives)
+  real(rkind)                     :: sMul(nState)    ! NOTE: qp    ! multiplier for state vector for the residual calculations
+  real(rkind)                     :: rVec(nState)    ! NOTE: qp    ! residual vector
+  real(rkind)                     :: rAdd(nState)                  ! additional terms in the residual vector
+  real(rkind)                     :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled
+  real(rkind)                     :: xMin,xMax                     ! state minimum and maximum (mixed units)
+  logical(lgt)                    :: converged                     ! convergence flag
+  logical(lgt)                    :: feasible                      ! feasibility flag
+  real(rkind)                     :: resSinkNew(nState)            ! additional terms in the residual vector
+  real(rkind)                     :: fluxVecNew(nState)            ! new flux vector
+  real(rkind)                     :: resVecNew(nState)  ! NOTE: qp ! new residual vector
 
- ! *****
- ! (0) PRELIMINARIES...
- ! ********************
+  ! ---------------------------------------------------------------------------------------
+  ! * sundials solver variables
+  ! ---------------------------------------------------------------------------------------
+  type(c_ptr)                     :: sunctx               ! SUNDIALS simulation context
+  type(c_ptr)                     :: package_mem          ! SUNDIALS memory pointer 
+  type(N_Vector),pointer          :: sunvec_y             ! SUNDIALS state vector
+  type(N_Vector),pointer          :: sunvec_fscale        ! vector containing diagonal elements of scaling matrix
+  type(N_Vector),pointer          :: sunvec_xscale        ! vector containing diagonal elements of scaling matrix
+  type(SUNMatrix),pointer         :: sunmat_A             ! SUNDIALS Jacobian matrix
+  type(SUNLinearSolver),pointer   :: sunlinsol_LS         ! sundials linear solver
+  integer(i4b)                    :: retval, retvalr      ! return value
+  integer(c_long)                 :: clong_nState         ! number of state variables but as a c_long  
 
- ! -----
- ! * initialize...
- ! ---------------
+  type(kinsol_data),target        :: kinsol_user_data     ! user data for the KINSOL solver
+  real(c_double)                  :: fnormtol, scsteptol
+  integer(c_long)                 :: mset
+  ! ---------------------------------------------------------------------------------------
+  ! point to variables in the data structures
+  ! ---------------------------------------------------------------------------------------
+  globalVars: associate(&
+  ! model decisions
+  ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b]    groundwater parameterization
+  ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b]    spatial representation of groundwater (local-column or single-basin)
+  ! check the need to merge snow layers
+  mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in):    [dp(:)]  temperature of each snow/soil layer (K)
+  mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of liquid water (-)
+  mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of ice (-)
+  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+  snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
+  ! accelerate solution for temperature
+  airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in):    [dp]     temperature of the upper boundary of the snow and soil domains (K)
+  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
+  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
+  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
+  ! vector of energy and hydrology indices for the snow and soil domains
+  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
+  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
+  ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
+  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
+  nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
+  nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the soil domain
+  ! mapping from full domain to the sub-domain
+  ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b]    mapping of full state vector to the state subset
+  ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):    [i4b]    index of control volume for different domains (veg, snow, soil)
+  ! type of state and domain for a given variable
+  ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):    [i4b(:)] [state subset] type of desired model state variables
+  ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):    [i4b(:)] [state subset] domain for desired model state variables
+  ! layer geometry
+  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
+  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
+  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)                & ! intent(in):    [i4b]    total number of layers
+  )
+  ! ---------------------------------------------------------------------------------------
+  ! initialize error control
+  err=0; message="systemSolv/"
 
- ! check
- if(dt < tinyStep)then
-  message=trim(message)//'dt is tiny'
-  err=20; return
- endif
+  ! *****
+  ! (0) PRELIMINARIES...
+  ! ********************
 
- ! initialize the flags
- tooMuchMelt        = .false.   ! too much melt
- reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step
+  ! -----
+  ! * initialize...
+  ! ---------------
 
- ! define maximum number of iterations
- maxiter = nint(mpar_data%var(iLookPARAM%maxiter)%dat(1))
-
- ! modify the groundwater representation for this single-column implementation
- select case(ixSpatialGroundwater)
-  case(singleBasin); local_ixGroundwater = noExplicit    ! force no explicit representation of groundwater at the local scale
-  case(localColumn); local_ixGroundwater = ixGroundwater ! go with the specified decision
-  case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
- end select ! (modify the groundwater representation for this single-column implementation)
-
- ! allocate space for the model fluxes at the start of the time step
- call allocLocal(flux_meta(:),flux_init,nSnow,nSoil,err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
- ! allocate space for the baseflow derivatives
- ! NOTE: needs allocation because only used when baseflow sinks are active
- if(ixGroundwater==qbaseTopmodel)then
-  allocate(dBaseflow_dMatric(nSoil,nSoil),stat=err)  ! baseflow depends on total storage in the soil column, hence on matric head in every soil layer
- else
-  allocate(dBaseflow_dMatric(0,0),stat=err)          ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
- end if
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; end if
-
- ! identify the matrix solution method
- ! (the type of matrix used to solve the linear system A.X=B)
- if(local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix)then
-  nLeadDim=nState         ! length of the leading dimension
-  ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
- else
-  nLeadDim=nBands         ! length of the leading dimension
-  ixMatrix=ixBandMatrix   ! named variable to denote the band-diagonal matrix
- endif
- ! initialize the model fluxes (some model fluxes are not computed in the iterations)
- do iVar=1,size(flux_temp%var)
-  flux_init%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
- end do
-
- ! **************************************************************************************************************************
- ! **************************************************************************************************************************
- ! **************************************************************************************************************************
- ! *** NUMERICAL SOLUTION FOR A GIVEN SUBSTEP AND SPLIT *********************************************************************
- ! **************************************************************************************************************************
- ! **************************************************************************************************************************
- ! **************************************************************************************************************************
-
- ! -----
- ! * get scaling vectors...
- ! ------------------------
-
- ! initialize state vectors
- call getScaling(&
-                 ! input
-                 diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
-                 indx_data,                        & ! intent(in):    indices defining model states and layers
-                 ! output
-                 fScale,                           & ! intent(out):   function scaling vector (mixed units)
-                 xScale,                           & ! intent(out):   variable scaling vector (mixed units)
-                 sMul,                             & ! intent(out):   multiplier for state vector (used in the residual calculations)
-                 dMat,                             & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes)
-                 err,cmessage)                       ! intent(out):   error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
- ! -----
- ! * compute the initial function evaluation...
- ! --------------------------------------------
-
- ! initialize the trial state vectors
- stateVecTrial = stateVecInit
-
- ! need to intialize canopy water at a positive value
- if(ixVegHyd/=integerMissing)then
-  if(stateVecTrial(ixVegHyd) < xMinCanopyWater) stateVecTrial(ixVegHyd) = stateVecTrial(ixVegHyd) + xMinCanopyWater
- endif
-
- ! try to accelerate solution for energy
- if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
- if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
-
- ! compute the flux and the residual vector for a given state vector
- ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
- ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
- call eval8summa(&
-                 ! input: model control
-                 dt,                      & ! intent(in):    length of the time step (seconds)
-                 nSnow,                   & ! intent(in):    number of snow layers
-                 nSoil,                   & ! intent(in):    number of soil layers
-                 nLayers,                 & ! intent(in):    number of layers
-                 nState,                  & ! intent(in):    number of state variables in the current subset
-                 firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                 firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                 firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
-                 computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                 scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                 ! input: state vectors
-                 stateVecTrial,           & ! intent(in):    model state vector
-                 fScale,                  & ! intent(in):    function scaling vector
-                 sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
-                 ! input: data structures
-                 model_decisions,         & ! intent(in):    model decisions
-                 type_data,               & ! intent(in):    type of vegetation and soil
-                 attr_data,               & ! intent(in):    spatial attributes
-                 mpar_data,               & ! intent(in):    model parameters
-                 forc_data,               & ! intent(in):    model forcing data
-                 bvar_data,               & ! intent(in):    average model variables for the entire basin
-                 prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                 indx_data,               & ! intent(in):    index data
-                 ! input-output: data structures
-                 diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                 flux_init,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
-                 deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                 ! input-output: baseflow
-                 ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                 dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-                 ! output
-                 feasible,                & ! intent(out):   flag to denote the feasibility of the solution
-                 fluxVec0,                & ! intent(out):   flux vector
-                 rAdd,                    & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                 rVec,                    & ! intent(out):   residual vector
-                 fOld,                    & ! intent(out):   function evaluation
-                 err,cmessage)              ! intent(out):   error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
- if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
-
- ! copy over the initial flux structure since some model fluxes are not computed in the iterations
- do concurrent ( iVar=1:size(flux_meta) )
-  flux_temp%var(iVar)%dat(:) = flux_init%var(iVar)%dat(:)
- end do
-
- ! check the need to merge snow layers
- if(nSnow>0)then
-  ! compute the energy required to melt the top snow layer (J m-2)
-  bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
-  volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
-  ! set flag and error codes for too much melt
-  if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt)then
-   tooMuchMelt=.true.
-   message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
-   err=-20; return ! negative error code to denote a warning
+  ! check
+  if(dt < tinyStep)then
+    message=trim(message)//'dt is tiny'
+    err=20; return
   endif
- endif
 
- ! ==========================================================================================================================================
- ! ==========================================================================================================================================
- ! ==========================================================================================================================================
- ! ==========================================================================================================================================
+  ! initialize the flags
+  tooMuchMelt        = .false.   ! too much melt
+  reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step
 
- ! **************************
- ! *** MAIN ITERATION LOOP...
- ! **************************
+  ! define maximum number of iterations
+  maxiter = nint(mpar_data%var(iLookPARAM%maxiter)%dat(1))
 
- ! correct the number of iterations
- localMaxIter = merge(scalarMaxIter, maxIter, scalarSolution)
+  ! modify the groundwater representation for this single-column implementation
+  select case(ixSpatialGroundwater)
+    case(singleBasin); local_ixGroundwater = noExplicit    ! force no explicit representation of groundwater at the local scale
+    case(localColumn); local_ixGroundwater = ixGroundwater ! go with the specified decision
+    case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
+  end select ! (modify the groundwater representation for this single-column implementation)
 
- ! iterate
- do iter=1,localMaxIter
+  ! allocate space for the model fluxes at the start of the time step
+  call allocLocal(flux_meta(:),flux_init,nSnow,nSoil,err,cmessage)
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-  ! print iteration count
-  !print*, '*** iter, maxiter, dt = ', iter, localMaxiter, dt
-  !print*, trim(message)//'before summaSolve'
+  ! allocate space for the baseflow derivatives
+  ! NOTE: needs allocation because only used when baseflow sinks are active
+  if(ixGroundwater==qbaseTopmodel)then
+    allocate(dBaseflow_dMatric(nSoil,nSoil),stat=err)  ! baseflow depends on total storage in the soil column, hence on matric head in every soil layer
+    if(err/=0) print*, 'unable to allocate space for the baseflow derivatives non kinsol'
+    allocate(kinsol_user_data%dBaseflow_dMatric(nSoil,nSoil),stat=err)
+    if(err/=0) print*, 'unable to allocate space for the baseflow derivatives kinsol'
+  else
+    allocate(dBaseflow_dMatric(0,0),stat=err)          ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
+    if(err/=0) print*, 'unable to allocate space for the baseflow derivatives non kinsol'
+    allocate(kinsol_user_data%dBaseflow_dMatric(0,0),stat=err)
+    if(err/=0) print*, 'unable to allocate space for the baseflow derivatives non kinsol'
+  end if
+  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; end if
 
-  ! keep track of the number of iterations
-  niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
+  ! identify the matrix solution method
+  ! (the type of matrix used to solve the linear system A.X=B)
+  if(local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix)then
+    nLeadDim=nState         ! length of the leading dimension
+    ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
+  else
+    nLeadDim=nBands         ! length of the leading dimension
+    ixMatrix=ixBandMatrix   ! named variable to denote the band-diagonal matrix
+  endif
+  ! initialize the model fluxes (some model fluxes are not computed in the iterations)
+  do iVar=1,size(flux_temp%var)
+    flux_init%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
+  end do
 
-  ! compute the next trial state vector
-  !  1) Computes the Jacobian matrix based on derivatives from the last flux evaluation
-  !  2) Computes the iteration increment based on Jacobian and residuals from the last flux evaluation
-  !  3) Computes new fluxes and derivatives, new residuals, and (if necessary) refines the state vector
-  call summaSolve(&
-                  ! input: model control
-                  dt,                            & ! intent(in):    length of the time step (seconds)
-                  iter,                          & ! intent(in):    iteration index
-                  nSnow,                         & ! intent(in):    number of snow layers
-                  nSoil,                         & ! intent(in):    number of soil layers
-                  nLayers,                       & ! intent(in):    total number of layers
-                  nLeadDim,                      & ! intent(in):    length of the leading dimension of the Jacobian matrix (either nBands or nState)
-                  nState,                        & ! intent(in):    total number of state variables
-                  ixMatrix,                      & ! intent(in):    type of matrix (full or band diagonal)
-                  firstSubStep,                  & ! intent(in):    flag to indicate if we are processing the first sub-step
-                  firstFluxCall,                 & ! intent(inout): flag to indicate if we are processing the first flux call
-                  computeVegFlux,                & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                  scalarSolution,                & ! intent(in):    flag to indicate the scalar solution
-                  ! input: state vectors
-                  stateVecTrial,                 & ! intent(in):    trial state vector
-                  xMin,xMax,                     & ! intent(inout): state maximum and minimum
-                  fScale,                        & ! intent(in):    function scaling vector
-                  xScale,                        & ! intent(in):    "variable" scaling vector, i.e., for state variables
-                  rVec,                          & ! intent(in):    residual vector
-                  sMul,                          & ! intent(in):    state vector multiplier (used in the residual calculations)
-                  dMat,                          & ! intent(inout): diagonal matrix (excludes flux derivatives)
-                  fOld,                          & ! intent(in):    old function evaluation
-                  ! input: data structures
-                  model_decisions,               & ! intent(in):    model decisions
-                  type_data,                     & ! intent(in):    type of vegetation and soil
-                  attr_data,                     & ! intent(in):    spatial attributes
-                  mpar_data,                     & ! intent(in):    model parameters
-                  forc_data,                     & ! intent(in):    model forcing data
-                  bvar_data,                     & ! intent(in):    average model variables for the entire basin
-                  prog_data,                     & ! intent(in):    model prognostic variables for a local HRU
-                  indx_data,                     & ! intent(in):    index data
-                  ! input-output: data structures
-                  diag_data,                     & ! intent(inout): model diagnostic variables for a local HRU
-                  flux_temp,                     & ! intent(inout): model fluxes for a local HRU (temporary structure)
-                  deriv_data,                    & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                  ! input-output: baseflow
-                  ixSaturation,                  & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                  dBaseflow_dMatric,             & ! intent(inout): derivative in baseflow w.r.t. matric head (s-1)
+    ! * get scaling vectors...
+  ! ------------------------
+
+  ! initialize state vectors
+  call getScaling(&
+                  ! input
+                  diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
+                  indx_data,                        & ! intent(in):    indices defining model states and layers
                   ! output
-                  stateVecNew,                   & ! intent(out):   new state vector
-                  fluxVecNew,                    & ! intent(out):   new flux vector
-                  resSinkNew,                    & ! intent(out):   additional (sink) terms on the RHS of the state equa
-                  resVecNew,                     & ! intent(out):   new residual vector
-                  fNew,                          & ! intent(out):   new function evaluation
-                  converged,                     & ! intent(out):   convergence flag
-                  err,cmessage)                    ! intent(out):   error control
+                  fScale,                           & ! intent(out):   function scaling vector (mixed units)
+                  xScale,                           & ! intent(out):   variable scaling vector (mixed units)
+                  sMul,                             & ! intent(out):   multiplier for state vector (used in the residual calculations)
+                  dMat,                             & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes)
+                  err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-  !print*, err,trim(cmessage)
+  ! ***************************
+  ! Set up the user data for kinsol
+  ! ***************************
+  kinsol_user_data%dt = dt
+  kinsol_user_data%nSnow = nSnow 
+  kinsol_user_data%nSoil = nSoil 
+  kinsol_user_data%nLayers = nLayers 
+  kinsol_user_data%computeVegFlux =  computeVegFlux
+  kinsol_user_data%computeBaseflow = (ixGroundwater==qbaseTopmodel) 
+  kinsol_user_data%ixMatrix = ixMatrix
+  kinsol_user_data%nState = nState
+  kinsol_user_data%scalarSolution = scalarSolution
+  kinsol_user_data%firstSubStep = firstSubStep
+  kinsol_user_data%firstFluxCall = firstFluxCall
+  kinsol_user_data%firstSplitOper = firstSplitOper
+  kinsol_user_data%ixSaturation = ixSaturation
+  kinsol_user_data%feasible = feasible
 
-  ! update function evaluation, residual vector, and states
-  ! NOTE 1: The derivatives computed in summaSolve are used to calculate the Jacobian matrix at the next iteration
-  ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the new iteration increment
+  kinsol_user_data%type_data = type_data
+  kinsol_user_data%attr_data = attr_data
+  kinsol_user_data%mpar_data = mpar_data
+  kinsol_user_data%forc_data = forc_data
+  kinsol_user_data%bvar_data = bvar_data
+  kinsol_user_data%flux_data = flux_temp
 
-  ! save functions and residuals
-  fOld          = fNew
-  rVec          = resVecNew
-  stateVecTrial = stateVecNew
+  kinsol_user_data%indx_data = indx_data 
+  kinsol_user_data%prog_data = prog_data
+  kinsol_user_data%diag_data = diag_data
+  kinsol_user_data%deriv_data = deriv_data
 
-  ! print progress
-  !write(*,'(a,10(f16.14,1x))') 'rVec                  = ', rVec           ( min(nState,iJac1) : min(nState,iJac2) )
-  !write(*,'(a,10(f16.10,1x))') 'fluxVecNew            = ', fluxVecNew     ( min(nState,iJac1) : min(nState,iJac2) )*dt
-  !write(*,'(a,10(f16.10,1x))') 'stateVecTrial         = ', stateVecTrial  ( min(nState,iJac1) : min(nState,iJac2) )
-  !print*, 'PAUSE: check states and fluxes'; read(*,*)
+  kinsol_user_data%dBaseflow_dMatric = dBaseflow_dMatric
+  allocate(kinsol_user_data%dMat(nState), stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the kinsol user data'; return; end if
+  kinsol_user_data%dMat = dMat
+  
+  allocate(kinsol_user_data%sMul(nState), stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the kinsol user data'; return; end if
+  kinsol_user_data%sMul = sMul
 
-  ! exit iteration loop if converged
-  if(converged) exit
+  allocate(kinsol_user_data%fScale(nState), stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the kinsol user data'; return; end if
+  kinsol_user_data%fScale = fScale
 
-  ! check convergence
-  if(iter==localMaxiter)then
-   message=trim(message)//'failed to converge'
-   err=-20; return
+  allocate(kinsol_user_data%fluxVec(nState), stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the kinsol user data'; return; end if
+  kinsol_user_data%fluxVec = fluxVec0
+
+  allocate(kinsol_user_data%resSink(nState), stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the kinsol user data'; return; end if
+  kinsol_user_data%resSink = resSinkNew
+
+  allocate(kinsol_user_data%model_decisions(maxvarDecisions), stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the kinsol user data'; return; end if
+  kinsol_user_data%model_decisions = model_decisions
+  
+  ! -----
+  ! * compute the initial function evaluation...
+  ! --------------------------------------------
+
+  ! initialize the trial state vectors
+  stateVecTrial = stateVecInit
+
+  ! ***************************
+  ! SUNDIALS Context Creation
+  ! ***************************
+  retval = FSUNContext_Create(c_null_ptr, sunctx)
+  if(retval /= 0)then;err=20; message=trim(message)//'unable to create the SUNDIALS context'; return; endif
+
+  ! ******************************
+  ! Set up problem dimensions
+  ! ******************************
+  package_mem = FKinCreate(sunctx)
+
+  ! Set the inital guess
+  clong_nState = nState
+  sunvec_y => FN_VMake_Serial(clong_nState, stateVecTrial, sunctx)
+  if (.not. associated(sunvec_y)) then; err=20; message='systemSolv: sunvec = NULL'; return; endif
+
+  sunvec_fscale => FN_VMake_Serial(clong_nState, fScale, sunctx)
+  if (.not. associated(sunvec_fscale)) then; err=20; message='systemSolv: sunvec = NULL'; return; endif
+
+  sunvec_xscale => FN_VMake_Serial(clong_nState, xScale, sunctx)
+  if (.not. associated(sunvec_xscale)) then; err=20; message='systemSolv: sunvec = NULL'; return; endif
+
+  ! Set the user data for sundials
+  retval = FKINSetUserData(package_mem, c_loc(kinsol_user_data))
+
+  retval = FKinInit(package_mem, c_funloc(eval8summa_kinsol), sunvec_y)
+
+
+  ! -------------------------
+  ! Set optional inputs
+  fnormtol = ftol
+  retval = FKINSetFuncNormTol(package_mem, fnormtol)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the function norm tolerance'; return; endif
+
+  scsteptol = stol
+  retval = FKINSetScaledStepTol(package_mem, scsteptol)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the scaled step tolerance'; return; endif
+
+
+  ! Create the Matrix Object
+  ! Ax = b => A is the matrix, x is the state vector, b is the residual vector
+  ! sunmat_A is the matrix
+  sunmat_A => FSUNDenseMatrix(clong_nState, clong_nState, sunctx)
+  if (.not. associated(sunmat_A)) then; err=20; message='systemSolv: sunmat = NULL'; return; endif
+
+  ! Create the Linear Solver Object
+  sunlinsol_LS => FSUNLinSol_Dense(sunvec_y, sunmat_A, sunctx)
+  if (.not. associated(sunlinsol_LS)) then; err=20; message='systemSolv: sunlinsol = NULL'; return; endif
+
+  ! Attach the matrix and linear solver to KINSOL
+  retval = FKINSetLinearSolver(package_mem, sunlinsol_LS, sunmat_A)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the linear solver'; return; endif
+
+  ! Set up the Jacobian function
+  retval = FKinSetJacFn(package_mem, c_funloc(computJacob_kinsol))
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the Jacobian function'; return; endif
+  
+  ! Indicate exact Newton
+  mset = 1
+  retval = FKINSetMaxSetupCalls(package_mem, mset)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the maximum number of setup calls'; return; endif
+  
+  ! Call KINSol to solve problem
+  retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to solve the system of equations'; return; endif
+
+
+  ! -----
+  ! * update states...
+  ! ------------------
+
+  ! set untapped melt energy to zero
+  untappedMelt(:) = 0._rkind
+
+  ! update temperatures (ensure new temperature is consistent with the fluxes)
+  if(nSnowSoilNrg>0)then
+    do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
+      iState = ixSnowSoilNrg(iLayer)
+      stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))/real(sMul(iState), rkind)
+    end do  ! looping through non-missing energy state variables in the snow+soil domain
   endif
-  !print*, 'PAUSE: iterating'; read(*,*)
 
- end do  ! iterating
- !print*, 'PAUSE: after iterations'; read(*,*)
+  ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
+  ! NOTE: for soil water balance is constrained within the iteration loop
+  if(nSnowSoilHyd>0)then
+    do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
+      iState = ixSnowSoilHyd(iLayer)
+      stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))
+    end do  ! looping through non-missing water state variables in the soil domain
+  endif
 
- ! -----
- ! * update states...
- ! ------------------
+  ! end associate statements
+  end associate globalVars
 
- ! set untapped melt energy to zero
- untappedMelt(:) = 0._rkind
-
- ! update temperatures (ensure new temperature is consistent with the fluxes)
- if(nSnowSoilNrg>0)then
-  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-   iState = ixSnowSoilNrg(iLayer)
-   stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))/real(sMul(iState), rkind)
-  end do  ! looping through non-missing energy state variables in the snow+soil domain
- endif
-
- ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
- ! NOTE: for soil water balance is constrained within the iteration loop
- if(nSnowSoilHyd>0)then
-  do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
-   iState = ixSnowSoilHyd(iLayer)
-   stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))
-  end do  ! looping through non-missing water state variables in the soil domain
- endif
-
- ! end associate statements
- end associate globalVars
-
- end subroutine systemSolv
+end subroutine systemSolv
 
 end module systemSolv_module

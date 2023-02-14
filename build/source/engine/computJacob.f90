@@ -19,6 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module computJacob_module
+USE, intrinsic :: iso_c_binding
 
 ! data types
 USE nrtype
@@ -56,6 +57,7 @@ real(rkind),parameter     :: verySmall=tiny(1.0_rkind)     ! a very small number
 
 private
 public::computJacob
+public::computJacob_kinsol
 contains
 
  ! **********************************************************************************************************
@@ -320,5 +322,60 @@ subroutine computJacob(&
   end associate
 
 end subroutine computJacob
+
+
+integer(c_int) function computJacob_kinsol(sunvec_y, sunvec_f, sunmat_J, &
+                            user_data, sunvec_t1, sunvec_t2 &
+                            ) result(ierr) bind(C, name='computJacob_kinsol')
+  !======= Inclusions ===========
+  USE fsundials_nvector_mod
+  USE fsundials_matrix_mod
+  USE fnvector_serial_mod
+  USE fsunmatrix_dense_mod          
+  
+  USE kinsol_user_data_type
+
+  implicit none
+
+  ! calling variables
+  type(N_Vector)                :: sunvec_y  ! solution N_Vector
+  type(N_Vector)                :: sunvec_f  ! rhs N_Vector
+  type(SUNMatrix)               :: sunmat_J  ! Jacobian SUNMatrix
+  type(c_ptr),value             :: user_data ! user-defined data
+  type(N_Vector)                :: sunvec_t1 ! temporary N_Vectors
+  type(N_Vector)                :: sunvec_t2
+
+  ! pointers to data in SUNDIALS vectors
+  real(c_double), pointer       :: stateVec(:)    ! state vector
+  real(c_double), pointer       :: Jac(:,:)       ! Jacobian matrix
+  integer(i4b)                  :: err             ! error code
+  character(len=256)            :: message         ! error message
+
+
+  type(kinsol_data), pointer :: kinsol_user_data     ! pointer to user data
+
+  call c_f_pointer(user_data,kinsol_user_data)
+
+  stateVec => FN_VGetArrayPointer(sunvec_y)
+  Jac(1:kinsol_user_data%nState, 1:kinsol_user_data%nstate) => FSUNDenseMatrix_Data(sunmat_J)
+
+
+  call computJacob(kinsol_user_data%dt,                &
+                   kinsol_user_data%nSnow,             &
+                   kinsol_user_data%nSoil,             &
+                   kinsol_user_data%nLayers,           &
+                   kinsol_user_data%computeVegFlux,    &
+                   kinsol_user_data%computeBaseflow,   &
+                   kinsol_user_data%ixMatrix,          &
+                   kinsol_user_data%indx_data,         &
+                   kinsol_user_data%prog_data,         &
+                   kinsol_user_data%diag_data,         &
+                   kinsol_user_data%deriv_data,        &
+                   kinsol_user_data%dBaseflow_dMatric, &
+                   kinsol_user_data%dMat,              &
+                   Jac(:,:),                           &
+                   err, message)
+            
+end function computJacob_kinsol
 
 end module computJacob_module
