@@ -533,6 +533,16 @@ subroutine systemSolv(&
   ! end associate statements
   end associate globalVars
 
+  call FKINFree(package_mem)
+  retval = FSUNLinSolFree(sunlinsol_LS)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; return; endif
+  call FSUNMatDestroy(sunmat_A)
+  call FN_VDestroy(sunvec_y)
+  call FN_VDestroy(sunvec_xscale)
+  call FN_VDestroy(sunvec_fscale)
+  retval = FSUNContext_Free(sunctx)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; return; endif
+
 end subroutine systemSolv
 
 end module systemSolv_module
