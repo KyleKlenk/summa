@@ -495,14 +495,14 @@ integer(c_int) function eval8summa_kinsol(sunvec_y, sunvec_f, user_data) &
   real(c_double),pointer     :: stateVec(:)
   real(c_double),pointer     :: resVec(:)
   type(kinsol_data), pointer :: kinsol_user_data
-  integer(i4b)               :: err
   character(len=256)         :: message
+
+  ierr = 0
 
   call c_f_pointer(user_data, kinsol_user_data)  ! associate the user data with the data structure
 
   stateVec(1:kinsol_user_data%nState) => FN_VGetArrayPointer(sunvec_y)
   resVec(1:kinsol_user_data%nState)   => FN_VGetArrayPointer(sunvec_f)
-
   call eval8summa(kinsol_user_data%dt,                &
                   kinsol_user_data%nSnow,             &
                   kinsol_user_data%nSoil,             &
@@ -534,7 +534,8 @@ integer(c_int) function eval8summa_kinsol(sunvec_y, sunvec_f, user_data) &
                   kinsol_user_data%resSink,           &
                   resVec,                             &
                   kinsol_user_data%fEval,             &
-                  err, message)
+                  ierr, message)
+
 
 
 

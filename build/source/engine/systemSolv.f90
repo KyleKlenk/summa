@@ -96,6 +96,7 @@ USE mDecisions_module,only:      &
 implicit none
 private
 public::systemSolv
+public::free_kinsol_objects
 
 ! control parameters
 real(rkind),parameter  :: valueMissing=-9999._rkind     ! missing value
@@ -260,6 +261,7 @@ subroutine systemSolv(&
   type(kinsol_data),target        :: kinsol_user_data     ! user data for the KINSOL solver
   real(c_double)                  :: fnormtol, scsteptol
   integer(c_long)                 :: mset
+  real(c_double),dimension(nState):: scale
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -443,28 +445,32 @@ subroutine systemSolv(&
   ! SUNDIALS Context Creation
   ! ***************************
   retval = FSUNContext_Create(c_null_ptr, sunctx)
-  if(retval /= 0)then;err=20; message=trim(message)//'unable to create the SUNDIALS context'; return; endif
+  if(retval /= 0)then;err=20; message=trim(message)//'unable to create the SUNDIALS context';print*,message; return; endif
 
-  ! ******************************
-  ! Set up problem dimensions
-  ! ******************************
-  package_mem = FKinCreate(sunctx)
+
 
   ! Set the inital guess
   clong_nState = nState
   sunvec_y => FN_VMake_Serial(clong_nState, stateVecTrial, sunctx)
-  if (.not. associated(sunvec_y)) then; err=20; message='systemSolv: sunvec = NULL'; return; endif
+  if (.not. associated(sunvec_y)) then; err=20; message='systemSolv: sunvec = NULL'; print*,message;return; endif
 
-  sunvec_fscale => FN_VMake_Serial(clong_nState, fScale, sunctx)
-  if (.not. associated(sunvec_fscale)) then; err=20; message='systemSolv: sunvec = NULL'; return; endif
+  scale = 1.d0
 
-  sunvec_xscale => FN_VMake_Serial(clong_nState, xScale, sunctx)
-  if (.not. associated(sunvec_xscale)) then; err=20; message='systemSolv: sunvec = NULL'; return; endif
+  sunvec_fscale => FN_VMake_Serial(clong_nState, scale, sunctx)
+  if (.not. associated(sunvec_fscale)) then; err=20; message='systemSolv: sunvec = NULL'; print*,message; return; endif
+
+  package_mem = FKinCreate(sunctx)
+  if (.not. c_associated(package_mem)) then; err=20; message='systemSolv: package_mem = NULL';print*,message; return; endif
+
+  ! sunvec_xscale => FN_VMake_Serial(clong_nState, xScale, sunctx)
+  ! if (.not. associated(sunvec_xscale)) then; err=20; message='systemSolv: sunvec = NULL'; return; endif
 
   ! Set the user data for sundials
   retval = FKINSetUserData(package_mem, c_loc(kinsol_user_data))
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the user data'; print*,message; return; endif
 
   retval = FKinInit(package_mem, c_funloc(eval8summa_kinsol), sunvec_y)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to initialize the kinsol package'; print*,message; return; endif
 
 
   ! -------------------------
@@ -502,7 +508,8 @@ subroutine systemSolv(&
   if(retval /= 0)then; err=20; message=trim(message)//'unable to set the maximum number of setup calls'; return; endif
   
   ! Call KINSol to solve problem
-  retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
+  retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_fscale, sunvec_fscale)
+  call free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, sunvec_fscale, sunctx)
   if(retval /= 0)then; err=20; message=trim(message)//'unable to solve the system of equations'; return; endif
 
 
@@ -533,16 +540,36 @@ subroutine systemSolv(&
   ! end associate statements
   end associate globalVars
 
+end subroutine systemSolv
+
+subroutine free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, sunvec_fscale, sunctx)
+  USE fsundials_context_mod                            ! Fortran interface to SUNContext
+  USE fkinsol_mod                                      ! Fortran interface to KINSOL
+  USE fsundials_nvector_mod                            ! Fortran interface to SUNDIALS N_Vector
+  USE fsundials_matrix_mod                             ! Fortran interface to SUNDIALS Matrix
+  USE fsundials_linearsolver_mod                       ! Fortran interface to generic SUNLinearSolver
+  implicit none
+  ! dummy variables
+  type(c_ptr),           intent(inout) :: package_mem
+  type(SUNLinearSolver), intent(inout) :: sunlinsol_LS
+  type(SUNMatrix),       intent(inout) :: sunmat_A
+  type(N_Vector),        intent(inout) :: sunvec_y
+  type(N_Vector),        intent(inout) :: sunvec_fscale
+  type(c_ptr),           intent(inout) :: sunctx
+  ! local variables
+  integer                              :: retval
+  integer                              :: err
+  character(len=256)                   :: message
+
   call FKINFree(package_mem)
   retval = FSUNLinSolFree(sunlinsol_LS)
-  if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; return; endif
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; print*,message; return; endif
   call FSUNMatDestroy(sunmat_A)
   call FN_VDestroy(sunvec_y)
-  call FN_VDestroy(sunvec_xscale)
+  ! call FN_VDestroy(sunvec_xscale)
   call FN_VDestroy(sunvec_fscale)
   retval = FSUNContext_Free(sunctx)
-  if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; return; endif
-
-end subroutine systemSolv
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; print*,message; return; endif
+endsubroutine free_kinsol_objects
 
 end module systemSolv_module

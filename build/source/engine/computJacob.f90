@@ -348,18 +348,14 @@ integer(c_int) function computJacob_kinsol(sunvec_y, sunvec_f, sunmat_J, &
   ! pointers to data in SUNDIALS vectors
   real(c_double), pointer       :: stateVec(:)    ! state vector
   real(c_double), pointer       :: Jac(:,:)       ! Jacobian matrix
-  integer(i4b)                  :: err             ! error code
   character(len=256)            :: message         ! error message
-
-
-  type(kinsol_data), pointer :: kinsol_user_data     ! pointer to user data
+  type(kinsol_data), pointer    :: kinsol_user_data     ! pointer to user data
 
   call c_f_pointer(user_data,kinsol_user_data)
+  ierr=0
 
   stateVec => FN_VGetArrayPointer(sunvec_y)
   Jac(1:kinsol_user_data%nState, 1:kinsol_user_data%nstate) => FSUNDenseMatrix_Data(sunmat_J)
-
-
   call computJacob(kinsol_user_data%dt,                &
                    kinsol_user_data%nSnow,             &
                    kinsol_user_data%nSoil,             &
@@ -374,7 +370,8 @@ integer(c_int) function computJacob_kinsol(sunvec_y, sunvec_f, sunmat_J, &
                    kinsol_user_data%dBaseflow_dMatric, &
                    kinsol_user_data%dMat,              &
                    Jac(:,:),                           &
-                   err, message)
+                   ierr, message)
+
             
 end function computJacob_kinsol
 

@@ -130,9 +130,9 @@ contains
  ! * dummy variables
  ! ---------------------------------------------------------------------------------------
  ! input: model control
- real(rkind),intent(in)             :: dt                            ! time step (seconds)
- real(rkind),intent(in)             :: dtInit                        ! initial time step (seconds)
- real(rkind),intent(in)             :: dt_min                        ! minimum time step (seconds)
+ real(rkind),intent(in)          :: dt                            ! time step (seconds)
+ real(rkind),intent(in)          :: dtInit                        ! initial time step (seconds)
+ real(rkind),intent(in)          :: dt_min                        ! minimum time step (seconds)
  integer(i4b),intent(in)         :: nState                        ! total number of state variables
  logical(lgt),intent(in)         :: doAdjustTemp                  ! flag to indicate if we adjust the temperature
  logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
@@ -156,7 +156,7 @@ contains
  type(var_dlength),intent(in)    :: bvar_data                     ! model variables for the local basin
  ! output: model control
  integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(rkind),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
+ real(rkind),intent(out)         :: dtMultiplier                  ! substep multiplier (-)
  integer(i4b),intent(out)        :: nSubsteps                     ! number of substeps taken for a given split
  logical(lgt),intent(out)        :: failedMinimumStep             ! flag to denote success of substepping for a given split
  logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to denote need to reduce the length of the coupled step
@@ -174,24 +174,24 @@ contains
  integer(i4b)                    :: ixLayer                       ! index in a given domain
  integer(i4b), dimension(1)      :: ixMin,ixMax                   ! bounds of a given flux vector
  ! time stepping
- real(rkind)                        :: dtSum                         ! sum of time from successful steps (seconds)
- real(rkind)                        :: dt_wght                       ! weight given to a given flux calculation
- real(rkind)                        :: dtSubstep                     ! length of a substep (s)
+ real(rkind)                     :: dtSum                         ! sum of time from successful steps (seconds)
+ real(rkind)                     :: dt_wght                       ! weight given to a given flux calculation
+ real(rkind)                     :: dtSubstep                     ! length of a substep (s)
  ! adaptive sub-stepping for the explicit solution
  logical(lgt)                    :: failedSubstep                 ! flag to denote success of substepping for a given split
- real(rkind),parameter              :: safety=0.85_rkind                ! safety factor in adaptive sub-stepping
- real(rkind),parameter              :: reduceMin=0.1_rkind              ! mimimum factor that time step is reduced
- real(rkind),parameter              :: increaseMax=4.0_rkind            ! maximum factor that time step is increased
+ real(rkind),parameter           :: safety=0.85_rkind                ! safety factor in adaptive sub-stepping
+ real(rkind),parameter           :: reduceMin=0.1_rkind              ! mimimum factor that time step is reduced
+ real(rkind),parameter           :: increaseMax=4.0_rkind            ! maximum factor that time step is increased
  ! adaptive sub-stepping for the implicit solution
  integer(i4b)                    :: niter                         ! number of iterations taken
  integer(i4b),parameter          :: n_inc=5                       ! minimum number of iterations to increase time step
  integer(i4b),parameter          :: n_dec=15                      ! maximum number of iterations to decrease time step
- real(rkind),parameter              :: F_inc = 1.25_rkind               ! factor used to increase time step
- real(rkind),parameter              :: F_dec = 0.90_rkind               ! factor used to decrease time step
+ real(rkind),parameter           :: F_inc = 1.25_rkind               ! factor used to increase time step
+ real(rkind),parameter           :: F_dec = 0.90_rkind               ! factor used to decrease time step
  ! state and flux vectors
- real(rkind)                        :: untappedMelt(nState)          ! un-tapped melt energy (J m-3 s-1)
- real(rkind)                        :: stateVecInit(nState)          ! initial state vector (mixed units)
- real(rkind)                        :: stateVecTrial(nState)         ! trial state vector (mixed units)
+ real(rkind)                     :: untappedMelt(nState)          ! un-tapped melt energy (J m-3 s-1)
+ real(rkind)                     :: stateVecInit(nState)          ! initial state vector (mixed units)
+ real(rkind)                     :: stateVecTrial(nState)         ! trial state vector (mixed units)
  type(var_dlength)               :: flux_temp                     ! temporary model fluxes
  ! flags
  logical(lgt)                    :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
@@ -199,11 +199,11 @@ contains
  logical(lgt)                    :: waterBalanceError             ! flag to denote that there is a water balance error
  logical(lgt)                    :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
  ! energy fluxes
- real(rkind)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
- real(rkind)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
- real(rkind)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
- real(rkind)                        :: sumSoilCompress
- real(rkind),allocatable            :: sumLayerCompress(:)
+ real(rkind)                     :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
+ real(rkind)                     :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+ real(rkind)                     :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+ real(rkind)                     :: sumSoilCompress
+ real(rkind),allocatable         :: sumLayerCompress(:)
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -331,8 +331,9 @@ contains
                   niter,             & ! intent(out):   number of iterations taken
                   err,cmessage)        ! intent(out):   error code and error message
   if(err/=0)then
-   message=trim(message)//trim(cmessage)
-   if(err>0) return
+    message=trim(message)//trim(cmessage)
+    print*, message
+    if(err>0) return
   endif
 
   ! if too much melt or need to reduce length of the coupled step then return
@@ -355,13 +356,13 @@ contains
   else
 
    ! ** implicit Euler: adjust step length based on iteration count
-    if(niter<n_inc)then
-     dtMultiplier = F_inc
-    elseif(niter>n_dec)then
-     dtMultiplier = F_dec
-    else
-     dtMultiplier = 1._rkind
-    endif
+  ! if(niter<n_inc)then
+  !   dtMultiplier = F_inc
+  ! elseif(niter>n_dec)then
+  !   dtMultiplier = F_dec
+  ! else
+  !   dtMultiplier = 1._rkind
+  ! endif
 
   endif  ! switch between failure and success
 
