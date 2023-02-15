@@ -97,6 +97,7 @@ implicit none
 private
 public::systemSolv
 public::free_kinsol_objects
+public::PrintFinalStats
 
 ! control parameters
 real(rkind),parameter  :: valueMissing=-9999._rkind     ! missing value
@@ -269,30 +270,11 @@ subroutine systemSolv(&
   ! model decisions
   ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b]    groundwater parameterization
   ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b]    spatial representation of groundwater (local-column or single-basin)
-  ! check the need to merge snow layers
-  mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in):    [dp(:)]  temperature of each snow/soil layer (K)
-  mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of liquid water (-)
-  mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of ice (-)
-  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
-  snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
-  ! accelerate solution for temperature
-  airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in):    [dp]     temperature of the upper boundary of the snow and soil domains (K)
-  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
-  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
-  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
   ! vector of energy and hydrology indices for the snow and soil domains
   ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
   ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
-  ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
   nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
   nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
-  nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the soil domain
-  ! mapping from full domain to the sub-domain
-  ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b]    mapping of full state vector to the state subset
-  ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):    [i4b]    index of control volume for different domains (veg, snow, soil)
-  ! type of state and domain for a given variable
-  ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):    [i4b(:)] [state subset] type of desired model state variables
-  ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):    [i4b(:)] [state subset] domain for desired model state variables
   ! layer geometry
   nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
   nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
@@ -509,36 +491,88 @@ subroutine systemSolv(&
   
   ! Call KINSol to solve problem
   retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_fscale, sunvec_fscale)
+  call PrintFinalStats(package_mem)
   call free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, sunvec_fscale, sunctx)
   if(retval /= 0)then; err=20; message=trim(message)//'unable to solve the system of equations'; return; endif
-
-
-  ! -----
-  ! * update states...
-  ! ------------------
-
-  ! set untapped melt energy to zero
-  untappedMelt(:) = 0._rkind
-
-  ! update temperatures (ensure new temperature is consistent with the fluxes)
-  if(nSnowSoilNrg>0)then
-    do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-      iState = ixSnowSoilNrg(iLayer)
-      stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))/real(sMul(iState), rkind)
-    end do  ! looping through non-missing energy state variables in the snow+soil domain
-  endif
-
-  ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
-  ! NOTE: for soil water balance is constrained within the iteration loop
-  if(nSnowSoilHyd>0)then
-    do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
-      iState = ixSnowSoilHyd(iLayer)
-      stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))
-    end do  ! looping through non-missing water state variables in the soil domain
-  endif
-
-  ! end associate statements
+   ! end associate statements
   end associate globalVars
+
+
+  firstFluxCall = kinsol_user_data%firstFluxCall
+  ixSaturation = kinsol_user_data%ixSaturation
+  feasible = kinsol_user_data%feasible
+
+  flux_temp = kinsol_user_data%flux_data
+  ! indx_data = kinsol_user_data%indx_data
+  ! prog_data = kinsol_user_data%prog_data
+  diag_data = kinsol_user_data%diag_data
+  deriv_data = kinsol_user_data%deriv_data 
+
+  dBaseflow_dMatric = kinsol_user_data%dBaseflow_dMatric
+  deallocate(kinsol_user_data%dBaseflow_dMatric, stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the kinsol user data'; print*, message; return; end if
+
+  dMat = kinsol_user_data%dMat
+  deallocate(kinsol_user_data%dMat, stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the kinsol user data'; print*, message; return; end if
+
+  sMul = kinsol_user_data%sMul
+  deallocate(kinsol_user_data%sMul, stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the kinsol user data'; print*, message; return; end if
+
+  fScale = kinsol_user_data%fScale
+  deallocate(kinsol_user_data%fScale, stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the kinsol user data'; print*, message; return; end if
+
+  fluxVecNew = kinsol_user_data%fluxVec
+  deallocate(kinsol_user_data%fluxVec, stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the kinsol user data'; print*, message; return; end if
+
+  resSinkNew = kinsol_user_data%resSink
+  deallocate(kinsol_user_data%resSink, stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the kinsol user data'; print*, message; return; end if
+
+  deallocate(kinsol_user_data%model_decisions, stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the kinsol user data'; print*, message; return; end if
+  
+  update_states: associate(&
+  ! model decisions
+    ! vector of energy and hydrology indices for the snow and soil domains
+    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
+    ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
+    nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
+    nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
+    ! layer geometry
+    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
+    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)                & ! intent(in):    [i4b]    total number of layers
+    )
+
+    ! -----
+    ! * update states...
+    ! ------------------
+
+    ! set untapped melt energy to zero
+    untappedMelt(:) = 0._rkind
+    
+    ! update temperatures (ensure new temperature is consistent with the fluxes)
+    if(nSnowSoilNrg>0)then
+      do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
+        iState = ixSnowSoilNrg(iLayer)
+        stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))/real(sMul(iState), rkind)
+      end do  ! looping through non-missing energy state variables in the snow+soil domain
+    endif
+
+    ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
+    ! NOTE: for soil water balance is constrained within the iteration loop
+    if(nSnowSoilHyd>0)then
+      do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
+        iState = ixSnowSoilHyd(iLayer)
+        stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))
+      end do  ! looping through non-missing water state variables in the soil domain
+    endif
+  end associate update_states
+
+ 
 
 end subroutine systemSolv
 
@@ -571,5 +605,55 @@ subroutine free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, su
   retval = FSUNContext_Free(sunctx)
   if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; print*,message; return; endif
 endsubroutine free_kinsol_objects
+
+subroutine PrintFinalStats(kmem)
+
+  !======= Inclusions ===========
+  use iso_c_binding
+  use fkinsol_mod
+
+  !======= Declarations =========
+  implicit none
+
+  type(c_ptr), intent(in) :: kmem
+
+  integer(c_int)  :: ierr
+  integer(c_long) :: nni(1), nfe(1), nje(1), nfeD(1)
+
+  !======= Internals ============
+
+  ierr = FKINGetNumNonlinSolvIters(kmem, nni)
+  if (ierr /= 0) then
+     print *, 'Error in FKINGetNumNonlinSolvIters, ierr = ', ierr, '; halting'
+     stop 1
+  end if
+
+  ierr = FKINGetNumFuncEvals(kmem, nfe)
+  if (ierr /= 0) then
+     print *, 'Error in FKINGetNumFuncEvals, ierr = ', ierr, '; halting'
+     stop 1
+  end if
+
+  ierr = FKINGetNumJacEvals(kmem, nje)
+  if (ierr /= 0) then
+     print *, 'Error in FKINGetNumJacEvals, ierr = ', ierr, '; halting'
+     stop 1
+  end if
+
+  ierr = FKINGetNumLinFuncEvals(kmem, nfeD)
+  if (ierr /= 0) then
+     print *, 'Error in FKINGetNumLinFuncEvals, ierr = ', ierr, '; halting'
+     stop 1
+  end if
+
+  print *, ' '
+  print *, 'Final Statistics.. '
+  print *, ' '
+  print '(2(A,i5))'    ,'nni    =', nni,      '    nfe   =', nfe
+  print '(2(A,i5))'    ,'nje    =', nje,      '    nfeD  =', nfeD
+
+  return
+
+end subroutine PrintFinalStats
 
 end module systemSolv_module
