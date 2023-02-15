@@ -96,6 +96,7 @@ USE mDecisions_module,only:      &
 implicit none
 private
 public::systemSolv
+public::init_kinsol_objects
 public::free_kinsol_objects
 public::PrintFinalStats
 
@@ -150,11 +151,9 @@ subroutine systemSolv(&
   USE allocspace_module,only:allocLocal                ! allocate local data structures
   ! simulation of fluxes and residuals given a trial state vector
   USE eval8summa_module,only:eval8summa                ! simulation of fluxes and residuals given a trial state vector
-  USE eval8summa_module,only:eval8summa_kinsol
   USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
   USE getVectorz_module,only:getScaling                ! get the scaling vectors
   USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
-  USE computJacob_module,only:computJacob_kinsol
   
   ! Sundials modules
   USE fsundials_context_mod                            ! Fortran interface to SUNContext
@@ -260,8 +259,6 @@ subroutine systemSolv(&
   integer(c_long)                 :: clong_nState         ! number of state variables but as a c_long  
 
   type(kinsol_data),target        :: kinsol_user_data     ! user data for the KINSOL solver
-  real(c_double)                  :: fnormtol, scsteptol
-  integer(c_long)                 :: mset
   real(c_double),dimension(nState):: scale
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
@@ -416,81 +413,22 @@ subroutine systemSolv(&
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the kinsol user data'; return; end if
   kinsol_user_data%model_decisions = model_decisions
   
-  ! -----
-  ! * compute the initial function evaluation...
-  ! --------------------------------------------
 
-  ! initialize the trial state vectors
+  ! initialize the trial state vectors with the initial state vectors
   stateVecTrial = stateVecInit
 
-  ! ***************************
+  
   ! SUNDIALS Context Creation
-  ! ***************************
-  retval = FSUNContext_Create(c_null_ptr, sunctx)
-  if(retval /= 0)then;err=20; message=trim(message)//'unable to create the SUNDIALS context';print*,message; return; endif
-
-
-
-  ! Set the inital guess
-  clong_nState = nState
-  sunvec_y => FN_VMake_Serial(clong_nState, stateVecTrial, sunctx)
-  if (.not. associated(sunvec_y)) then; err=20; message='systemSolv: sunvec = NULL'; print*,message;return; endif
-
   scale = 1.d0
-
-  sunvec_fscale => FN_VMake_Serial(clong_nState, scale, sunctx)
-  if (.not. associated(sunvec_fscale)) then; err=20; message='systemSolv: sunvec = NULL'; print*,message; return; endif
-
-  package_mem = FKinCreate(sunctx)
-  if (.not. c_associated(package_mem)) then; err=20; message='systemSolv: package_mem = NULL';print*,message; return; endif
-
-  ! sunvec_xscale => FN_VMake_Serial(clong_nState, xScale, sunctx)
-  ! if (.not. associated(sunvec_xscale)) then; err=20; message='systemSolv: sunvec = NULL'; return; endif
-
-  ! Set the user data for sundials
-  retval = FKINSetUserData(package_mem, c_loc(kinsol_user_data))
-  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the user data'; print*,message; return; endif
-
-  retval = FKinInit(package_mem, c_funloc(eval8summa_kinsol), sunvec_y)
-  if(retval /= 0)then; err=20; message=trim(message)//'unable to initialize the kinsol package'; print*,message; return; endif
+  call init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,package_mem,kinsol_user_data,sunmat_A,&
+                  sunlinsol_LS,scale,nState,stateVecTrial,err,message)
+  if(err/=0)then; message=trim(message)//'unable to create the SUNDIALS context';print*,message; return; endif
 
 
-  ! -------------------------
-  ! Set optional inputs
-  fnormtol = ftol
-  retval = FKINSetFuncNormTol(package_mem, fnormtol)
-  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the function norm tolerance'; return; endif
-
-  scsteptol = stol
-  retval = FKINSetScaledStepTol(package_mem, scsteptol)
-  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the scaled step tolerance'; return; endif
-
-
-  ! Create the Matrix Object
-  ! Ax = b => A is the matrix, x is the state vector, b is the residual vector
-  ! sunmat_A is the matrix
-  sunmat_A => FSUNDenseMatrix(clong_nState, clong_nState, sunctx)
-  if (.not. associated(sunmat_A)) then; err=20; message='systemSolv: sunmat = NULL'; return; endif
-
-  ! Create the Linear Solver Object
-  sunlinsol_LS => FSUNLinSol_Dense(sunvec_y, sunmat_A, sunctx)
-  if (.not. associated(sunlinsol_LS)) then; err=20; message='systemSolv: sunlinsol = NULL'; return; endif
-
-  ! Attach the matrix and linear solver to KINSOL
-  retval = FKINSetLinearSolver(package_mem, sunlinsol_LS, sunmat_A)
-  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the linear solver'; return; endif
-
-  ! Set up the Jacobian function
-  retval = FKinSetJacFn(package_mem, c_funloc(computJacob_kinsol))
-  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the Jacobian function'; return; endif
-  
-  ! Indicate exact Newton
-  mset = 1
-  retval = FKINSetMaxSetupCalls(package_mem, mset)
-  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the maximum number of setup calls'; return; endif
-  
   ! Call KINSol to solve problem
   retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_fscale, sunvec_fscale)
+
+  
   ! call PrintFinalStats(package_mem)
   call free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, sunvec_fscale, sunctx)
   if(retval /= 0)then; err=20; message=trim(message)//'unable to solve the system of equations'; return; endif
@@ -575,6 +513,107 @@ subroutine systemSolv(&
  
 
 end subroutine systemSolv
+
+subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,package_mem,kinsol_user_data,sunmat_A, &
+    sunlinsol_LS,scale,nState,stateVecTrial,err,message)
+  USE fsundials_context_mod                            ! Fortran interface to SUNContext
+  USE fkinsol_mod                                      ! Fortran interface to KINSOL
+  USE fnvector_serial_mod                              ! Fortran interface to N_Vector
+  USE fsundials_nvector_mod                            ! Fortran interface to SUNDIALS N_Vector
+  USE fsunmatrix_dense_mod                             ! Fortran interface to SUNMatrix
+  USE fsundials_matrix_mod                             ! Fortran interface to SUNDIALS Matrix
+  USE fsunlinsol_dense_mod                             ! Fortran interface to dense SUNLinearSolver
+  USE fsundials_linearsolver_mod                       ! Fortran interface to generic SUNLinearSolver
+  
+  USE kinsol_user_data_type                            ! user data type for KINSOL
+  USE eval8summa_module,only:eval8summa_kinsol
+  USE computJacob_module,only:computJacob_kinsol
+ 
+  implicit none
+
+  ! dummy variables
+  type(c_ptr),intent(inout)                  :: sunctx               ! SUNDIALS simulation context
+  type(N_Vector),pointer,intent(inout)       :: sunvec_y             ! SUNDIALS state vector
+  type(N_Vector),pointer,intent(inout)       :: sunvec_fscale        ! vector containing diagonal elements of scaling matrix
+  type(c_ptr)                                :: package_mem          ! SUNDIALS memory pointer 
+  type(kinsol_data),target,intent(inout)     :: kinsol_user_data     ! user data for the KINSOL solver
+  type(SUNMatrix),pointer,intent(inout)      :: sunmat_A             ! SUNDIALS Jacobian matrix
+  type(SUNLinearSolver),pointer,intent(inout):: sunlinsol_LS         ! sundials linear solver
+  
+  real(c_double),intent(inout)               :: scale(:)
+
+  integer(i4b),intent(in)                    :: nState               ! number of state variables
+  real(rkind),intent(inout)                  :: stateVecTrial(:)     ! trial state vector (mixed units)
+  integer(i4b),intent(out)                   :: err                  ! error code
+  character(*),intent(out)                   :: message              ! error message
+  ! local variables
+  integer(i4b)                               :: retval               ! return value
+  integer(c_long)                            :: clong_nState         ! number of state variables but as a c_long  
+  real(c_double)                             :: fnormtol, scsteptol
+  integer(c_long)                            :: mset
+
+  clong_nState = nState
+  
+  ! Create the SUNDIALS context
+  retval = FSUNContext_Create(c_null_ptr, sunctx)
+  if(retval /= 0)then;err=20; message=trim(message)//'unable to create the SUNDIALS context';print*,message; return; endif
+
+  ! Create the state vector
+  sunvec_y => FN_VMake_Serial(clong_nState, stateVecTrial, sunctx)
+  if (.not. associated(sunvec_y)) then; err=20; message='systemSolv: sunvec = NULL'; print*,message;return; endif
+  
+  ! Create the scaling vector
+  scale = 1.d0
+  sunvec_fscale => FN_VMake_Serial(clong_nState, scale, sunctx)
+  if (.not. associated(sunvec_fscale)) then; err=20; message='systemSolv: sunvec = NULL'; print*,message; return; endif
+
+  ! Create the KINSOL memory
+  package_mem = FKinCreate(sunctx)
+  if (.not. c_associated(package_mem)) then; err=20; message='systemSolv: package_mem = NULL';print*,message; return; endif
+  
+  ! Set the user data for sundials
+  retval = FKINSetUserData(package_mem, c_loc(kinsol_user_data))
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the user data'; print*,message; return; endif
+
+  ! Set the function Kinsol will use to advance the state
+  retval = FKinInit(package_mem, c_funloc(eval8summa_kinsol), sunvec_y)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to initialize the kinsol package'; print*,message; return; endif
+  
+  ! -------------------------
+  ! Set optional inputs
+  fnormtol = ftol
+  retval = FKINSetFuncNormTol(package_mem, fnormtol)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the function norm tolerance'; return; endif
+
+  scsteptol = stol
+  retval = FKINSetScaledStepTol(package_mem, scsteptol)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the scaled step tolerance'; return; endif
+
+  ! Create the Matrix Object
+  ! Ax = b => A is the matrix, x is the state vector, b is the residual vector
+  ! sunmat_A is the matrix
+  sunmat_A => FSUNDenseMatrix(clong_nState, clong_nState, sunctx)
+  if (.not. associated(sunmat_A)) then; err=20; message='systemSolv: sunmat = NULL'; return; endif
+
+  ! Create the Linear Solver Object
+  sunlinsol_LS => FSUNLinSol_Dense(sunvec_y, sunmat_A, sunctx)
+  if (.not. associated(sunlinsol_LS)) then; err=20; message='systemSolv: sunlinsol = NULL'; return; endif
+
+  ! Attach the matrix and linear solver to KINSOL
+  retval = FKINSetLinearSolver(package_mem, sunlinsol_LS, sunmat_A)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the linear solver'; return; endif
+
+  ! Set up the Jacobian function
+  retval = FKinSetJacFn(package_mem, c_funloc(computJacob_kinsol))
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the Jacobian function'; return; endif
+  
+  ! Indicate exact Newton
+  mset = 1
+  retval = FKINSetMaxSetupCalls(package_mem, mset)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the maximum number of setup calls'; return; endif
+  
+
+end subroutine init_kinsol_objects
 
 subroutine free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, sunvec_fscale, sunctx)
   USE fsundials_context_mod                            ! Fortran interface to SUNContext
