@@ -491,7 +491,7 @@ subroutine systemSolv(&
   
   ! Call KINSol to solve problem
   retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_fscale, sunvec_fscale)
-  call PrintFinalStats(package_mem)
+  ! call PrintFinalStats(package_mem)
   call free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, sunvec_fscale, sunctx)
   if(retval /= 0)then; err=20; message=trim(message)//'unable to solve the system of equations'; return; endif
    ! end associate statements
