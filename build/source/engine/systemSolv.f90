@@ -108,7 +108,8 @@ real(rkind),parameter  :: dx = 1.e-8_rkind              ! finite difference incr
 
 ! Sundials Parameters
 real(c_double),  parameter :: ftol = 1.d-5
-real(c_double),  parameter :: stol = 1.d-5
+! real(c_double),  parameter :: stol = 1.e-12_rkind
+real(c_double),  parameter :: stol = 1.e-8_rkind
 
 contains
 
@@ -166,7 +167,7 @@ subroutine systemSolv(&
   USE fsundials_linearsolver_mod                       ! Fortran interface to generic SUNLinearSolver
   
   USE kinsol_user_data_type                            ! user data type for KINSOL
- USE var_lookup,only:maxvarDecisions ! maximum number of decisions
+  USE var_lookup,only:maxvarDecisions ! maximum number of decisions
   
   implicit none
   ! ---------------------------------------------------------------------------------------
@@ -267,11 +268,30 @@ subroutine systemSolv(&
   ! model decisions
   ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b]    groundwater parameterization
   ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b]    spatial representation of groundwater (local-column or single-basin)
+  ! check the need to merge snow layers
+  mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in):    [dp(:)]  temperature of each snow/soil layer (K)
+  mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of liquid water (-)
+  mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of ice (-)
+  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+  snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
+  ! accelerate solution for temperature
+  airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in):    [dp]     temperature of the upper boundary of the snow and soil domains (K)
+  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
+  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
+  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
   ! vector of energy and hydrology indices for the snow and soil domains
   ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
   ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
+  ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
   nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
   nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
+  nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the soil domain
+  ! mapping from full domain to the sub-domain
+  ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b]    mapping of full state vector to the state subset
+  ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):    [i4b]    index of control volume for different domains (veg, snow, soil)
+  ! type of state and domain for a given variable
+  ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):    [i4b(:)] [state subset] type of desired model state variables
+  ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):    [i4b(:)] [state subset] domain for desired model state variables
   ! layer geometry
   nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
   nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
@@ -361,6 +381,7 @@ subroutine systemSolv(&
   ! ***************************
   ! Set up the user data for kinsol
   ! ***************************
+
   kinsol_user_data%dt = dt
   kinsol_user_data%nSnow = nSnow 
   kinsol_user_data%nSoil = nSoil 
@@ -416,22 +437,35 @@ subroutine systemSolv(&
 
   ! initialize the trial state vectors with the initial state vectors
   stateVecTrial = stateVecInit
+  ! need to intialize canopy water at a positive value
+  if(ixVegHyd/=integerMissing)then
+    if(stateVecTrial(ixVegHyd) < xMinCanopyWater) stateVecTrial(ixVegHyd) = stateVecTrial(ixVegHyd) + xMinCanopyWater
+  endif
+
+  ! try to accelerate solution for energy
+  if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
+  if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
 
   
   ! SUNDIALS Context Creation
-  scale = 1.d0
-  call init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,package_mem,kinsol_user_data,sunmat_A,&
-                  sunlinsol_LS,scale,nState,stateVecTrial,err,message)
+  ! scale = 1.d0
+  call init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,package_mem,kinsol_user_data,sunmat_A,&
+                  sunlinsol_LS,fscale,xscale,nState,stateVecTrial,err,message)
   if(err/=0)then; message=trim(message)//'unable to create the SUNDIALS context';print*,message; return; endif
 
 
   ! Call KINSol to solve problem
-  retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_fscale, sunvec_fscale)
-
+  retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
+  ! if(retval /= 0)then; 
+  !   if retval 
+  !   err=20; message=trim(message)//'unable to solve the system of equations'; 
+  !   print*, message
+  !   print*, "retval", retval
+  !   return; 
+  ! endif
   
   ! call PrintFinalStats(package_mem)
-  call free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, sunvec_fscale, sunctx)
-  if(retval /= 0)then; err=20; message=trim(message)//'unable to solve the system of equations'; return; endif
+  call free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, sunvec_fscale, sunvec_xscale, sunctx)
    ! end associate statements
   end associate globalVars
 
@@ -441,8 +475,6 @@ subroutine systemSolv(&
   feasible = kinsol_user_data%feasible
 
   flux_temp = kinsol_user_data%flux_data
-  ! indx_data = kinsol_user_data%indx_data
-  ! prog_data = kinsol_user_data%prog_data
   diag_data = kinsol_user_data%diag_data
   deriv_data = kinsol_user_data%deriv_data 
 
@@ -489,6 +521,21 @@ subroutine systemSolv(&
     ! * update states...
     ! ------------------
 
+
+  ! check the need to merge snow layers
+  ! if(nSnow>0)then
+  !   ! compute the energy required to melt the top snow layer (J m-2)
+  !   bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
+  !   volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
+  !   ! set flag and error codes for too much melt
+  !   if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt)then
+  !   tooMuchMelt=.true.
+  !   message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
+  !   err=-20; return ! negative error code to denote a warning
+  !   endif
+  ! endif
+
+
     ! set untapped melt energy to zero
     untappedMelt(:) = 0._rkind
     
@@ -514,8 +561,8 @@ subroutine systemSolv(&
 
 end subroutine systemSolv
 
-subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,package_mem,kinsol_user_data,sunmat_A, &
-    sunlinsol_LS,scale,nState,stateVecTrial,err,message)
+subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,package_mem,kinsol_user_data,sunmat_A, &
+    sunlinsol_LS,fscale,xscale,nState,stateVecTrial,err,message)
   USE fsundials_context_mod                            ! Fortran interface to SUNContext
   USE fkinsol_mod                                      ! Fortran interface to KINSOL
   USE fnvector_serial_mod                              ! Fortran interface to N_Vector
@@ -535,12 +582,16 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,package_mem,kinsol_
   type(c_ptr),intent(inout)                  :: sunctx               ! SUNDIALS simulation context
   type(N_Vector),pointer,intent(inout)       :: sunvec_y             ! SUNDIALS state vector
   type(N_Vector),pointer,intent(inout)       :: sunvec_fscale        ! vector containing diagonal elements of scaling matrix
+  type(N_Vector),pointer,intent(inout)       :: sunvec_xscale        ! vector containing diagonal elements of scaling matrix
+  
   type(c_ptr)                                :: package_mem          ! SUNDIALS memory pointer 
   type(kinsol_data),target,intent(inout)     :: kinsol_user_data     ! user data for the KINSOL solver
   type(SUNMatrix),pointer,intent(inout)      :: sunmat_A             ! SUNDIALS Jacobian matrix
   type(SUNLinearSolver),pointer,intent(inout):: sunlinsol_LS         ! sundials linear solver
-  
-  real(c_double),intent(inout)               :: scale(:)
+  real(rkind),intent(inout)                  :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
+  real(rkind),intent(inout)                  :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
+
+  ! real(c_double),intent(inout)               :: scale(:)
 
   integer(i4b),intent(in)                    :: nState               ! number of state variables
   real(rkind),intent(inout)                  :: stateVecTrial(:)     ! trial state vector (mixed units)
@@ -563,9 +614,13 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,package_mem,kinsol_
   if (.not. associated(sunvec_y)) then; err=20; message='systemSolv: sunvec = NULL'; print*,message;return; endif
   
   ! Create the scaling vector
-  scale = 1.d0
-  sunvec_fscale => FN_VMake_Serial(clong_nState, scale, sunctx)
+  ! scale = 1.d0
+  sunvec_fscale => FN_VMake_Serial(clong_nState, fscale, sunctx)
   if (.not. associated(sunvec_fscale)) then; err=20; message='systemSolv: sunvec = NULL'; print*,message; return; endif
+
+  ! Create the scaling vector
+  sunvec_xscale => FN_VMake_Serial(clong_nState, xscale, sunctx)
+  if (.not. associated(sunvec_xscale)) then; err=20; message='systemSolv: sunvec = NULL'; print*,message; return; endif
 
   ! Create the KINSOL memory
   package_mem = FKinCreate(sunctx)
@@ -615,7 +670,7 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,package_mem,kinsol_
 
 end subroutine init_kinsol_objects
 
-subroutine free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, sunvec_fscale, sunctx)
+subroutine free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, sunvec_fscale, sunvec_xscale,sunctx)
   USE fsundials_context_mod                            ! Fortran interface to SUNContext
   USE fkinsol_mod                                      ! Fortran interface to KINSOL
   USE fsundials_nvector_mod                            ! Fortran interface to SUNDIALS N_Vector
@@ -628,6 +683,7 @@ subroutine free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, su
   type(SUNMatrix),       intent(inout) :: sunmat_A
   type(N_Vector),        intent(inout) :: sunvec_y
   type(N_Vector),        intent(inout) :: sunvec_fscale
+  type(N_Vector),        intent(inout) :: sunvec_xscale
   type(c_ptr),           intent(inout) :: sunctx
   ! local variables
   integer                              :: retval
@@ -639,7 +695,7 @@ subroutine free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, su
   if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; print*,message; return; endif
   call FSUNMatDestroy(sunmat_A)
   call FN_VDestroy(sunvec_y)
-  ! call FN_VDestroy(sunvec_xscale)
+  call FN_VDestroy(sunvec_xscale)
   call FN_VDestroy(sunvec_fscale)
   retval = FSUNContext_Free(sunctx)
   if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; print*,message; return; endif
