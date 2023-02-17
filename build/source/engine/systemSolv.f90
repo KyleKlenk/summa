@@ -152,7 +152,6 @@ subroutine systemSolv(&
   USE allocspace_module,only:allocLocal                ! allocate local data structures
   ! simulation of fluxes and residuals given a trial state vector
   USE eval8summa_module,only:eval8summa                ! simulation of fluxes and residuals given a trial state vector
-  USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
   USE getVectorz_module,only:getScaling                ! get the scaling vectors
   USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
   
@@ -448,7 +447,6 @@ subroutine systemSolv(&
 
   
   ! SUNDIALS Context Creation
-  ! scale = 1.d0
   call init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,package_mem,kinsol_user_data,sunmat_A,&
                   sunlinsol_LS,fscale,xscale,nState,stateVecTrial,err,message)
   if(err/=0)then; message=trim(message)//'unable to create the SUNDIALS context';print*,message; return; endif
@@ -456,13 +454,11 @@ subroutine systemSolv(&
 
   ! Call KINSol to solve problem
   retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
-  ! if(retval /= 0)then; 
-  !   if retval 
-  !   err=20; message=trim(message)//'unable to solve the system of equations'; 
-  !   print*, message
-  !   print*, "retval", retval
-  !   return; 
-  ! endif
+  if(retval == 1)then;
+    err=-20;
+  else if(retval /= 0)then;
+    err=20; message=trim(message)//'unable to solve the system of equations'; print*, message; print*, "retval", retval; return; 
+  endif
   
   ! call PrintFinalStats(package_mem)
   call free_kinsol_objects(package_mem, sunlinsol_LS, sunmat_A, sunvec_y, sunvec_fscale, sunvec_xscale, sunctx)
@@ -590,8 +586,6 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,packa
   type(SUNLinearSolver),pointer,intent(inout):: sunlinsol_LS         ! sundials linear solver
   real(rkind),intent(inout)                  :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
   real(rkind),intent(inout)                  :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
-
-  ! real(c_double),intent(inout)               :: scale(:)
 
   integer(i4b),intent(in)                    :: nState               ! number of state variables
   real(rkind),intent(inout)                  :: stateVecTrial(:)     ! trial state vector (mixed units)
