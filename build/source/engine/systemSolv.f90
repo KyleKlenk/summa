@@ -456,6 +456,23 @@ subroutine systemSolv(&
   retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
   if(retval == 1)then;
     err=-20;
+    print*, "retval = ", retval
+  ! else if (retval == -5)then;
+  !   print*, "here"
+  !   if(nSnow>0)then
+  !     print*, "We have snow"
+  !     ! compute the energy required to melt the top snow layer (J m-2)
+  !     bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
+  !     volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
+  !     ! set flag and error codes for too much melt
+  !     if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt)then
+  !       tooMuchMelt=.true.
+  !       message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
+  !       print*, message
+  !       err=-20; return ! negative error code to denote a warning
+  !     endif 
+  !   endif
+
   else if(retval /= 0)then;
     err=20; message=trim(message)//'unable to solve the system of equations'; print*, message; print*, "retval", retval; return; 
   endif
@@ -519,17 +536,7 @@ subroutine systemSolv(&
 
 
   ! check the need to merge snow layers
-  ! if(nSnow>0)then
-  !   ! compute the energy required to melt the top snow layer (J m-2)
-  !   bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
-  !   volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
-  !   ! set flag and error codes for too much melt
-  !   if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt)then
-  !   tooMuchMelt=.true.
-  !   message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
-  !   err=-20; return ! negative error code to denote a warning
-  !   endif
-  ! endif
+
 
 
     ! set untapped melt energy to zero
@@ -657,7 +664,7 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,packa
   if(retval /= 0)then; err=20; message=trim(message)//'unable to set the Jacobian function'; return; endif
   
   ! Indicate exact Newton
-  mset = 1
+  mset = 0
   retval = FKINSetMaxSetupCalls(package_mem, mset)
   if(retval /= 0)then; err=20; message=trim(message)//'unable to set the maximum number of setup calls'; return; endif
   
