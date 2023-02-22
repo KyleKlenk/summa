@@ -71,6 +71,7 @@ USE multiconst,only:&
 implicit none
 private
 public::varSubstep
+public::write_state_vector
 
 ! algorithmic parameters
 real(rkind),parameter     :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
@@ -374,6 +375,7 @@ contains
   ! identify the need to check the mass balance
   checkMassBalance = .true. ! (.not.scalarSolution)
 
+  call write_state_vector(stateVecTrial, nState,cmessage, err)
   ! update prognostic variables
   call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
                   mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                          & ! input-output: data structures
@@ -976,5 +978,29 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   end associate
 
 end subroutine updateProg
+
+subroutine write_state_vector(stateVec,nState,message,err)
+  USE csv_file
+  implicit none
+  real(rkind),        intent(in)  :: stateVec(:)
+  integer(i4b),       intent(in)  :: nState
+  character(len=256), intent(out) :: message
+  integer(i4b),       intent(out) :: err
+
+  logical(lgt)      :: fileExists       
+
+
+  ! check if the file exists
+  inquire(file='data_kinsol_state_vec.csv', exist=fileExists)
+  if (.not. fileExists) then
+    open(unit=10, file ='data_kinsol_state_vec.csv', status="new")
+      call csv_write(10, stateVec(1:nState), .true.)  
+  else
+    open(unit=10, file ='data_kinsol_state_vec.csv', status="old", position="append")
+      call csv_write(10, stateVec(1:nState), .true.)  
+  end if
+
+  close(10)
+endsubroutine write_state_vector
 
 end module varSubstep_module

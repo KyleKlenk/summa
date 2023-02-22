@@ -44,6 +44,8 @@ type kinsol_data
   type(model_options),allocatable      :: model_decisions(:)     ! model decisions
   real(rkind), allocatable             :: dBaseflow_dMatric(:,:)
   real(rkind), allocatable             :: dMat(:)
+  real(rkind), allocatable             :: stateVecPrev(:)        ! state vector from the previous iteration to help with infeasibility
+  logical(lgt)                         :: firstStateiteration   ! flag to denote if we computed an iteration so we know to save the state
 end type kinsol_data
 
 

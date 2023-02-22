@@ -216,13 +216,13 @@ subroutine systemSolv(&
   integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
   real(rkind)                     :: bulkDensity                   ! bulk density of a given layer (kg m-3)
   real(rkind)                     :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
-  real(rkind),parameter           :: tempAccelerate=0.00_rkind        ! factor to force initial canopy temperatures to be close to air temperature
-  real(rkind),parameter           :: xMinCanopyWater=0.0001_rkind     ! minimum value to initialize canopy water (kg m-2)
+  real(rkind),parameter           :: tempAccelerate=0.00_rkind     ! factor to force initial canopy temperatures to be close to air temperature
+  real(rkind),parameter           :: xMinCanopyWater=0.0001_rkind  ! minimum value to initialize canopy water (kg m-2)
   real(rkind),parameter           :: tinyStep=0.000001_rkind          ! stupidly small time step (s)
   ! ------------------------------------------------------------------------------------------------------
   ! * model solver
   ! ------------------------------------------------------------------------------------------------------
-  logical(lgt),parameter          :: forceFullMatrix=.true.       ! flag to force the use of the full Jacobian matrix
+  logical(lgt),parameter          :: forceFullMatrix=.true.        ! flag to force the use of the full Jacobian matrix
   integer(i4b)                    :: maxiter                       ! maximum number of iterations
   integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
   integer(i4b)                    :: localMaxIter                  ! maximum number of iterations (depends on solution type)
@@ -244,6 +244,8 @@ subroutine systemSolv(&
   real(rkind)                     :: resSinkNew(nState)            ! additional terms in the residual vector
   real(rkind)                     :: fluxVecNew(nState)            ! new flux vector
   real(rkind)                     :: resVecNew(nState)  ! NOTE: qp ! new residual vector
+  
+  real(c_double)                  :: constraints(nState)
 
   ! ---------------------------------------------------------------------------------------
   ! * sundials solver variables
@@ -253,6 +255,7 @@ subroutine systemSolv(&
   type(N_Vector),pointer          :: sunvec_y             ! SUNDIALS state vector
   type(N_Vector),pointer          :: sunvec_fscale        ! vector containing diagonal elements of scaling matrix
   type(N_Vector),pointer          :: sunvec_xscale        ! vector containing diagonal elements of scaling matrix
+  type(N_Vector),pointer          :: sunvec_c       ! vector containing diagonal elements of scaling matrix
   type(SUNMatrix),pointer         :: sunmat_A             ! SUNDIALS Jacobian matrix
   type(SUNLinearSolver),pointer   :: sunlinsol_LS         ! sundials linear solver
   integer(i4b)                    :: retval, retvalr      ! return value
@@ -303,6 +306,13 @@ subroutine systemSolv(&
   ! *****
   ! (0) PRELIMINARIES...
   ! ********************
+  constraints(:) = 0._dp
+  ! add the constraints
+  ! if (ixVegHyd /= integerMissing) then
+  !   ! add the constr
+  !   constraints(ixVegHyd) = 1._dp
+  ! endif
+  ! constraints(4) = 1._dp
 
   ! -----
   ! * initialize...
@@ -395,6 +405,7 @@ subroutine systemSolv(&
   kinsol_user_data%firstSplitOper = firstSplitOper
   kinsol_user_data%ixSaturation = ixSaturation
   kinsol_user_data%feasible = feasible
+  kinsol_user_data%firstStateiteration = .true.
 
   kinsol_user_data%type_data = type_data
   kinsol_user_data%attr_data = attr_data
@@ -432,7 +443,10 @@ subroutine systemSolv(&
   allocate(kinsol_user_data%model_decisions(maxvarDecisions), stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the kinsol user data'; return; end if
   kinsol_user_data%model_decisions = model_decisions
-  
+
+  allocate(kinsol_user_data%stateVecPrev(nState), stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the kinsol user data'; return; end if
+  kinsol_user_data%stateVecPrev = stateVecInit  
 
   ! initialize the trial state vectors with the initial state vectors
   stateVecTrial = stateVecInit
@@ -447,32 +461,15 @@ subroutine systemSolv(&
 
   
   ! SUNDIALS Context Creation
-  call init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,package_mem,kinsol_user_data,sunmat_A,&
-                  sunlinsol_LS,fscale,xscale,nState,stateVecTrial,err,message)
+  call init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,sunvec_c,package_mem,kinsol_user_data,sunmat_A,&
+                  sunlinsol_LS,fscale,xscale,nState,stateVecTrial,constraints,err,message)
   if(err/=0)then; message=trim(message)//'unable to create the SUNDIALS context';print*,message; return; endif
 
 
   ! Call KINSol to solve problem
   retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
   if(retval == 1)then;
-    err=-20;
-    print*, "retval = ", retval
-  ! else if (retval == -5)then;
-  !   print*, "here"
-  !   if(nSnow>0)then
-  !     print*, "We have snow"
-  !     ! compute the energy required to melt the top snow layer (J m-2)
-  !     bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
-  !     volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
-  !     ! set flag and error codes for too much melt
-  !     if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt)then
-  !       tooMuchMelt=.true.
-  !       message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
-  !       print*, message
-  !       err=-20; return ! negative error code to denote a warning
-  !     endif 
-  !   endif
-
+    err=-20;print*, "retval = ", retval
   else if(retval /= 0)then;
     err=20; message=trim(message)//'unable to solve the system of equations'; print*, message; print*, "retval", retval; return; 
   endif
@@ -517,7 +514,10 @@ subroutine systemSolv(&
 
   deallocate(kinsol_user_data%model_decisions, stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the kinsol user data'; print*, message; return; end if
-  
+
+  deallocate(kinsol_user_data%stateVecPrev, stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the kinsol user data'; print*, message; return; end if
+
   update_states: associate(&
   ! model decisions
     ! vector of energy and hydrology indices for the snow and soil domains
@@ -536,8 +536,6 @@ subroutine systemSolv(&
 
 
   ! check the need to merge snow layers
-
-
 
     ! set untapped melt energy to zero
     untappedMelt(:) = 0._rkind
@@ -564,8 +562,8 @@ subroutine systemSolv(&
 
 end subroutine systemSolv
 
-subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,package_mem,kinsol_user_data,sunmat_A, &
-    sunlinsol_LS,fscale,xscale,nState,stateVecTrial,err,message)
+subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,sunvec_c,package_mem,kinsol_user_data,sunmat_A, &
+    sunlinsol_LS,fscale,xscale,nState,stateVecTrial,constraints,err,message)
   USE fsundials_context_mod                            ! Fortran interface to SUNContext
   USE fkinsol_mod                                      ! Fortran interface to KINSOL
   USE fnvector_serial_mod                              ! Fortran interface to N_Vector
@@ -586,6 +584,7 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,packa
   type(N_Vector),pointer,intent(inout)       :: sunvec_y             ! SUNDIALS state vector
   type(N_Vector),pointer,intent(inout)       :: sunvec_fscale        ! vector containing diagonal elements of scaling matrix
   type(N_Vector),pointer,intent(inout)       :: sunvec_xscale        ! vector containing diagonal elements of scaling matrix
+  type(N_Vector),pointer,intent(inout)       :: sunvec_c             ! vector containing diagonal elements of scaling matrix
   
   type(c_ptr)                                :: package_mem          ! SUNDIALS memory pointer 
   type(kinsol_data),target,intent(inout)     :: kinsol_user_data     ! user data for the KINSOL solver
@@ -596,6 +595,7 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,packa
 
   integer(i4b),intent(in)                    :: nState               ! number of state variables
   real(rkind),intent(inout)                  :: stateVecTrial(:)     ! trial state vector (mixed units)
+  real(c_double), intent(inout)              :: constraints(:)
   integer(i4b),intent(out)                   :: err                  ! error code
   character(*),intent(out)                   :: message              ! error message
   ! local variables
@@ -603,6 +603,7 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,packa
   integer(c_long)                            :: clong_nState         ! number of state variables but as a c_long  
   real(c_double)                             :: fnormtol, scsteptol
   integer(c_long)                            :: mset
+  integer(c_long)                            :: maxIter = 200
 
   clong_nState = nState
   
@@ -623,6 +624,9 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,packa
   sunvec_xscale => FN_VMake_Serial(clong_nState, xscale, sunctx)
   if (.not. associated(sunvec_xscale)) then; err=20; message='systemSolv: sunvec = NULL'; print*,message; return; endif
 
+  sunvec_c => FN_VMake_Serial(clong_nState, constraints, sunctx)
+  if (.not. associated(sunvec_c)) then; err=20; message='systemSolv: sunvec = NULL'; print*,message; return; endif
+
   ! Create the KINSOL memory
   package_mem = FKinCreate(sunctx)
   if (.not. c_associated(package_mem)) then; err=20; message='systemSolv: package_mem = NULL';print*,message; return; endif
@@ -637,6 +641,10 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,packa
   
   ! -------------------------
   ! Set optional inputs
+
+  retval = FKINSetConstraints(package_mem, sunvec_c)
+  if (retval /= 0) then; err=20; message=trim(message)//'unable to set the constraints'; print*,message; return; endif
+
   fnormtol = ftol
   retval = FKINSetFuncNormTol(package_mem, fnormtol)
   if(retval /= 0)then; err=20; message=trim(message)//'unable to set the function norm tolerance'; return; endif
@@ -644,6 +652,9 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,packa
   scsteptol = stol
   retval = FKINSetScaledStepTol(package_mem, scsteptol)
   if(retval /= 0)then; err=20; message=trim(message)//'unable to set the scaled step tolerance'; return; endif
+
+  retval = FKINSetNumMaxIters(package_mem, maxIter)
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to set the maximum number of iterations'; return; endif
 
   ! Create the Matrix Object
   ! Ax = b => A is the matrix, x is the state vector, b is the residual vector
@@ -663,8 +674,9 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,packa
   retval = FKinSetJacFn(package_mem, c_funloc(computJacob_kinsol))
   if(retval /= 0)then; err=20; message=trim(message)//'unable to set the Jacobian function'; return; endif
   
-  ! Indicate exact Newton
-  mset = 0
+  ! Set the maximum number of times the linear solver is called without a Jacobian update
+  ! mset = 0 is the default value which indicates the default value of 10
+  mset = 5
   retval = FKINSetMaxSetupCalls(package_mem, mset)
   if(retval /= 0)then; err=20; message=trim(message)//'unable to set the maximum number of setup calls'; return; endif
   
