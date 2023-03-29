@@ -526,7 +526,7 @@ subroutine eval8summa(&
   rVecScaled = fScale(:)*real(resVec(:), rkind)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
   fEval      = 0.5_rkind*dot_product(rVecScaled,rVecScaled)
 
-  call write_residual_vector(resVec, nState, message, err)
+  ! call write_residual_vector(resVec, nState, message, err)
 
   ! end association with the information in the data structures
   end associate
@@ -886,12 +886,12 @@ subroutine write_residual_vector(resVec,nState,message,err)
 
 
   ! check if the file exists
-  inquire(file='data_kinsol.csv', exist=fileExists)
+  inquire(file='data_kinsol_residual.csv', exist=fileExists)
   if (.not. fileExists) then
-    open(unit=10, file ='data_kinsol.csv', status="new")
+    open(unit=10, file ='data_kinsol_residual.csv', status="new")
       call csv_write(10, resVec(1:nState), .true.)  
   else
-    open(unit=10, file ='data_kinsol.csv', status="old", position="append")
+    open(unit=10, file ='data_kinsol_residual.csv', status="old", position="append")
       call csv_write(10, resVec(1:nState), .true.)  
   end if
 

@@ -107,9 +107,9 @@ real(rkind),parameter  :: veryBig=1.e+20_rkind          ! a very big number
 real(rkind),parameter  :: dx = 1.e-8_rkind              ! finite difference increment
 
 ! Sundials Parameters
-real(c_double),  parameter :: ftol = 1.d-5
-! real(c_double),  parameter :: stol = 1.e-12_rkind
-real(c_double),  parameter :: stol = 1.e-8_rkind
+real(c_double),  parameter :: ftol = 0.0
+! real(c_double),  parameter :: stol = 1.e-1_rkind
+real(c_double),  parameter :: stol = 0.0
 
 contains
 
@@ -387,6 +387,83 @@ subroutine systemSolv(&
                   err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
+    ! initialize the trial state vectors with the initial state vectors
+  stateVecTrial = stateVecInit
+  ! need to intialize canopy water at a positive value
+  if(ixVegHyd/=integerMissing)then
+    if(stateVecTrial(ixVegHyd) < xMinCanopyWater) stateVecTrial(ixVegHyd) = stateVecTrial(ixVegHyd) + xMinCanopyWater
+  endif
+
+  ! try to accelerate solution for energy
+  if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
+  if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
+
+    
+  ! compute the flux and the residual vector for a given state vector
+  ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
+  ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
+  call eval8summa(&
+                  ! input: model control
+                  dt,                      & ! intent(in):    length of the time step (seconds)
+                  nSnow,                   & ! intent(in):    number of snow layers
+                  nSoil,                   & ! intent(in):    number of soil layers
+                  nLayers,                 & ! intent(in):    number of layers
+                  nState,                  & ! intent(in):    number of state variables in the current subset
+                  firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
+                  firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
+                  firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
+                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
+                  ! input: state vectors
+                  stateVecTrial,           & ! intent(in):    model state vector
+                  fScale,                  & ! intent(in):    function scaling vector
+                  sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
+                  ! input: data structures
+                  model_decisions,         & ! intent(in):    model decisions
+                  type_data,               & ! intent(in):    type of vegetation and soil
+                  attr_data,               & ! intent(in):    spatial attributes
+                  mpar_data,               & ! intent(in):    model parameters
+                  forc_data,               & ! intent(in):    model forcing data
+                  bvar_data,               & ! intent(in):    average model variables for the entire basin
+                  prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                  indx_data,               & ! intent(in):    index data
+                  ! input-output: data structures
+                  diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                  flux_init,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
+                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                  ! input-output: baseflow
+                  ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                  dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                  ! output
+                  feasible,                & ! intent(out):   flag to denote the feasibility of the solution
+                  fluxVec0,                & ! intent(out):   flux vector
+                  rAdd,                    & ! intent(out):   additional (sink) terms on the RHS of the state equation
+                  rVec,                    & ! intent(out):   residual vector
+                  fOld,                    & ! intent(out):   function evaluation
+                  err,cmessage)              ! intent(out):   error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
+
+  ! copy over the initial flux structure since some model fluxes are not computed in the iterations
+  do concurrent ( iVar=1:size(flux_meta) )
+    flux_temp%var(iVar)%dat(:) = flux_init%var(iVar)%dat(:)
+  end do
+
+  ! check the need to merge snow layers
+  if(nSnow>0)then
+    ! compute the energy required to melt the top snow layer (J m-2)
+    bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
+    volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
+    ! set flag and error codes for too much melt
+    if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt)then
+    tooMuchMelt=.true.
+    message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
+    err=-20; return ! negative error code to denote a warning
+    endif
+  endif
+
+
+
   ! ***************************
   ! Set up the user data for kinsol
   ! ***************************
@@ -448,16 +525,9 @@ subroutine systemSolv(&
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the kinsol user data'; return; end if
   kinsol_user_data%stateVecPrev = stateVecInit  
 
-  ! initialize the trial state vectors with the initial state vectors
-  stateVecTrial = stateVecInit
-  ! need to intialize canopy water at a positive value
-  if(ixVegHyd/=integerMissing)then
-    if(stateVecTrial(ixVegHyd) < xMinCanopyWater) stateVecTrial(ixVegHyd) = stateVecTrial(ixVegHyd) + xMinCanopyWater
-  endif
 
-  ! try to accelerate solution for energy
-  if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
-  if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
+
+
 
   
   ! SUNDIALS Context Creation
@@ -467,7 +537,8 @@ subroutine systemSolv(&
 
 
   ! Call KINSol to solve problem
-  retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
+  ! retval = FKINSol(package_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
+  retval = FKINSol(package_mem, sunvec_y, KIN_PICARD, sunvec_xscale, sunvec_fscale)
   if(retval == 1)then;
     err=-20;print*, "retval = ", retval
   else if(retval /= 0)then;
@@ -642,8 +713,8 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,sunve
   ! -------------------------
   ! Set optional inputs
 
-  retval = FKINSetConstraints(package_mem, sunvec_c)
-  if (retval /= 0) then; err=20; message=trim(message)//'unable to set the constraints'; print*,message; return; endif
+  ! retval = FKINSetConstraints(package_mem, sunvec_c)
+  ! if (retval /= 0) then; err=20; message=trim(message)//'unable to set the constraints'; print*,message; return; endif
 
   fnormtol = ftol
   retval = FKINSetFuncNormTol(package_mem, fnormtol)
@@ -676,7 +747,7 @@ subroutine init_kinsol_objects(sunctx,sunvec_y,sunvec_fscale,sunvec_xscale,sunve
   
   ! Set the maximum number of times the linear solver is called without a Jacobian update
   ! mset = 0 is the default value which indicates the default value of 10
-  mset = 5
+  mset = 1
   retval = FKINSetMaxSetupCalls(package_mem, mset)
   if(retval /= 0)then; err=20; message=trim(message)//'unable to set the maximum number of setup calls'; return; endif
   

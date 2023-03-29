@@ -375,7 +375,7 @@ contains
   ! identify the need to check the mass balance
   checkMassBalance = .true. ! (.not.scalarSolution)
 
-  call write_state_vector(stateVecTrial, nState,cmessage, err)
+  ! call write_state_vector(stateVecTrial, nState,cmessage, err)
   ! update prognostic variables
   call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
                   mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                          & ! input-output: data structures
