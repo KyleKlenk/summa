@@ -875,11 +875,11 @@ contains
 
    ! temporally constant variables use timestep-level output (no aggregation)
    case default
+    freqName = 'timestep'
     message=trim(message)//'unable to identify desired output frequency for variable '//trim(varName)&
                          //' [entered "'//trim(freqName)//'"];'&
                          //' outputting variable in timestep file'
     iFreq    = iLookFREQ%timestep
-    freqName = 'timestep'
   end select
 
   ! --- identify the desired statistic in the metadata structure  -----------
