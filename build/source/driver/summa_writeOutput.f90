@@ -125,6 +125,7 @@ contains
  logical(lgt)                          :: printProgress=.false.      ! flag to print simulation progress
  logical(lgt)                          :: defNewOutputFile=.false.   ! flag to define new output files
  integer(i4b)                          :: iGRU,iHRU          ! indices of GRUs and HRUs
+ integer(i4b)                          :: nGRU_local
  integer(i4b)                          :: iStruct            ! index of model structure
  integer(i4b)                          :: iFreq              ! index of the output frequency
  ! ---------------------------------------------------------------------------------------
@@ -156,6 +157,7 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summa_manageOutputFiles/'
+ nGRU_local = nGRU
 
  ! identify the start of the writing
  call date_and_time(values=startWrite)
@@ -220,34 +222,43 @@ contains
  ! *** calculate output statistics
  ! ****************************************************************************
 
- ! loop through GRUs and HRUs
- do iGRU=1,nGRU
-  do iHRU=1,gru_struc(iGRU)%hruCount
+  ! loop through GRUs and HRUs
+  !$omp parallel  default(none) &
+  !$omp          private(iGRU, err, cmessage, message) &  ! GRU indices are private for a given thread
+  !$omp          shared(statForc_meta, statProg_meta, statDiag_meta, &
+  !$omp                 statFlux_meta, statIndx_meta, statBvar_meta, &
+  !$omp                 gru_struc, resetstats, finalizeStats, statCounter, &
+  !$omp                 outputtimestep, bvar_meta, bvarchild_map, nGRU_local, &
+  !$omp                 summa1_struc)
+  !$omp do schedule(dynamic, 1)
+  do iGRU=1,nGRU_local
+    do iHRU=1,gru_struc(iGRU)%hruCount
 
-   ! calculate output Statistics
-   do iStruct=1,size(structInfo)
-    select case(trim(structInfo(iStruct)%structName))
-     case('forc'); call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-     case('prog'); call calcStats(progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,statProg_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-     case('diag'); call calcStats(diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,statDiag_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-     case('flux'); call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,statFlux_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-     case('indx'); call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,statIndx_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-    end select
-    if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
-   end do  ! (looping through structures)
+      ! calculate output Statistics
+      do iStruct=1,size(structInfo)
+        select case(trim(structInfo(iStruct)%structName))
+        case('forc'); call calcStats(summa1_struc%forcStat%gru(iGRU)%hru(iHRU)%var,summa1_struc%forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+        case('prog'); call calcStats(summa1_struc%progStat%gru(iGRU)%hru(iHRU)%var,summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%var,statProg_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+        case('diag'); call calcStats(summa1_struc%diagStat%gru(iGRU)%hru(iHRU)%var,summa1_struc%diagStruct%gru(iGRU)%hru(iHRU)%var,statDiag_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+        case('flux'); call calcStats(summa1_struc%fluxStat%gru(iGRU)%hru(iHRU)%var,summa1_struc%fluxStruct%gru(iGRU)%hru(iHRU)%var,statFlux_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+        case('indx'); call calcStats(summa1_struc%indxStat%gru(iGRU)%hru(iHRU)%var,summa1_struc%indxStruct%gru(iGRU)%hru(iHRU)%var,statIndx_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+        end select
+        if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; print*, message; endif
+      end do  ! (looping through structures)
 
-  end do  ! (looping through HRUs)
+    end do  ! (looping through HRUs)
 
-  ! calc basin stats
-  call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),statBvar_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage)//'[bvar stats]'; return; endif
+    ! calc basin stats
+    call calcStats(summa1_struc%bvarStat%gru(iGRU)%var(:),summa1_struc%bvarStruct%gru(iGRU)%var(:),statBvar_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage)//'[bvar stats]'; print*, message; endif
 
-  ! write basin-average variables
-  call writeBasin(iGRU,finalizeStats,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,bvarChild_map,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage)//'[bvar]'; return; endif
+    ! write basin-average variables
+    call writeBasin(iGRU,finalizeStats,outputTimeStep,bvar_meta,summa1_struc%bvarStat%gru(iGRU)%var,summa1_struc%bvarStruct%gru(iGRU)%var,bvarChild_map,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage)//'[bvar]'; print*, message; endif
 
- end do  ! (looping through GRUs)
-
+  end do  ! (looping through GRUs)
+  !$omp end do
+  !$omp end parallel
  ! ****************************************************************************
  ! *** write data
  ! ****************************************************************************

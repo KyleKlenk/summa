@@ -487,64 +487,69 @@ contains
  checkForce(:) = .false.
  checkForce(iLookFORCE%time) = .true.  ! time is handled separately
 
- ! loop through forcing data variables
- do iNC=1,forcFileInfo(iFile)%nVars
+  ! loop through forcing data variables
+  do iNC=1,forcFileInfo(iFile)%nVars
 
-  ! check variable is desired
-  if(forcFileInfo(iFile)%var_ix(iNC)==integerMissing) cycle
+    ! check variable is desired
+    if(forcFileInfo(iFile)%var_ix(iNC)==integerMissing) cycle
 
-  ! get index in forcing structure
-  iVar = forcFileInfo(iFile)%var_ix(iNC)
-  checkForce(iVar) = .true.
+    ! get index in forcing structure
+    iVar = forcFileInfo(iFile)%var_ix(iNC)
+    checkForce(iVar) = .true.
 
-  ! get variable name for error reporting
-  err=nf90_inquire_variable(ncid,iNC,name=varName)
-  if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing variable name from netCDF: '//trim(nf90_strerror(err)); return; endif
+    ! get variable name for error reporting
+    err=nf90_inquire_variable(ncid,iNC,name=varName)
+    if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing variable name from netCDF: '//trim(nf90_strerror(err)); return; endif
 
-  ! read forcing data for all HRUs
-  if(simultaneousRead)then
-   err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVec,start=(/ixHRUfile_min,iRead/),count=(/nHRUlocal,1/))
-   if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
-  endif
-
-  ! loop through GRUs and HRUs
-  do iGRU=1,size(gru_struc)
-   do iHRU=1,gru_struc(iGRU)%hruCount
-
-    ! define global HRU
-    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-    iHRU_local  = (iHRU_global - ixHRUfile_min)+1
-    !print*, 'iGRU, iHRU, iHRU_global, iHRU_local = ', iGRU, iHRU, iHRU_global, iHRU_local
-
-    ! read forcing data for a single HRU
-    if(.not.simultaneousRead)then
-     err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVal,start=(/iHRU_global,iRead/))
-     if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
+    ! read forcing data for all HRUs
+    if(simultaneousRead)then
+    err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVec,start=(/ixHRUfile_min,iRead/),count=(/nHRUlocal,1/))
+    if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
     endif
 
-    ! check the number of HRUs
-    if(iHRU_global > nHRUfile)then
-     message=trim(message)//'HRU index exceeds the number of HRUs in the forcing data file'
-     err=20; return
-    endif
+    ! loop through GRUs and HRUs
+    !$omp parallel  default(none) &
+    !$omp          private(iGRU, err, cmessage, message, iHRU_global, iHRU_local, dataVal) &  ! GRU indices are private for a given thread
+    !$omp          shared(gru_struc, ncid, forcFileInfo, ixHRUfile_min, iRead, iFile, iVar, varName, nHRUfile, dataVec, forcStruct)
+    !$omp do schedule(dynamic, 1)
+    do iGRU=1,size(gru_struc)
+      do iHRU=1,gru_struc(iGRU)%hruCount
 
-    ! get individual data value
-    if(simultaneousRead) dataVal(1) = dataVec(iHRU_local)
-    !print*, trim(varname)//': ', dataVal(1)
+        ! define global HRU
+        iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+        iHRU_local  = (iHRU_global - ixHRUfile_min)+1
+        !print*, 'iGRU, iHRU, iHRU_global, iHRU_local = ', iGRU, iHRU, iHRU_global, iHRU_local
 
-    ! check individual data value
-    if(dataVal(1)<dataMin)then
-     write(message,'(a,f13.5)') trim(message)//'forcing data for variable '//trim(varname)//' is less than minimum allowable value ', dataMin
-     err=20; return
-    endif
+        ! read forcing data for a single HRU
+        if(.not.simultaneousRead)then
+          err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVal,start=(/iHRU_global,iRead/))
+          if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); print*, message; endif
+        endif
 
-    ! put the data into structures
-    forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVal(1)
+        ! check the number of HRUs
+        if(iHRU_global > nHRUfile)then
+          message=trim(message)//'HRU index exceeds the number of HRUs in the forcing data file'
+          err=20; print*, message
+        endif
 
-   end do  ! looping through HRUs within a given GRU
-  end do  ! looping through GRUs
+        ! get individual data value
+        if(simultaneousRead) dataVal(1) = dataVec(iHRU_local)
+        !print*, trim(varname)//': ', dataVal(1)
 
- end do  ! loop through forcing variables
+        ! check individual data value
+        if(dataVal(1)<dataMin)then
+          write(message,'(a,f13.5)') trim(message)//'forcing data for variable '//trim(varname)//' is less than minimum allowable value ', dataMin
+          err=20; print*, message
+        endif
+
+        ! put the data into structures
+        forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVal(1)
+
+      end do  ! looping through HRUs within a given GRU
+    end do  ! looping through GRUs
+    !$omp end do
+    !$omp end parallel
+  end do  ! loop through forcing variables
 
  ! check if any forcing data is missing
  if(count(checkForce)<size(forc_meta))then
