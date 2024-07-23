@@ -119,6 +119,7 @@ contains
  character(*),intent(out)              :: message            ! error message
  ! local variables
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
+ character(LEN=256)                    :: cmessage_global           ! error message of downwind routine
  character(len=256)                    :: timeString                 ! portion of restart file name that contains the write-out time
  character(len=256)                    :: restartFile                ! restart file name
  logical(lgt)                          :: printRestart=.false.       ! flag to print a re-start file
@@ -128,6 +129,8 @@ contains
  integer(i4b)                          :: nGRU_local
  integer(i4b)                          :: iStruct            ! index of model structure
  integer(i4b)                          :: iFreq              ! index of the output frequency
+ integer(i4b)                          :: err_global
+
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -158,6 +161,7 @@ contains
  ! initialize error control
  err=0; message='summa_manageOutputFiles/'
  nGRU_local = nGRU
+ err_global = 0
 
  ! identify the start of the writing
  call date_and_time(values=startWrite)
@@ -205,7 +209,7 @@ contains
  ! *****************************************************************************
  ! *** define summa output files
  ! *****************************************************************************
-
+  print*, "writing output"
  ! check the need to create a new output file
  if(defNewOutputFile .or. modelTimeStep==1)then
 
@@ -229,9 +233,10 @@ contains
   !$omp                 statFlux_meta, statIndx_meta, statBvar_meta, &
   !$omp                 gru_struc, resetstats, finalizeStats, statCounter, &
   !$omp                 outputtimestep, bvar_meta, bvarchild_map, nGRU_local, &
-  !$omp                 summa1_struc)
+  !$omp                 summa1_struc, err_global, cmessage_global)
   !$omp do schedule(dynamic, 1)
   do iGRU=1,nGRU_local
+    err = 0
     do iHRU=1,gru_struc(iGRU)%hruCount
 
       ! calculate output Statistics
@@ -243,22 +248,42 @@ contains
         case('flux'); call calcStats(summa1_struc%fluxStat%gru(iGRU)%hru(iHRU)%var,summa1_struc%fluxStruct%gru(iGRU)%hru(iHRU)%var,statFlux_meta,resetStats,finalizeStats,statCounter,err,cmessage)
         case('indx'); call calcStats(summa1_struc%indxStat%gru(iGRU)%hru(iHRU)%var,summa1_struc%indxStruct%gru(iGRU)%hru(iHRU)%var,statIndx_meta,resetStats,finalizeStats,statCounter,err,cmessage)
         end select
-        if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; print*, message; endif
+        if(err/=0)then 
+          !$omp critical
+          cmessage_global=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; 
+          !$omp end critical
+          !$omp atomic write
+          err_global = err
+        endif
       end do  ! (looping through structures)
 
     end do  ! (looping through HRUs)
 
     ! calc basin stats
     call calcStats(summa1_struc%bvarStat%gru(iGRU)%var(:),summa1_struc%bvarStruct%gru(iGRU)%var(:),statBvar_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage)//'[bvar stats]'; print*, message; endif
-
-    ! write basin-average variables
-    call writeBasin(iGRU,finalizeStats,outputTimeStep,bvar_meta,summa1_struc%bvarStat%gru(iGRU)%var,summa1_struc%bvarStruct%gru(iGRU)%var,bvarChild_map,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage)//'[bvar]'; print*, message; endif
-
+    if(err/=0)then 
+      !$omp critical
+      cmessage_global=trim(message)//trim(cmessage)//'[bvar stats]'; 
+      !$omp end critical
+      !$omp atomic write
+      err_global = err
+    endif
   end do  ! (looping through GRUs)
   !$omp end do
   !$omp end parallel
+  if (err_global /= 0) then
+    message = cmessage_global
+    err = err_global
+    print*, "Message ", message
+    return
+  endif
+  ! write basin-average variables
+  do iGRU=1,nGRU_local
+    call writeBasin(iGRU,finalizeStats,outputTimeStep,bvar_meta,summa1_struc%bvarStat%gru(iGRU)%var,summa1_struc%bvarStruct%gru(iGRU)%var,bvarChild_map,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage)//'[bvar]'; return; endif
+  end do
+
+
  ! ****************************************************************************
  ! *** write data
  ! ****************************************************************************
