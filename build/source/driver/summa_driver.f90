@@ -66,10 +66,11 @@ program summa_driver
   ! *****************************************************************************
   ! * model setup/initialization
   ! *****************************************************************************
-
+  print*, "Entering model setup/initialization"
   ! declare and allocate summa data structures and initialize model state to known values
   call summa_initialize(summa1_struc(n), err, message)
   call handle_err(err, message)
+  print*, "Finished model setup/initialization"
 
   ! initialize parameter data structures (e.g. vegetation and soil parameters)
   call summa_paramSetup(summa1_struc(n), err, message)

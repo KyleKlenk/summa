@@ -25,8 +25,11 @@ endif()
 set(CMAKE_CONFIGURATION_TYPES Release Debug)
 
 # Options: Enable each with cmake -DOPTION=ON
+option(USE_OPENMP "Use OpenMP for parallelization" OFF)
 option(USE_SUNDIALS "Use IDA solver from SUNDIALS suite" OFF)
 option(USE_NEXTGEN "Use NextGen Framework" OFF)
+
+
 set(EXT_TARGETS) # list of external targets to link to
 
 # Set Default Executable Name
@@ -40,6 +43,11 @@ endif()
 
 set(PARENT_DIR "${F_MASTER}")
 set(EXEC_DIR "${F_MASTER}/bin")
+
+if (USE_OPENMP)
+  find_package(OpenMP REQUIRED)
+  list(APPEND EXT_TARGETS OpenMP::OpenMP_Fortran)
+endif()
 
 # Handle optional external libraries
 if (USE_SUNDIALS)
@@ -79,6 +87,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXEC_DIR})
 # NetCDF is found with a custom FindNetCDF.cmake file
 find_package(NetCDF REQUIRED)
 list(APPEND EXT_TARGETS NetCDF::NetCDF)
+
+
 
 # OpenBLAS
 set(BLA_VENDOR OpenBLAS) # MKL

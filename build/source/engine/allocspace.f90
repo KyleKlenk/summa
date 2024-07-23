@@ -80,6 +80,8 @@ contains
  subroutine allocGlobal(metaStruct,dataStruct,err,message)
  ! NOTE: safety -- ensure only used in allocGlobal
  USE globalData,only: gru_struc     ! gru-hru mapping structures
+ USE summa_util,only:handle_err
+
  implicit none
  ! input
  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
@@ -93,10 +95,11 @@ contains
  integer(i4b)                    :: iGRU           ! loop index through GRUs
  integer(i4b)                    :: nGRU           ! number of GRUs
  logical(lgt)                    :: spatial        ! spatial flag
+ logical(lgt)                    :: spatial_global ! spatial flag for global data structures
  character(len=256)              :: cmessage       ! error message of the downwind routine
  ! initialize error control
  err=0; message='allocGlobal/'
-
+ print*, 'allocGlobal'
  ! initialize allocation check
  check=.false.
 
@@ -126,82 +129,115 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'problem allocating GRU dimension'; return; end if
 
  ! * allocate HRU dimension
- do iGRU=1,nGRU
-  ! allocate the HRU dimension
+ !$omp parallel  default(none) &
+ !$omp          private(iGRU, err, cmessage, check) &  ! GRU indices are private for a given thread
+ !$omp          shared(dataStruct, gru_struc, nGRU)
+ !$omp do schedule(dynamic, 1)
+  do iGRU=1,nGRU
+    check=.false.
+    err = 0
+    ! allocate the HRU dimension
+    select type(dataStruct)
+      class is (gru_hru_int)       
+        if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if;
+      class is (gru_hru_int8)
+        if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if;
+      class is (gru_hru_intVec)   
+        if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if;
+      class is (gru_hru_double)    
+        if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if;
+      class is (gru_hru_doubleVec) 
+        if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if;
+      class is (gru_hru_z_vLookup)
+        if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if;
+      class default  ! do nothing: It is acceptable to not be any of these specified cases
+    end select
+    ! check errors
+    if(check) then; 
+      err=20; cmessage=trim(cmessage)//'HRU structure was unexpectedly allocated already';
+      call handle_err(err, cmessage)
+    end if
+    if(err/=0)then; 
+      err=20; cmessage=trim(cmessage)//'problem allocating HRU dimension';
+      call handle_err(err, cmessage)
+    end if
+    
+  end do
+  !$omp end do
+  !$omp end parallel
+
+  spatial_global = .true.
+
+  ! * allocate local data structures where there is a spatial dimension
+  !$omp parallel  default(none) &
+  !$omp          private(iGRU, err, cmessage, message, spatial) &  ! GRU indices are private for a given thread
+  !$omp          shared(metaStruct, dataStruct, gru_struc, nGRU, spatial_global)
+  !$omp do schedule(dynamic, 1)
+  gruLoop: do iGRU=1,nGRU
+
+    ! initialize the spatial flag
+    spatial=.false.
+
+    ! loop through HRUs
+    hruLoop: do iHRU=1,gru_struc(iGRU)%hruCount
+
+      ! get the number of snow and soil layers
+      associate(&
+      nSnow => gru_struc(iGRU)%hruInfo(iHRU)%nSnow, & ! number of snow layers for each HRU
+      nSoil => gru_struc(iGRU)%hruInfo(iHRU)%nSoil  ) ! number of soil layers for each HRU
+
+      ! allocate space for structures WITH an HRU dimension
+      select type(dataStruct)
+        class is (gru_hru_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+        class is (gru_hru_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+        class is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+        class is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+        class is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+        class is (gru_hru_z_vLookup); spatial=.true. ! (special case, allocate space separately later)
+        class default; exit hruLoop
+      end select
+
+      ! error check
+      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); end if
+
+      ! end association to info in data structures
+      end associate
+
+    end do hruLoop ! loop through HRUs
+
+
+    ! allocate space for structures *WITHOUT* an HRU dimension
+    select type(dataStruct)
+      class is (gru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
+      class is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
+      class default
+        if(.not.spatial) then
+          !$omp atomic write
+          spatial_global = spatial ! no need to allocate spatial dimensions if none exist for a given variable
+        end if
+        cycle gruLoop  ! can have an HRU dimension if we get to here
+    end select
+
+    ! error check
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); end if
+
+  end do gruLoop ! loop through GRUs
+  !$omp end do
+  !$omp end parallel
+
+  ! * allocate local data structures where there is no spatial dimension
   select type(dataStruct)
-   class is (gru_hru_int);       if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   class is (gru_hru_int8);      if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   class is (gru_hru_intVec);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   class is (gru_hru_double);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   class is (gru_hru_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
- class is (gru_hru_z_vLookup); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   class default  ! do nothing: It is acceptable to not be any of these specified cases
-  end select
-  ! check errors
-  if(check) then; err=20; message=trim(message)//'HRU structure was unexpectedly allocated already'; return; end if
-  if(err/=0)then; err=20; message=trim(message)//'problem allocating HRU dimension'; return; end if
- end do
-
- ! * allocate local data structures where there is a spatial dimension
- gruLoop: do iGRU=1,nGRU
-
-  ! initialize the spatial flag
-  spatial=.false.
-
-  ! loop through HRUs
-  hruLoop: do iHRU=1,gru_struc(iGRU)%hruCount
-
-   ! get the number of snow and soil layers
-   associate(&
-   nSnow => gru_struc(iGRU)%hruInfo(iHRU)%nSnow, & ! number of snow layers for each HRU
-   nSoil => gru_struc(iGRU)%hruInfo(iHRU)%nSoil  ) ! number of soil layers for each HRU
-
-   ! allocate space for structures WITH an HRU dimension
-   select type(dataStruct)
-    class is (gru_hru_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    class is (gru_hru_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    class is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    class is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    class is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    class is (gru_hru_z_vLookup); spatial=.true. ! (special case, allocate space separately later)
-    class default; exit hruLoop
-   end select
-
-   ! error check
-   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
-   ! end association to info in data structures
-   end associate
-
-  end do hruLoop ! loop through HRUs
-
-  ! allocate space for structures *WITHOUT* an HRU dimension
-  select type(dataStruct)
-   class is (gru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
-   class is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
-   class default
-    if(.not.spatial) exit gruLoop  ! no need to allocate spatial dimensions if none exist for a given variable
-    cycle gruLoop  ! can have an HRU dimension if we get to here
+    class is (var_i);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+    class is (var_i8);        call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+    class is (var_d);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+    class is (var_ilength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+    class is (var_dlength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+    ! check identified the data type
+    class default; if(.not.spatial_global)then; err=20; message=trim(message)//'unable to identify derived data type'; return; end if
   end select
 
   ! error check
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
- end do gruLoop ! loop through GRUs
-
- ! * allocate local data structures where there is no spatial dimension
- select type(dataStruct)
-  class is (var_i);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-  class is (var_i8);        call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-  class is (var_d);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-  class is (var_ilength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-  class is (var_dlength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-  ! check identified the data type
-  class default; if(.not.spatial)then; err=20; message=trim(message)//'unable to identify derived data type'; return; end if
- end select
-
- ! error check
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  end subroutine allocGlobal
 
