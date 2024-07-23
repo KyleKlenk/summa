@@ -99,7 +99,6 @@ contains
  character(len=256)              :: cmessage       ! error message of the downwind routine
  ! initialize error control
  err=0; message='allocGlobal/'
- print*, 'allocGlobal'
  ! initialize allocation check
  check=.false.
 

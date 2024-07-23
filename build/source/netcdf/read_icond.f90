@@ -100,14 +100,20 @@ contains
  ixHRUfile_min=huge(1)
  ixHRUfile_max=0
  ! find the min and max hru indices in the state file
+ !$omp parallel  default(none) &
+ !$omp          private(iGRU, iHRU, iHRU_global) &  ! GRU indices are private for a given thread
+ !$omp          shared(ixHRUfile_min, ixHRUfile_max, gru_struc, nGRU, snowData, soilData)
+ !$omp do schedule(dynamic, 1)
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
    if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc > ixHRUfile_max) ixHRUfile_max = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
   end do
  end do
+!$omp end do
 
  ! loop over grus in current run to update snow/soil layer information
+ !$omp do schedule(dynamic, 1)
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
@@ -122,6 +128,8 @@ contains
    endif
   end do
  end do
+!$omp end do
+!$omp end parallel
 
  ! close file
  call nc_file_close(ncid,err,cmessage)

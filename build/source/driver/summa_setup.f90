@@ -119,6 +119,7 @@ contains
  ! local variables
  character(len=256)                    :: cmessage           ! error message of downwind routine
  character(len=256)                    :: attrFile           ! attributes file name
+ integer(i4b)                          :: nGRU_local,nHRU_local          ! 
  integer(i4b)                          :: jHRU,kHRU          ! HRU indices
  integer(i4b)                          :: iGRU,iHRU          ! looping variables
  integer(i4b)                          :: iVar               ! looping variables
@@ -168,7 +169,6 @@ contains
  call ffile_info(nGRU,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 #endif
-
  ! *****************************************************************************
  ! *** read model decisions
  ! *****************************************************************************
@@ -202,6 +202,7 @@ contains
  ! read local attributes for each HRU
  call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,idStruct,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ nGRU_local = nGRU
 
  ! *****************************************************************************
  ! *** read default model parameters
@@ -245,128 +246,138 @@ contains
    return
  end select
 
- ! set default model parameters
- do iGRU=1,nGRU
-  do iHRU=1,gru_struc(iGRU)%hruCount
+  ! set default model parameters
+  !$omp parallel  default(none) &
+  !$omp          private(iGRU, err, cmessage, message) &  ! GRU indices are private for a given thread
+  !$omp          shared(gru_struc, localParFallback, basinParFallback, nGRU_local, summa1_struc)
+  !$omp do schedule(dynamic, 1)
+  do iGRU=1,nGRU_local
+    do iHRU=1,gru_struc(iGRU)%hruCount
 
-   ! set parmameters to their default value
-   dparStruct%gru(iGRU)%hru(iHRU)%var(:) = localParFallback(:)%default_val         ! x%hru(:)%var(:)
+        ! set parmameters to their default value
+        summa1_struc%dparStruct%gru(iGRU)%hru(iHRU)%var(:) = localParFallback(:)%default_val         ! x%hru(:)%var(:)
 
-   ! overwrite default model parameters with information from the Noah-MP tables
-   call pOverwrite(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),  &  ! vegetation category
-                   typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%soilTypeIndex), &  ! soil category
-                   dparStruct%gru(iGRU)%hru(iHRU)%var,                          &  ! default model parameters
-                   err,cmessage)                                                   ! error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        ! overwrite default model parameters with information from the Noah-MP tables
+        call pOverwrite(summa1_struc%typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),  &  ! vegetation category
+                        summa1_struc%typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%soilTypeIndex), &  ! soil category
+                        summa1_struc%dparStruct%gru(iGRU)%hru(iHRU)%var,                          &  ! default model parameters
+                        err,cmessage)                                                   ! error control
+        if(err/=0)then; message=trim(message)//trim(cmessage); print*, message; endif
 
-   ! copy over to the parameter structure
-   ! NOTE: constant for the dat(:) dimension (normally depth)
-   do ivar=1,size(localParFallback)
-    mparStruct%gru(iGRU)%hru(iHRU)%var(ivar)%dat(:) = dparStruct%gru(iGRU)%hru(iHRU)%var(ivar)
-   end do  ! looping through variables
+        ! copy over to the parameter structure
+        ! NOTE: constant for the dat(:) dimension (normally depth)
+        do ivar=1,size(localParFallback)
+          summa1_struc%mparStruct%gru(iGRU)%hru(iHRU)%var(ivar)%dat(:) = summa1_struc%dparStruct%gru(iGRU)%hru(iHRU)%var(ivar)
+        end do  ! looping through variables
 
-  end do  ! looping through HRUs
+    end do  ! looping through HRUs
 
-  ! set default for basin-average parameters
-  bparStruct%gru(iGRU)%var(:) = basinParFallback(:)%default_val
+    ! set default for basin-average parameters
+    summa1_struc%bparStruct%gru(iGRU)%var(:) = basinParFallback(:)%default_val
+  end do  ! looping through GRUs
+  !$omp end do
+  !$omp end parallel
 
- end do  ! looping through GRUs
-
- ! *****************************************************************************
- ! *** read trial model parameter values for each HRU, and populate initial data structures
- ! *****************************************************************************
- call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! *****************************************************************************
- ! *** compute derived model variables that are pretty much constant for the basin as a whole
- ! *****************************************************************************
- ! loop through GRUs
- do iGRU=1,nGRU
-
-  ! calculate the fraction of runoff in future time steps
-  call fracFuture(bparStruct%gru(iGRU)%var,    &  ! vector of basin-average model parameters
-                  bvarStruct%gru(iGRU),        &  ! data structure of basin-average variables
-                  err,cmessage)                   ! error control
+  ! *****************************************************************************
+  ! *** read trial model parameter values for each HRU, and populate initial data structures
+  ! *****************************************************************************
+  call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! loop through local HRUs
-  do iHRU=1,gru_struc(iGRU)%hruCount
+  ! *****************************************************************************
+  ! *** compute derived model variables that are pretty much constant for the basin as a whole
+  ! *****************************************************************************
+  ! loop through GRUs
+  !$omp parallel  default(none) &
+  !$omp          private(iGRU, err, cmessage, message, kHRU, needLookup_soil) &  ! GRU indices are private for a given thread
+  !$omp          shared(gru_struc, nGRU_local, HVT, HVB, model_decisions, saim, laim, greenVegFrac_monthly, summa1_struc)
+  !$omp do schedule(dynamic, 1)
+  do iGRU=1,nGRU_local
 
-   kHRU=0
-   ! check the network topology (only expect there to be one downslope HRU)
-   do jHRU=1,gru_struc(iGRU)%hruCount
-    if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == idStruct%gru(iGRU)%hru(jHRU)%var(iLookID%hruId))then
-     if(kHRU==0)then  ! check there is a unique match
-      kHRU=jHRU
-     else
-      message=trim(message)//'only expect there to be one downslope HRU'; return
-     end if  ! (check there is a unique match)
-    end if  ! (if identified a downslope HRU)
-   end do
+    ! calculate the fraction of runoff in future time steps
+    call fracFuture(summa1_struc%bparStruct%gru(iGRU)%var,    &  ! vector of basin-average model parameters
+                    summa1_struc%bvarStruct%gru(iGRU),        &  ! data structure of basin-average variables
+                    err,cmessage)                   ! error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); print*, message; endif
 
-   ! check that the parameters are consistent
-   call paramCheck(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! loop through local HRUs
+    do iHRU=1,gru_struc(iGRU)%hruCount
 
-   ! calculate a look-up table for the temperature-enthalpy conversion of snow for future snow layer merging
-   ! NOTE1: might be able to make this more efficient by only doing this for the HRUs that have snow
-   ! NOTE2: H is the mixture enthalpy of snow liquid and ice
-   call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      kHRU=0
+      ! check the network topology (only expect there to be one downslope HRU)
+      do jHRU=1,gru_struc(iGRU)%hruCount
+        if(summa1_struc%typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == summa1_struc%idStruct%gru(iGRU)%hru(jHRU)%var(iLookID%hruId))then
+          if(kHRU==0)then  ! check there is a unique match
+            kHRU=jHRU
+          else
+            message=trim(message)//'only expect there to be one downslope HRU'; print*, message;
+          end if  ! (check there is a unique match)
+        end if  ! (if identified a downslope HRU)
+      end do
 
-   ! calculate a lookup table for the temperature-enthalpy conversion of soil 
-   ! NOTE: L is the integral of soil Clapeyron equation liquid water matric potential from temperature
-   !       multiply by Cp_liq*iden_water to get temperature component of enthalpy
-   if(needLookup_soil)then
-     call T2L_lookup_soil(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
-                          mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
-                          lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
-                          err,cmessage)                              ! intent(out):   error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  
-   endif
+      ! check that the parameters are consistent
+      call paramCheck(summa1_struc%mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); print*, message; endif
 
-   ! overwrite the vegetation height
-   HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)
-   HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)%dat(1)
+      ! calculate a look-up table for the temperature-enthalpy conversion of snow for future snow layer merging
+      ! NOTE1: might be able to make this more efficient by only doing this for the HRUs that have snow
+      ! NOTE2: H is the mixture enthalpy of snow liquid and ice
+      call T2H_lookup_snWat(summa1_struc%mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); print*, message; endif
 
-   ! overwrite the tables for LAI and SAI
-   if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
-    SAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%winterSAI)%dat(1)
-    LAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%summerLAI)%dat(1)*greenVegFrac_monthly
-   endif
+      ! calculate a lookup table for the temperature-enthalpy conversion of soil 
+      ! NOTE: L is the integral of soil Clapeyron equation liquid water matric potential from temperature
+      !       multiply by Cp_liq*iden_water to get temperature component of enthalpy
+      if(needLookup_soil)then
+        call T2L_lookup_soil(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
+                             summa1_struc%mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
+                             summa1_struc%lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
+                             err,cmessage)                              ! intent(out):   error control
+        if(err/=0)then; message=trim(message)//trim(cmessage); print*, message; endif  
+      endif
 
-  end do ! HRU
+      ! overwrite the vegetation height
+      HVT(summa1_struc%typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = summa1_struc%mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)
+      HVB(summa1_struc%typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = summa1_struc%mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)%dat(1)
 
-  ! compute total area of the upstream HRUS that flow into each HRU
-  do iHRU=1,gru_struc(iGRU)%hruCount
-   upArea%gru(iGRU)%hru(iHRU) = 0._rkind
-   do jHRU=1,gru_struc(iGRU)%hruCount
-    ! check if jHRU flows into iHRU; assume no exchange between GRUs
-    if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
-     upArea%gru(iGRU)%hru(iHRU) = upArea%gru(iGRU)%hru(iHRU) + attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
-    endif   ! (if jHRU is an upstream HRU)
-   end do  ! jHRU
-  end do  ! iHRU
+      ! overwrite the tables for LAI and SAI
+      if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
+        SAIM(summa1_struc%typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = summa1_struc%mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%winterSAI)%dat(1)
+        LAIM(summa1_struc%typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = summa1_struc%mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%summerLAI)%dat(1)*greenVegFrac_monthly
+      endif
 
-  ! identify the total basin area for a GRU (m2)
-  associate(totalArea => bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1) )
-  totalArea = 0._rkind
-  do iHRU=1,gru_struc(iGRU)%hruCount
-   totalArea = totalArea + attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
-  end do
-  end associate
+    end do ! HRU
 
- end do ! GRU
+    ! compute total area of the upstream HRUS that flow into each HRU
+    do iHRU=1,gru_struc(iGRU)%hruCount
+      upArea%gru(iGRU)%hru(iHRU) = 0._rkind
+      do jHRU=1,gru_struc(iGRU)%hruCount
+        ! check if jHRU flows into iHRU; assume no exchange between GRUs
+        if(summa1_struc%typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==summa1_struc%typeStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
+          summa1_struc%upArea%gru(iGRU)%hru(iHRU) = summa1_struc%upArea%gru(iGRU)%hru(iHRU) + summa1_struc%attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
+        endif   ! (if jHRU is an upstream HRU)
+      end do  ! jHRU
+    end do  ! iHRU
 
- ! identify the end of the initialization
- call date_and_time(values=endSetup)
+    ! identify the total basin area for a GRU (m2)
+    associate(totalArea => bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1) )
+    totalArea = 0._rkind
+    do iHRU=1,gru_struc(iGRU)%hruCount
+      totalArea = totalArea + summa1_struc%attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
+    end do
+    end associate
+  end do ! GRU
+  !$omp end do
+  !$omp end parallel
 
- ! aggregate the elapsed time for the initialization
- elapsedSetup = elapsedSec(startSetup, endSetup)
+  ! identify the end of the initialization
+  call date_and_time(values=endSetup)
 
- ! end associate statements
- end associate summaVars
+  ! aggregate the elapsed time for the initialization
+  elapsedSetup = elapsedSec(startSetup, endSetup)
+
+  ! end associate statements
+  end associate summaVars
 
 
  end subroutine summa_paramSetup
