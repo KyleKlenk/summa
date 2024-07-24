@@ -181,10 +181,6 @@ subroutine summa_initialize(summa1_struc, err, message)
     elapsedWrite=0._rkind
     elapsedPhysics=0._rkind
 
-    ! get the command line arguments
-    call getCommandArguments(summa1_struc,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
     ! set directories and files -- summaFileManager used as command-line argument
     call summa_SetTimesDirsAndFiles(summaFileManagerFile,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

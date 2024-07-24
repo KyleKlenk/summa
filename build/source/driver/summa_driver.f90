@@ -26,6 +26,7 @@ program summa_driver
   ! data types
   USE nrtype                                                  ! variable types, etc.
   USE summa_type, only: summa1_type_dec                       ! master summa data type
+  USE summa_util, only:getCommandArguments                    ! process command line arguments
   ! subroutines and functions: model setup
   USE summa_init, only: summa_initialize                      ! used to allocate/initialize summa data structures
   USE summa_setup, only: summa_paramSetup                     ! used to initialize parameter data structures (e.g. vegetation and soil parameters)
@@ -40,6 +41,7 @@ program summa_driver
   ! global data
   USE globalData, only: numtim                                ! number of model time steps
   USE globalData, only: print_step_freq
+  USE MPI
   implicit none
 
   ! *****************************************************************************
@@ -51,6 +53,10 @@ program summa_driver
   integer(i4b), parameter            :: n=1                        ! number of instantiations
   ! define timing information
   integer(i4b)                       :: modelTimeStep              ! index of model time step
+  ! MPI Variables
+  integer(i4b)                       :: ierr=0
+  integer(i4b)                       :: num_rank=0                 ! number of processors
+  integer(i4b)                       :: my_rank=0                  ! rank of processor
   ! error control
   integer(i4b)                       :: err=0                      ! error code
   character(len=1024)                :: message=''                 ! error message
@@ -59,18 +65,24 @@ program summa_driver
   ! * preliminaries
   ! *****************************************************************************
 
+  ! initialize MPI
+  call MPI_Init(ierr)
+  if(ierr/=0) call stop_program(1, 'problem initializing MPI')
+
   ! allocate space for the master summa structure
   allocate(summa1_struc(n), stat=err)
   if(err/=0) call stop_program(1, 'problem allocating master summa structure')
 
+  ! get the command line arguments and assign them across ranks
+  call getCommandArguments(summa1_struc(n),err,message)
+  call handle_err(err, message)
+
   ! *****************************************************************************
   ! * model setup/initialization
   ! *****************************************************************************
-  print*, "Entering model setup/initialization"
   ! declare and allocate summa data structures and initialize model state to known values
   call summa_initialize(summa1_struc(n), err, message)
   call handle_err(err, message)
-  print*, "Finished model setup/initialization"
 
   ! initialize parameter data structures (e.g. vegetation and soil parameters)
   call summa_paramSetup(summa1_struc(n), err, message)
@@ -103,9 +115,12 @@ program summa_driver
   end do  ! looping through time
 
   ! successful end
-  call stop_program(0, 'finished simulation successfully.')
-
+  call MPI_Barrier(MPI_COMM_WORLD, ierr)
+  if(ierr/=0) call stop_program(1, 'problem at MPI_Barrier')
+  call MPI_Finalize(ierr)
+  if(ierr/=0) call stop_program(1, 'problem finalizing MPI')
   ! to prevent exiting before HDF5 has closed
   call sleep(2)
+  call stop_program(0, 'finished simulation successfully.')
 
 end program summa_driver

@@ -60,6 +60,7 @@ contains
  USE globalData,only: ixProgress        ! define frequency to write progress
  USE globalData,only: ixRestart         ! define frequency to write restart files
  USE globalData,only: output_fileSuffix ! suffix for the output file
+ USE MPI
  implicit none
  ! dummy variables
  type(summa1_type_dec),intent(inout)   :: summa1_struc        ! master summa data structure
@@ -71,6 +72,11 @@ contains
  character(len=256),allocatable        :: argString(:)        ! string to store command line arguments
  integer(i4b)                          :: nLocalArgument      ! number of command line arguments to read for a switch
  character(len=70), parameter          :: spaces = ''         ! setting a blank string
+ integer(i4b)                          :: nGRU_rank=0
+ integer(i4b)                          :: num_rank=0
+ integer(i4b)                          :: my_rank=0
+ integer(i4b)                          :: transition_rank=0         
+ integer(i4b)                          :: ierr=0
  ! version information generated during compiling
  INCLUDE 'summaversion.inc'
  ! ---------------------------------------------------------------------------------------
@@ -200,10 +206,28 @@ contains
     read(argString(iArgument+1),*) startGRU ! read the argument of startGRU
     read(argString(iArgument+2),*) nGRU     ! read the argument of countGRU
     if (startGRU<1 .or. nGRU<1) then
-     message='startGRU and countGRU must be larger than 1.'
-     err=1; return
+      message='startGRU and countGRU must be larger than 1.'
+      err=1; return
     else
-     print '(A)', ' GRU-Parallelization run activated. '//trim(argString(iArgument+2))//' GRUs are selected for simulation.'
+      
+      call MPI_Comm_size(MPI_COMM_WORLD, num_rank, ierr)
+      if(ierr/=0) call stop_program(1, 'problem getting number of processors')
+      call MPI_Comm_rank(MPI_COMM_WORLD, my_rank, ierr)
+      if(ierr/=0) call stop_program(1, 'problem getting rank of processor')
+
+      nGru_rank = int(ceiling(real(nGRU)/real(num_rank))) 
+      transition_rank = nGRU - (nGRU_rank - 1) * num_rank
+
+      if (my_rank < transition_rank) then
+        startGRU = startGRU + my_rank * nGru_rank
+        nGRU = nGru_rank
+      else
+        startGRU = startGRU + transition_rank * nGRU_rank + &
+            (my_rank - transition_rank) * (nGru_rank - 1)
+        nGRU = nGru_rank - 1
+      end if
+
+      print*, "Rank: ", my_rank, "Start GRU: ", startGRU, "Count GRU: ", nGRU
     end if
 
    case ('-p', '--progress')

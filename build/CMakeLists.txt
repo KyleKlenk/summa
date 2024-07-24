@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 project(summa VERSION 4.0.0 LANGUAGES Fortran C CXX)
 
-if(DEFINED ENV{FC})
-    set (CMAKE_Fortran_COMPILER $ENV{FC})  #for NextGen need, works for others
-else()
-    set (CMAKE_Fortran_COMPILER gfortran)
-endif()
+# if(DEFINED ENV{FC})
+#     set (CMAKE_Fortran_COMPILER $ENV{FC})  #for NextGen need, works for others
+# else()
+#     set (CMAKE_Fortran_COMPILER gfortran)
+# endif()
+
+set(CMAKE_Fortran_COMPILER "mpif90")
 
 #=========================================================================================
 # SUMMA can be compiled with debug flags by specifiying -DCMAKE_BUILD_TYPE=Debug

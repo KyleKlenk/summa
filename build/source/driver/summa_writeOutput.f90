@@ -209,7 +209,6 @@ contains
  ! *****************************************************************************
  ! *** define summa output files
  ! *****************************************************************************
-  print*, "writing output"
  ! check the need to create a new output file
  if(defNewOutputFile .or. modelTimeStep==1)then
 
