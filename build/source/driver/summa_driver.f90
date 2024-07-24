@@ -69,6 +69,10 @@ program summa_driver
   call MPI_Init(ierr)
   if(ierr/=0) call stop_program(1, 'problem initializing MPI')
 
+  ! get the rank of the processor
+  call MPI_Comm_rank(MPI_COMM_WORLD, my_rank, ierr)
+  if(ierr/=0) call stop_program(1, 'problem getting rank')
+
   ! allocate space for the master summa structure
   allocate(summa1_struc(n), stat=err)
   if(err/=0) call stop_program(1, 'problem allocating master summa structure')
@@ -97,6 +101,13 @@ program summa_driver
   ! *****************************************************************************
   ! loop through time
   do modelTimeStep=1,numtim
+
+    print*, "Rank: ", my_rank, " Time Step: ", modelTimeStep
+    call MPI_Barrier(MPI_COMM_WORLD, ierr)
+    if(ierr/=0) call stop_program(1, 'problem at MPI_Barrier')
+    if (my_rank == 0) then
+      print *, 'step ---> ', modelTimeStep
+    endif
 
     ! read model forcing data
     call summa_readForcing(modelTimeStep, summa1_struc(n), err, message)

@@ -503,8 +503,8 @@ contains
 
     ! read forcing data for all HRUs
     if(simultaneousRead)then
-    err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVec,start=(/ixHRUfile_min,iRead/),count=(/nHRUlocal,1/))
-    if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
+      err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVec,start=(/ixHRUfile_min,iRead/),count=(/nHRUlocal,1/))
+      if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
     endif
 
     ! loop through GRUs and HRUs
@@ -518,7 +518,7 @@ contains
         ! define global HRU
         iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
         iHRU_local  = (iHRU_global - ixHRUfile_min)+1
-        !print*, 'iGRU, iHRU, iHRU_global, iHRU_local = ', iGRU, iHRU, iHRU_global, iHRU_local
+        ! print*, 'iGRU, iHRU, iHRU_global, iHRU_local, ixHRUfile_min = ', iGRU, iHRU, iHRU_global, iHRU_local, ixHRUfile_min
 
         ! read forcing data for a single HRU
         if(.not.simultaneousRead)then
