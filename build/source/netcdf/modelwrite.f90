@@ -232,11 +232,17 @@ contains
      class is (gru_hru_doubleVec)
 
       ! loop through HRUs and GRUs, and place data in the single vector
+      !$omp parallel  default(none) &
+      !$omp          private(iGRU) &  ! GRU indices are private for a given thread
+      !$omp          shared(realVec, gru_struc, map, iVar, iFreq)
+      !$omp do schedule(dynamic, 1)
       do iGRU=1,size(gru_struc)
-       do iHRU=1,gru_struc(iGRU)%hruCount
-        realVec(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iFreq)
-       end do
+        do iHRU=1,gru_struc(iGRU)%hruCount
+          realVec(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iFreq)
+        end do
       end do
+      !$omp end do
+      !$omp end parallel
 
       ! write data
       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realVec,start=(/1,outputTimestep(iFreq)/),count=(/nHRUrun,1/))
@@ -255,35 +261,42 @@ contains
     end select
 
     ! loop thru GRUs and HRUs
+    !$omp parallel  default(none) &
+    !$omp          private(iGRU, nSoil, nSnow, nLayers, datLength, err, message) &  ! GRU indices are private for a given thread
+    !$omp          shared(realArray, intArray, gru_struc, iVar, indx, meta, dat)
+    !$omp do schedule(dynamic, 1)
     do iGRU=1,size(gru_struc)
-     do iHRU=1,gru_struc(iGRU)%hruCount
+      err=0
+      do iHRU=1,gru_struc(iGRU)%hruCount
 
-      ! get the model layers
-      nSoil   = indx%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
-      nSnow   = indx%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
-      nLayers = indx%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1)
+        ! get the model layers
+        nSoil   = indx%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
+        nSnow   = indx%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
+        nLayers = indx%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1)
 
-      ! get the length of each data vector
-      select case (meta(iVar)%varType)
-       case(iLookVarType%wLength); datLength = maxSpectral
-       case(iLookVarType%midToto); datLength = nLayers
-       case(iLookVarType%midSnow); datLength = nSnow
-       case(iLookVarType%midSoil); datLength = nSoil
-       case(iLookVarType%ifcToto); datLength = nLayers+1
-       case(iLookVarType%ifcSnow); datLength = nSnow+1
-       case(iLookVarType%ifcSoil); datLength = nSoil+1
-       case default; cycle
-      end select ! vartype
+        ! get the length of each data vector
+        select case (meta(iVar)%varType)
+          case(iLookVarType%wLength); datLength = maxSpectral
+          case(iLookVarType%midToto); datLength = nLayers
+          case(iLookVarType%midSnow); datLength = nSnow
+          case(iLookVarType%midSoil); datLength = nSoil
+          case(iLookVarType%ifcToto); datLength = nLayers+1
+          case(iLookVarType%ifcSnow); datLength = nSnow+1
+          case(iLookVarType%ifcSoil); datLength = nSoil+1
+          case default; cycle
+        end select ! vartype
 
-      ! get the data vectors
-      select type (dat)
-       class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
-       class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
-       class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
-      end select
+        ! get the data vectors
+        select type (dat)
+          class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+          class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+          class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec';
+        end select
 
-     end do  ! HRU loop
+      end do  ! HRU loop
     end do  ! GRU loop
+    !$omp end do
+    !$omp end parallel
 
     ! get the maximum length of each data vector
     select case (meta(iVar)%varType)
