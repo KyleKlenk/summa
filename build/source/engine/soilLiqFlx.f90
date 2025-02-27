@@ -1894,6 +1894,44 @@ contains
   end associate
  end subroutine update_qDrainFlux_zeroFlux
 
+ subroutine update_qDrainFlux_test_template
+  ! ** Update operations for qDrainFlux: test for Eqns. 6a-6d from Clark et al. (2008, WRR: FUSE) **
+  ! Note: based on the update_qDrainFlux_freeDrainage subroutine  
+
+  associate(&
+   ! input: model control
+   deriv_desired => in_qDrainFlux % deriv_desired, &          ! flag to indicate if derivatives are desired
+   ixRichards    => in_qDrainFlux % ixRichards   , &          ! index defining the option for Richards' equation (moisture or mixdform)
+   ! output: drainage flux from the bottom of the soil profile
+   scalarDrainage => out_qDrainFlux % scalarDrainage, &       ! drainage flux from the bottom of the soil profile (m s-1)
+   ! output: derivatives in drainage flux w.r.t. ...
+   dq_dHydStateUnsat => out_qDrainFlux % dq_dHydStateUnsat, & ! ... state variable in lowest unsaturated node (m s-1 or s-1)
+   dq_dNrgStateUnsat => out_qDrainFlux % dq_dNrgStateUnsat, & ! ... energy state variable in lowest unsaturated node (m s-1 K-1)
+   ! output: error control
+   err     => out_qDrainFlux % err    , &                     ! error code
+   message => out_qDrainFlux % message  &                     ! error message
+  &)
+
+   scalarDrainage = 0._rkind ! compute flux
+
+   if (deriv_desired) then ! compute derivatives
+     ! hydrology derivatives
+     select case(ixRichards)  ! select form of Richards' equation
+       case(moisture); dq_dHydStateUnsat = 0._rkind
+       case(mixdform); dq_dHydStateUnsat = 0._rkind
+       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+     end select
+     ! energy derivatives
+     dq_dNrgStateUnsat = 0._rkind
+   else     ! do not desire derivatives
+     dq_dHydStateUnsat = realMissing
+     dq_dNrgStateUnsat = realMissing
+   end if
+
+  end associate
+
+ end subroutine update_qDrainFlux_test_template
+
  subroutine finalize_qDrainFlux
   ! ** Finalize operations for qDrainFlux **
   associate(&
