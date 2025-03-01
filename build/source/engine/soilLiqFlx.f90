@@ -1932,15 +1932,21 @@ contains
 
  end subroutine update_qDrainFlux_test_template
 
- subroutine update_qDrainFlux_PRMS
+ subroutine update_qDrainFlux_PRMS(BaseFlowDepletionRate,LayerThickness)
   ! ** Update operations for qDrainFlux: test for Eqn. 6a from Clark et al. (2008, WRR: FUSE) **
-  real(rkind) :: BaseFlowDepletionRate ! base flow depletion rate parameter (s-1)
-  real(rkind) :: TotalStorage          ! total water storage (m) 
+  ! Note: development in progress -- derivative formulas required
+  ! input
+  real(rkind),intent(in) :: BaseFlowDepletionRate ! base flow depletion rate parameter (s-1)
+  real(rkind),intent(in) :: LayerThickness        ! layer thickness
+  ! local variables
+  real(rkind) :: TotalStorage ! total water storage (m) 
 
   associate(&
    ! input: model control
    deriv_desired => in_qDrainFlux % deriv_desired, &          ! flag to indicate if derivatives are desired
    ixRichards    => in_qDrainFlux % ixRichards   , &          ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: state and diagnostic variables
+   nodeVolFracLiq    => in_qDrainFlux % nodeVolFracLiq   , &  ! volumetric liquid water content in the lowest unsaturated node (-)
    ! output: drainage flux from the bottom of the soil profile
    scalarDrainage => out_qDrainFlux % scalarDrainage, &       ! drainage flux from the bottom of the soil profile (m s-1)
    ! output: derivatives in drainage flux w.r.t. ...
@@ -1951,8 +1957,10 @@ contains
    message => out_qDrainFlux % message  &                     ! error message
   &)
 
+   TotalStorage=nodeVolFracLiq*LayerThickness
    scalarDrainage = BaseFlowDepletionRate*TotalStorage ! compute flux
 
+   ! Note: updates to derivative formulas are required for functionality
    if (deriv_desired) then ! compute derivatives
      ! hydrology derivatives
      select case(ixRichards)  ! select form of Richards' equation
