@@ -987,6 +987,12 @@ contains
   end associate
  end subroutine update_surfaceFlx
 
+ subroutine update_surfaceFlx_FUSE
+  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) ****
+
+  ! next steps: confirm required outputs (e.g., infiltration, runoff), obtain associations, and create branches for saturated area calculations (eqs. 9a-9c)
+ end subroutine update_surfaceFlx_FUSE
+
  subroutine update_surfaceFlx_prescribedHead
   ! **** Update operations for surfaceFlx: prescribed pressure head condition ****
   associate(&
