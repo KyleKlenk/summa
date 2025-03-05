@@ -989,9 +989,65 @@ contains
 
  subroutine update_surfaceFlx_FUSE
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) ****
+  ! local variables
+  integer(i4b) :: FUSE_Param ! selected FUSE parameterization 
+  integer(i4b),parameter :: FUSE_PRMS=0     ! FUSE: PRMS     parametrization
+  integer(i4b),parameter :: FUSE_ARNO_VIC=1 ! FUSE: ARNO/VIC parametrization
+  integer(i4b),parameter :: FUSE_TOPMODEL=2 ! FUSE: TOPMODEL parametrization
 
-  ! next steps: confirm required outputs (e.g., infiltration, runoff), obtain associations, and create branches for saturated area calculations (eqs. 9a-9c)
+  ! compute infiltration, runoff, and derivatives for selected FUSE parameterization
+  select case(FUSE_Param)
+   case(FUSE_PRMS)
+    call update_surfaceFlx_FUSE_PRMS
+
+   case(FUSE_ARNO_VIC)
+    call update_surfaceFlx_FUSE_ARNO_VIC
+
+   case(FUSE_TOPMODEL)
+    call update_surfaceFlx_FUSE_TOPMODEL
+
+   case default
+    associate(&
+     ! output: error control
+     err      => out_surfaceFlx % err    , & ! error code
+     message  => out_surfaceFlx % message  & ! error message
+    &)
+     err=20; message=trim(message)//'unknown FUSE parameterization for surface runoff'; return_flag=.true.; return
+    end associate
+  end select
+
  end subroutine update_surfaceFlx_FUSE
+
+ subroutine update_surfaceFlx_FUSE_PRMS
+  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- PRMS ****
+  ! input
+  real(rkind) :: precipitation  ! precipitation (m s-1)
+  real(rkind) :: saturated_area_max ! maximum saturated area (fraction)
+
+  ! output
+  real(rkind) :: surface_runoff ! surface runoff (m s-1)
+
+  ! local variables
+  real(rkind) :: saturated_area     ! saturated area (fraction)
+  real(rkind) :: tension_water_content     ! tension water content in upper soil layer (m)
+  real(rkind) :: tension_water_content_max ! maximum tension water content in upper soil layer (m)
+
+  ! compute tension water content -- continue here --
+
+  ! compute saturated area
+  saturated_area = (tension_water_content/tension_water_content_max)*saturated_area_max
+
+  ! compute surface runoff
+  surface_runoff = precipitation * saturated_area
+ end subroutine update_surfaceFlx_FUSE_PRMS
+
+ subroutine update_surfaceFlx_FUSE_ARNO_VIC
+  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- ARNO/VIC ****
+ end subroutine update_surfaceFlx_FUSE_ARNO_VIC
+
+ subroutine update_surfaceFlx_FUSE_TOPMODEL
+  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
+ end subroutine update_surfaceFlx_FUSE_TOPMODEL
 
  subroutine update_surfaceFlx_prescribedHead
   ! **** Update operations for surfaceFlx: prescribed pressure head condition ****
