@@ -987,10 +987,14 @@ contains
   end associate
  end subroutine update_surfaceFlx
 
- subroutine update_surfaceFlx_FUSE
+ subroutine update_surfaceFlx_FUSE(FUSE_Param,precipitation,saturated_area_max)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) ****
+  ! input
+  integer(i4b),intent(in) :: FUSE_Param ! selected FUSE parameterization
+  real(rkind),intent(in) :: precipitation  ! precipitation (m s-1)
+  real(rkind),intent(in) :: saturated_area_max ! maximum saturated area (fraction)
+ 
   ! local variables
-  integer(i4b) :: FUSE_Param ! selected FUSE parameterization 
   integer(i4b),parameter :: FUSE_PRMS=0     ! FUSE: PRMS     parametrization
   integer(i4b),parameter :: FUSE_ARNO_VIC=1 ! FUSE: ARNO/VIC parametrization
   integer(i4b),parameter :: FUSE_TOPMODEL=2 ! FUSE: TOPMODEL parametrization
@@ -998,7 +1002,7 @@ contains
   ! compute infiltration, runoff, and derivatives for selected FUSE parameterization
   select case(FUSE_Param)
    case(FUSE_PRMS)
-    call update_surfaceFlx_FUSE_PRMS
+    call update_surfaceFlx_FUSE_PRMS(precipitation,saturated_area_max)
 
    case(FUSE_ARNO_VIC)
     call update_surfaceFlx_FUSE_ARNO_VIC
@@ -1018,11 +1022,11 @@ contains
 
  end subroutine update_surfaceFlx_FUSE
 
- subroutine update_surfaceFlx_FUSE_PRMS
+ subroutine update_surfaceFlx_FUSE_PRMS(precipitation,saturated_area_max)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- PRMS ****
   ! input
-  real(rkind) :: precipitation  ! precipitation (m s-1)
-  real(rkind) :: saturated_area_max ! maximum saturated area (fraction)
+  real(rkind),intent(in) :: precipitation  ! precipitation (m s-1)
+  real(rkind),intent(in) :: saturated_area_max ! maximum saturated area (fraction)
 
   ! output
   real(rkind) :: surface_runoff ! surface runoff (m s-1)
@@ -1031,8 +1035,21 @@ contains
   real(rkind) :: saturated_area     ! saturated area (fraction)
   real(rkind) :: tension_water_content     ! tension water content in upper soil layer (m)
   real(rkind) :: tension_water_content_max ! maximum tension water content in upper soil layer (m)
+  real(rkind) :: total_water_content       ! total water content in upper soil layer (m)
+  real(rkind) :: layer_thickness
 
-  ! compute tension water content -- continue here --
+  ! compute tension water content
+  associate(&
+   ! input: state and diagnostic variables
+   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
+   ! input: depth of upper-most soil layer (m)
+   mLayerDepth  => in_surfaceFlx % mLayerDepth & ! depth of upper-most soil layer (m)
+  &)
+   layer_thickness= mLayerDepth(1) ! SJT: needs verification -- mLayer depth includes snow layers as well
+   total_water_content=scalarVolFracLiq*layer_thickness
+  end associate
+  !tension_water_content_max= ! SJT: continue here
+  tension_water_content=min(total_water_content,tension_water_content_max)
 
   ! compute saturated area
   saturated_area = (tension_water_content/tension_water_content_max)*saturated_area_max
