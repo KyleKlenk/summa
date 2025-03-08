@@ -987,7 +987,8 @@ contains
   end associate
  end subroutine update_surfaceFlx
 
- subroutine update_surfaceFlx_FUSE(FUSE_Param,precipitation,saturated_area_max,tension_fraction,storage_max)
+ subroutine update_surfaceFlx_FUSE(FUSE_Param,precipitation,saturated_area_max,tension_fraction,storage_max,exponent_ARNO_VIC,&
+                                  &surface_runoff)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) ****
   ! input
   integer(i4b),intent(in) :: FUSE_Param ! selected FUSE parameterization
@@ -995,7 +996,11 @@ contains
   real(rkind),intent(in) :: saturated_area_max ! maximum saturated area (-)
   real(rkind),intent(in) :: tension_fraction   ! fraction of total storage as tension storage (-)
   real(rkind),intent(in) :: storage_max        ! Maximum storage in the upper layer (m)
- 
+  real(rkind),intent(in) :: exponent_ARNO_VIC  ! ARNO/VIC exponent (-) 
+  
+  ! output
+  real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
+
   ! local variables
   integer(i4b),parameter :: FUSE_PRMS=0     ! FUSE: PRMS     parametrization
   integer(i4b),parameter :: FUSE_ARNO_VIC=1 ! FUSE: ARNO/VIC parametrization
@@ -1004,13 +1009,13 @@ contains
   ! compute infiltration, runoff, and derivatives for selected FUSE parameterization
   select case(FUSE_Param)
    case(FUSE_PRMS)
-    call update_surfaceFlx_FUSE_PRMS(precipitation,saturated_area_max,tension_fraction,storage_max)
+    call update_surfaceFlx_FUSE_PRMS(precipitation,saturated_area_max,tension_fraction,storage_max,surface_runoff)
 
    case(FUSE_ARNO_VIC)
-    call update_surfaceFlx_FUSE_ARNO_VIC
+    call update_surfaceFlx_FUSE_ARNO_VIC(precipitation,storage_max,exponent_ARNO_VIC,surface_runoff)
 
    case(FUSE_TOPMODEL)
-    call update_surfaceFlx_FUSE_TOPMODEL
+    call update_surfaceFlx_FUSE_TOPMODEL(precipitation,surface_runoff)
 
    case default
     associate(&
@@ -1024,7 +1029,7 @@ contains
 
  end subroutine update_surfaceFlx_FUSE
 
- subroutine update_surfaceFlx_FUSE_PRMS(precipitation,saturated_area_max,tension_fraction,storage_max)
+ subroutine update_surfaceFlx_FUSE_PRMS(precipitation,saturated_area_max,tension_fraction,storage_max,surface_runoff)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- PRMS ****
   ! input
   real(rkind),intent(in) :: precipitation      ! precipitation (m s-1)
@@ -1033,7 +1038,7 @@ contains
   real(rkind),intent(in) :: storage_max        ! Maximum storage in the upper layer (m)
 
   ! output
-  real(rkind) :: surface_runoff ! surface runoff (m s-1)
+  real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
 
   ! local variables
   real(rkind) :: saturated_area            ! saturated area (-)
@@ -1062,13 +1067,53 @@ contains
   surface_runoff = precipitation * saturated_area
  end subroutine update_surfaceFlx_FUSE_PRMS
 
- subroutine update_surfaceFlx_FUSE_ARNO_VIC
+ subroutine update_surfaceFlx_FUSE_ARNO_VIC(precipitation,storage_max,exponent_ARNO_VIC,surface_runoff)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- ARNO/VIC ****
+  ! input
+  real(rkind),intent(in) :: precipitation      ! precipitation (m s-1)
+  real(rkind),intent(in) :: storage_max        ! Maximum storage in the upper layer (m)
+  real(rkind),intent(in) :: exponent_ARNO_VIC  ! ARNO/VIC exponent (-) 
 
+  ! output
+  real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
+
+  ! local variables
+  real(rkind) :: saturated_area            ! saturated area (-)
+  real(rkind) :: total_water_content       ! total water content in upper soil layer (m)
+  real(rkind) :: layer_thickness           ! thickness of the upper layer (m)
+
+  ! compute total water content
+  associate(&
+   ! input: state and diagnostic variables
+   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
+   ! input: depth of upper-most soil layer (m)
+   mLayerDepth  => in_surfaceFlx % mLayerDepth & ! depth of upper-most soil layer (m)
+  &)
+   layer_thickness= mLayerDepth(1) ! SJT: needs verification -- mLayer depth includes snow layers as well
+   total_water_content=scalarVolFracLiq*layer_thickness
+  end associate
+
+  ! compute saturated area
+  saturated_area = 1._rkind - (1._rkind-total_water_content/storage_max)**exponent_ARNO_VIC
+
+  ! compute surface runoff
+  surface_runoff = precipitation * saturated_area
  end subroutine update_surfaceFlx_FUSE_ARNO_VIC
 
- subroutine update_surfaceFlx_FUSE_TOPMODEL
+ subroutine update_surfaceFlx_FUSE_TOPMODEL(precipitation,surface_runoff)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
+  !use stdlib_specialfunctions_gamma, only: lig ! lower incomplete gamma function -- Fortran stdlib project under development and would need to be installed separately
+  ! input
+  real(rkind),intent(in) :: precipitation      ! precipitation (m s-1)
+
+  ! output
+  real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
+
+  ! local variables
+  real(rkind) :: saturated_area            ! saturated area (-)
+
+  ! compute surface runoff
+  surface_runoff = precipitation * saturated_area
  end subroutine update_surfaceFlx_FUSE_TOPMODEL
 
  subroutine update_surfaceFlx_prescribedHead
