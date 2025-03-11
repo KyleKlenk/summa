@@ -1109,8 +1109,37 @@ contains
   ! output
   real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
 
-  ! local variables
+  ! * local variables *
   real(rkind) :: saturated_area            ! saturated area (-)
+  ! FUSE parameters and variables
+  real(rkind),parameter :: lambda=3._rkind ! mean
+  real(rkind),parameter :: chi=3._rkind    ! scale
+  real(rkind),parameter :: mu=3._rkind     ! offset
+  real(rkind) :: phi
+!  real(rkind) :: zeta                      ! continuous random variable
+  real(rkind) :: zeta_critical             ! critical zeta value
+  
+  ! Gamma distribution parameters and variables
+  real(rkind) :: alpha      ! shape
+  real(rkind) :: theta      ! scale
+!  real(rkind) :: x          ! continuous random variable
+  real(rkind) :: x_critical ! critical x value
+
+  ! set FUSE parameters - input parameters are lambda, chi, and mu
+  phi=(lambda-mu)/chi
+
+  ! set Gamma distribution parameters
+  alpha=phi
+  theta=chi
+
+  ! compute critical zeta value
+  zeta_critical=0._rkind ! SJT --- continue here (integral required)
+
+  ! transform to x random variable
+  x_critical=zeta_critical-mu
+
+  ! compute saturated area
+  saturated_area = 1._rkind-gammp(alpha,x_critical)
 
   ! compute surface runoff
   surface_runoff = precipitation * saturated_area
