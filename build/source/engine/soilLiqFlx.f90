@@ -1112,9 +1112,10 @@ contains
   ! * local variables *
   real(rkind) :: saturated_area            ! saturated area (-)
   ! FUSE parameters and variables
-  real(rkind),parameter :: lambda=3._rkind ! mean
+  real(rkind),parameter :: lambda=9._rkind ! mean
   real(rkind),parameter :: chi=3._rkind    ! scale
   real(rkind),parameter :: mu=3._rkind     ! offset
+  real(rkind),parameter :: n=3.5_rkind     ! base flow exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
   real(rkind) :: phi
 !  real(rkind) :: zeta                      ! continuous random variable
   real(rkind) :: zeta_critical             ! critical zeta value
@@ -1125,12 +1126,31 @@ contains
 !  real(rkind) :: x          ! continuous random variable
   real(rkind) :: x_critical ! critical x value
 
+  ! topographic index variables
+  real(rkind),parameter :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
+  real(rkind) :: F1,F2 ! temporary storage for gamma CDF values
+  real(rkind) :: lambda_n ! mean power-transformed topographic index
+
   ! set FUSE parameters - input parameters are lambda, chi, and mu
   phi=(lambda-mu)/chi
 
   ! set Gamma distribution parameters
   alpha=phi
   theta=chi
+
+  ! * compute mean power-transformed topographic index *
+  ! compute gamma CDF values
+  F1=gammp(alpha,(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta)
+  F2=gammp(alpha,(-(mu*n - mu*theta)/n)/theta)
+
+  lambda_n=((-mu + zeta_upper)**alpha*(F1 - 1)*exp(mu/n)*gamma(alpha)/(-(mu*n - mu*theta - &
+          &(n - theta)*zeta_upper)/(n*theta))**alpha - (-mu)**alpha*(F2 - 1)*exp(mu/n)*gamma(alpha)/&
+          &(-(mu*n - mu*theta)/(n*theta))**alpha)/(theta**alpha*gamma(alpha))
+
+  ! reference formula from SageMath
+  !((-mu + zeta_upper)^alpha*(F(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n) - 1)*e^(mu/n)*gamma(alpha)/(-(mu*n - mu*theta - (n - theta)*zeta_upper)/(n*theta))^alpha - (-mu)^alpha*(F(-(mu*n - mu*theta)/n) - 1)*e^(mu/n)*gamma(alpha)/(-(mu*n - mu*theta)/(n*theta))^alpha)/(theta^alpha*gamma(alpha))
+
+
 
   ! compute critical zeta value
   zeta_critical=0._rkind ! SJT --- continue here (integral required)
@@ -1139,7 +1159,7 @@ contains
   x_critical=zeta_critical-mu
 
   ! compute saturated area
-  saturated_area = 1._rkind-gammp(alpha,x_critical)
+  saturated_area = 1._rkind-gammp(alpha,x_critical/theta)
 
   ! compute surface runoff
   surface_runoff = precipitation * saturated_area
