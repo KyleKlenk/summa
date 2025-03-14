@@ -963,6 +963,17 @@ contains
 
  subroutine update_surfaceFlx
   ! **** Update operations for surfaceFlx ****
+  ! test parameters -- SJT: to be removed once functionality is confirmed
+  logical(lgt),parameter :: test_FUSE         =.true.      ! flag for FUSE testing
+  integer(i4b),parameter :: FUSE_Param        =2           ! selected FUSE parameterization
+  real(rkind) ,parameter :: precipitation     =1.e-5_rkind ! precipitation (m s-1)
+  real(rkind) ,parameter :: saturated_area_max=0.5_rkind   ! maximum saturated area (-)
+  real(rkind) ,parameter :: tension_fraction  =0.5_rkind   ! fraction of total storage as tension storage (-)
+  real(rkind) ,parameter :: storage_max       =1._rkind    ! Maximum storage in the upper layer (m)
+  real(rkind) ,parameter :: exponent_ARNO_VIC =2._rkind    ! ARNO/VIC exponent (-) 
+  ! test variables -- SJT: to be removed once functionality is confirmed
+  real(rkind) :: surface_runoff
+
   associate(&
    ! input: model control
    bc_upper => in_surfaceFlx % bc_upper, & ! index defining the type of boundary conditions
@@ -970,6 +981,13 @@ contains
    err      => out_surfaceFlx % err    , & ! error code
    message  => out_surfaceFlx % message  & ! error message
   &)
+
+   ! test FUSE parameterizations -- SJT: to be removed once functionality is confirmed
+   if (test_FUSE) then
+    call update_surfaceFlx_FUSE(FUSE_Param,precipitation,saturated_area_max,tension_fraction,storage_max,exponent_ARNO_VIC,&
+                                &surface_runoff)
+    stop ! stop program following FUSE parameterization test
+   end if
 
    ! compute the surface flux and its derivative
    select case(bc_upper)
@@ -1110,6 +1128,7 @@ contains
   real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
 
   ! * local variables *
+  logical(lgt),parameter :: test_FUSE=.true.      ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
   real(rkind) :: saturated_area            ! saturated area (-)
   ! FUSE parameters and variables
   real(rkind),parameter :: lambda=9._rkind ! mean
@@ -1150,7 +1169,19 @@ contains
   ! reference formula from SageMath
   !((-mu + zeta_upper)^alpha*(F(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n) - 1)*e^(mu/n)*gamma(alpha)/(-(mu*n - mu*theta - (n - theta)*zeta_upper)/(n*theta))^alpha - (-mu)^alpha*(F(-(mu*n - mu*theta)/n) - 1)*e^(mu/n)*gamma(alpha)/(-(mu*n - mu*theta)/(n*theta))^alpha)/(theta^alpha*gamma(alpha))
 
-
+  ! test block -- SJT: to be removed once functionality is confirmed
+  if (test_FUSE) then
+   print *, "update_surfaceFlx_FUSE_TOPMODEL:"
+   print *, "alpha=",alpha,"theta",theta
+   print *, "t/theta=",1._rkind
+   print *, "gammp=",gammp(alpha,1._rkind)
+   print *, "t/theta=",(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta,"t=",(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)
+   print *, "F1(alpha,t/theta)=",F1
+   print *, "t/theta=",(-(mu*n - mu*theta)/n)/theta,"t=",(-(mu*n - mu*theta)/n)
+   print *, "F2=",F2
+   print *, "lambda_n=",lambda_n
+   print *, ""
+  end if
 
   ! compute critical zeta value
   zeta_critical=0._rkind ! SJT --- continue here (integral required)
