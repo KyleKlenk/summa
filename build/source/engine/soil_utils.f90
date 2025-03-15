@@ -606,6 +606,7 @@ end function dTheta_dTk
 ! ******************************************************************************************************************************
 ! public function gammp: compute cumulative probability using the Gamma distribution
 ! ******************************************************************************************************************************
+! Note: formally, this is the regularized lower incomplete gamma function
 FUNCTION gammp(a,x)
   IMPLICIT NONE
   real(rkind), INTENT(IN) :: a,x
@@ -653,9 +654,11 @@ FUNCTION gcf(a,x,gln)
   if (i > ITMAX) stop 'a too large, ITMAX too small in gcf'
   if (present(gln)) then
   gln=gammln(a)
-  gcf=exp(-x+a*log(x)-gln)*h
+  !gcf=exp(-x+a*log(x)-gln)*h ! original expression
+  gcf=exp(-x-gln)*x**a*h ! updated to allow x<0
   else
-  gcf=exp(-x+a*log(x)-gammln(a))*h
+  !gcf=exp(-x+a*log(x)-gammln(a))*h ! original expression
+  gcf=exp(-x-gammln(a))*x**a*h ! updated to allow x<0
   end if
 END FUNCTION gcf
 
@@ -688,9 +691,11 @@ FUNCTION gser(a,x,gln)
   if (n > ITMAX) stop 'a too large, ITMAX too small in gser'
   if (present(gln)) then
   gln=gammln(a)
-  gser=summ*exp(-x+a*log(x)-gln)
+  !gser=summ*exp(-x+a*log(x)-gln) ! original expression
+  gser=summ*exp(-x-gln)*x**a ! updated to allow x<0
   else
-  gser=summ*exp(-x+a*log(x)-gammln(a))
+  !gser=summ*exp(-x+a*log(x)-gammln(a)) ! original expression
+  gser=summ*exp(-x-gammln(a))*x**a ! updated to allow x<0
   end if
 END FUNCTION gser
 
