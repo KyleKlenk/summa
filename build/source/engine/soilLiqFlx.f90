@@ -1128,7 +1128,7 @@ contains
   real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
 
   ! * local variables *
-  logical(lgt),parameter :: test_FUSE=.true.      ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
+  logical(lgt),parameter :: test_FUSE=.false.      ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
   real(rkind) :: saturated_area            ! saturated area (-)
   ! FUSE parameters and variables
   real(rkind),parameter :: lambda=9._rkind ! mean
