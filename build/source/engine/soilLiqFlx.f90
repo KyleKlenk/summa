@@ -964,7 +964,7 @@ contains
  subroutine update_surfaceFlx
   ! **** Update operations for surfaceFlx ****
   ! test parameters -- SJT: to be removed once functionality is confirmed
-  logical(lgt),parameter :: test_FUSE         =.false.      ! flag for FUSE testing
+  logical(lgt),parameter :: test_FUSE         =.true.      ! flag for FUSE testing
   integer(i4b),parameter :: FUSE_Param        =2           ! selected FUSE parameterization
   real(rkind) ,parameter :: precipitation     =1.e-5_rkind ! precipitation (m s-1)
   real(rkind) ,parameter :: saturated_area_max=0.5_rkind   ! maximum saturated area (-)
@@ -1128,7 +1128,7 @@ contains
   real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
 
   ! * local variables *
-  logical(lgt),parameter :: test_FUSE=.false.      ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
+  logical(lgt),parameter :: test_FUSE=.true.      ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
   real(rkind) :: saturated_area            ! saturated area (-)
   ! FUSE parameters and variables
   real(rkind),parameter :: lambda=9._rkind ! mean
@@ -1147,7 +1147,7 @@ contains
 
   ! topographic index variables
   real(rkind),parameter :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
-  real(rkind) :: F1,F2 ! temporary storage for gamma CDF values
+  real(rkind) :: F1,F2    ! temporary storage for regularized incomplete gamma function values
   real(rkind) :: lambda_n ! mean power-transformed topographic index
 
   ! set FUSE parameters - input parameters are lambda, chi, and mu
@@ -1180,6 +1180,12 @@ contains
    print *, "t/theta=",(-(mu*n - mu*theta)/n)/theta,"t=",(-(mu*n - mu*theta)/n)
    print *, "F2=",F2
    print *, "lambda_n=",lambda_n
+   print *, "gammp(3,3)=",gammp(3._rkind,3._rkind)
+   print *, "gammp(3,4)=",gammp(3._rkind,4._rkind)
+   print *, "gammp(3,5)=",gammp(3._rkind,5._rkind)
+   print *, "gammp(3,0)=",gammp(3._rkind,0._rkind)
+   print *, "gammp(3,-1)=",gammp(3._rkind,-1._rkind)
+   print *, "gammp(3,-2)=",gammp(3._rkind,-2._rkind)
    print *, ""
   end if
 
