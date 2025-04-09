@@ -606,7 +606,7 @@ end function dTheta_dTk
 ! ******************************************************************************************************************************
 ! public function gammp: compute cumulative probability using the Gamma distribution
 ! ******************************************************************************************************************************
-! Note: formally, this is the regularized lower incomplete gamma function
+! Note: formally, this is the regularized lower incomplete gamma function (with non-trivial values for x<0)
 FUNCTION gammp(a,x)
   IMPLICIT NONE
   real(rkind), INTENT(IN) :: a,x
@@ -640,25 +640,25 @@ FUNCTION gcf(a,x,gln)
   d=1.0_rkind/b
   h=d
   do i=1,ITMAX
-  an=-i*(i-a)
-  b=b+2.0_rkind
-  d=an*d+b
-  if (abs(d) < FPMIN) d=FPMIN
-  c=b+an/c
-  if (abs(c) < FPMIN) c=FPMIN
-  d=1.0_rkind/d
-  del=d*c
-  h=h*del
-  if (abs(del-1.0_rkind) <= EPS) exit
+   an=-i*(i-a)
+   b=b+2.0_rkind
+   d=an*d+b
+   if (abs(d) < FPMIN) d=FPMIN
+   c=b+an/c
+   if (abs(c) < FPMIN) c=FPMIN
+   d=1.0_rkind/d
+   del=d*c
+   h=h*del
+   if (abs(del-1.0_rkind) <= EPS) exit
   end do
   if (i > ITMAX) stop 'a too large, ITMAX too small in gcf'
   if (present(gln)) then
-  gln=gammln(a)
-  !gcf=exp(-x+a*log(x)-gln)*h ! original expression
-  gcf=exp(-x-gln)*x**a*h ! updated to allow x<0
+   gln=gammln(a)
+   !gcf=exp(-x+a*log(x)-gln)*h ! original expression
+   gcf=exp(-x-gln)*x**a*h ! updated to allow x<0
   else
-  !gcf=exp(-x+a*log(x)-gammln(a))*h ! original expression
-  gcf=exp(-x-gammln(a))*x**a*h ! updated to allow x<0
+   !gcf=exp(-x+a*log(x)-gammln(a))*h ! original expression
+   gcf=exp(-x-gammln(a))*x**a*h ! updated to allow x<0
   end if
 END FUNCTION gcf
 
@@ -683,19 +683,19 @@ FUNCTION gser(a,x,gln)
   summ=1.0_rkind/a
   del=summ
   do n=1,ITMAX
-  ap=ap+1.0_rkind
-  del=del*x/ap
-  summ=summ+del
-  if (abs(del) < abs(summ)*EPS) exit
+   ap=ap+1.0_rkind
+   del=del*x/ap
+   summ=summ+del
+   if (abs(del) < abs(summ)*EPS) exit
   end do
   if (n > ITMAX) stop 'a too large, ITMAX too small in gser'
   if (present(gln)) then
-  gln=gammln(a)
-  !gser=summ*exp(-x+a*log(x)-gln) ! original expression
-  gser=summ*exp(-x-gln)*x**a ! updated to allow x<0
+   gln=gammln(a)
+   !gser=summ*exp(-x+a*log(x)-gln) ! original expression
+   gser=summ*exp(-x-gln)*x**a ! updated to allow x<0
   else
-  !gser=summ*exp(-x+a*log(x)-gammln(a)) ! original expression
-  gser=summ*exp(-x-gammln(a))*x**a ! updated to allow x<0
+   !gser=summ*exp(-x+a*log(x)-gammln(a)) ! original expression
+   gser=summ*exp(-x-gammln(a))*x**a ! updated to allow x<0
   end if
 END FUNCTION gser
 
