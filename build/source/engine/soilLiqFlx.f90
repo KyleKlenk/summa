@@ -1135,20 +1135,24 @@ contains
   real(rkind),parameter :: chi=3._rkind    ! scale
   real(rkind),parameter :: mu=3._rkind     ! offset
   real(rkind),parameter :: n=3.5_rkind     ! base flow exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
-  real(rkind) :: phi
-!  real(rkind) :: zeta                      ! continuous random variable
-  real(rkind) :: zeta_critical             ! critical zeta value
+  real(rkind) :: phi ! shape (computed from other parameters)
   
   ! Gamma distribution parameters and variables
   real(rkind) :: alpha      ! shape
   real(rkind) :: theta      ! scale
-!  real(rkind) :: x          ! continuous random variable
-  real(rkind) :: x_critical ! critical x value
+  real(rkind) :: x_critical ! critical x (random variable) value
 
   ! topographic index variables
   real(rkind),parameter :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
+  !real(rkind) :: zeta                      ! topographic index
+  real(rkind) :: zeta_critical_n           ! critical topographic index value (power-transfomred)
+  real(rkind) :: zeta_critical             ! critical topographic index value (log space)
   real(rkind) :: F1,F2    ! temporary storage for regularized incomplete gamma function values
-  real(rkind) :: lambda_n ! mean power-transformed topographic index
+  real(rkind) :: lambda_n ! mean of the power-transformed topographic index
+
+  ! reservoir variables
+  real(rkind),parameter :: S2_max=1._rkind ! max storage in lower layer (m)
+  real(rkind) :: S2                        ! total water content in lower layer (m)
 
   ! set FUSE parameters - input parameters are lambda, chi, and mu
   phi=(lambda-mu)/chi
@@ -1189,8 +1193,13 @@ contains
    print *, ""
   end if
 
+  ! compute water content in lower layer ! SJT: continue here
+  S2=0.d0
+
   ! compute critical zeta value
-  zeta_critical=0._rkind ! SJT --- continue here (integral required)
+  zeta_critical_n=lambda_n/(S2/S2_max) ! power-transformed critical topographic index
+
+  zeta_critical=log(zeta_critical_n**n) ! critical topographic index in log space
 
   ! transform to x random variable
   x_critical=zeta_critical-mu
