@@ -1120,16 +1120,15 @@ contains
 
  subroutine update_surfaceFlx_FUSE_TOPMODEL(precipitation,surface_runoff)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
-  !use stdlib_specialfunctions_gamma, only: lig ! lower incomplete gamma function -- Fortran stdlib project under development and would need to be installed separately
   ! input
-  real(rkind),intent(in) :: precipitation      ! precipitation (m s-1)
+  real(rkind),intent(in) :: precipitation   ! precipitation (m s-1)
 
   ! output
   real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
 
   ! * local variables *
-  logical(lgt),parameter :: test_FUSE=.true.      ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
-  real(rkind) :: saturated_area            ! saturated area (-)
+  logical(lgt),parameter :: test_FUSE=.true. ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
+  real(rkind) :: saturated_area              ! saturated area (-)
   ! FUSE parameters and variables
   real(rkind),parameter :: lambda=9._rkind ! mean
   real(rkind),parameter :: chi=3._rkind    ! scale
@@ -1144,7 +1143,6 @@ contains
 
   ! topographic index variables
   real(rkind),parameter :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
-  !real(rkind) :: zeta                      ! topographic index
   real(rkind) :: zeta_critical_n           ! critical topographic index value (power-transfomred)
   real(rkind) :: zeta_critical             ! critical topographic index value (log space)
   real(rkind) :: F1,F2    ! temporary storage for regularized incomplete gamma function values
@@ -1152,7 +1150,7 @@ contains
 
   ! reservoir variables
   real(rkind),parameter :: S2_max=1._rkind ! max storage in lower layer (m)
-  real(rkind) :: S2                        ! total water content in lower layer (m)
+  real(rkind),parameter :: S2=0.5_rkind    ! total water content in lower layer (m) -- may depend on aquifer model selected in general
 
   ! set FUSE parameters - input parameters are lambda, chi, and mu
   phi=(lambda-mu)/chi
@@ -1161,17 +1159,15 @@ contains
   alpha=phi
   theta=chi
 
-  ! * compute mean power-transformed topographic index *
+  ! * compute the mean power-transformed topographic index *
   ! compute gamma CDF values
   F1=gammp(alpha,(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta)
   F2=gammp(alpha,(-(mu*n - mu*theta)/n)/theta)
 
+  ! mean power-transformed topographic index (translated to Fortran from SageMath)
   lambda_n=((-mu + zeta_upper)**alpha*(F1 - 1)*exp(mu/n)*gamma(alpha)/(-(mu*n - mu*theta - &
           &(n - theta)*zeta_upper)/(n*theta))**alpha - (-mu)**alpha*(F2 - 1)*exp(mu/n)*gamma(alpha)/&
           &(-(mu*n - mu*theta)/(n*theta))**alpha)/(theta**alpha*gamma(alpha))
-
-  ! reference formula from SageMath
-  !((-mu + zeta_upper)^alpha*(F(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n) - 1)*e^(mu/n)*gamma(alpha)/(-(mu*n - mu*theta - (n - theta)*zeta_upper)/(n*theta))^alpha - (-mu)^alpha*(F(-(mu*n - mu*theta)/n) - 1)*e^(mu/n)*gamma(alpha)/(-(mu*n - mu*theta)/(n*theta))^alpha)/(theta^alpha*gamma(alpha))
 
   ! test block -- SJT: to be removed once functionality is confirmed
   if (test_FUSE) then
@@ -1185,16 +1181,8 @@ contains
    print *, "F2=",F2
    print *, "lambda_n=",lambda_n
    print *, "gammp(3,3)=",gammp(3._rkind,3._rkind)
-   print *, "gammp(3,4)=",gammp(3._rkind,4._rkind)
-   print *, "gammp(3,5)=",gammp(3._rkind,5._rkind)
-   print *, "gammp(3,0)=",gammp(3._rkind,0._rkind)
-   print *, "gammp(3,-1)=",gammp(3._rkind,-1._rkind)
-   print *, "gammp(3,-2)=",gammp(3._rkind,-2._rkind)
    print *, ""
   end if
-
-  ! compute water content in lower layer ! SJT: continue here
-  S2=0.d0
 
   ! compute critical zeta value
   zeta_critical_n=lambda_n/(S2/S2_max) ! power-transformed critical topographic index
@@ -1209,6 +1197,33 @@ contains
 
   ! compute surface runoff
   surface_runoff = precipitation * saturated_area
+
+  ! compute flux derivatives -- SJT: in progress
+  associate(&
+   ! input: model control
+   deriv_desired  => in_surfaceFlx % deriv_desired  , & ! flag to indicate if derivatives are desired
+   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! output: derivatives in surface infiltration w.r.t. ...
+   dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   ! output: error control
+   err     => out_surfaceFlx % err    , & ! error code
+   message => out_surfaceFlx % message  & ! error message
+  &)
+   ! compute the derivative
+   if (deriv_desired) then
+     ! compute the hydrology derivative at the surface
+     select case(ixRichards)  ! select form of Richards' equation
+       case(moisture); dq_dHydStateVec(1) = 0._rkind 
+       case(mixdform); dq_dHydStateVec(1) = 0._rkind 
+       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+     end select
+     ! compute the energy derivative at the surface
+     dq_dNrgStateVec(1) = 0._rkind
+   else
+     dNum = 0._rkind
+   end if
+  end associate
  end subroutine update_surfaceFlx_FUSE_TOPMODEL
 
  subroutine update_surfaceFlx_prescribedHead
