@@ -79,6 +79,13 @@ USE mDecisions_module,only:   &
   liquidFlux,                 & ! liquid water flux
   zeroFlux                      ! zero flux
 
+! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
+USE mDecisions_module,only:         &
+                    closedForm,     &      ! use temperature with closed form heat capacity
+                    enthalpyFormLU, &      ! use enthalpy with soil temperature-enthalpy lookup tables
+                    enthalpyForm           ! use enthalpy with soil temperature-enthalpy analytical solution
+
+
 ! -----------------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -1083,6 +1090,33 @@ contains
 
   ! compute surface runoff
   surface_runoff = precipitation * saturated_area
+
+  ! compute flux derivatives -- SJT: in progress
+  associate(&
+   ! input: model control
+   deriv_desired  => in_surfaceFlx % deriv_desired  , & ! flag to indicate if derivatives are desired
+   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! output: derivatives in surface infiltration w.r.t. ...
+   dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   ! output: error control
+   err     => out_surfaceFlx % err    , & ! error code
+   message => out_surfaceFlx % message  & ! error message
+  &)
+   ! compute the derivative
+   if (deriv_desired) then
+     ! compute the hydrology derivative at the surface
+     select case(ixRichards)  ! select form of Richards' equation
+       case(moisture); dq_dHydStateVec(1) = 0._rkind 
+       case(mixdform); dq_dHydStateVec(1) = 0._rkind 
+       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+     end select
+     ! compute the energy derivative at the surface
+     dq_dNrgStateVec(1) = 0._rkind
+   else
+     dNum = 0._rkind
+   end if
+  end associate
  end subroutine update_surfaceFlx_FUSE_PRMS
 
  subroutine update_surfaceFlx_FUSE_ARNO_VIC(precipitation,storage_max,exponent_ARNO_VIC,surface_runoff)
@@ -1116,6 +1150,33 @@ contains
 
   ! compute surface runoff
   surface_runoff = precipitation * saturated_area
+
+  ! compute flux derivatives -- SJT: in progress
+  associate(&
+   ! input: model control
+   deriv_desired  => in_surfaceFlx % deriv_desired  , & ! flag to indicate if derivatives are desired
+   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! output: derivatives in surface infiltration w.r.t. ...
+   dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   ! output: error control
+   err     => out_surfaceFlx % err    , & ! error code
+   message => out_surfaceFlx % message  & ! error message
+  &)
+   ! compute the derivative
+   if (deriv_desired) then
+     ! compute the hydrology derivative at the surface
+     select case(ixRichards)  ! select form of Richards' equation
+       case(moisture); dq_dHydStateVec(1) = 0._rkind 
+       case(mixdform); dq_dHydStateVec(1) = 0._rkind 
+       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+     end select
+     ! compute the energy derivative at the surface
+     dq_dNrgStateVec(1) = 0._rkind
+   else
+     dNum = 0._rkind
+   end if
+  end associate
  end subroutine update_surfaceFlx_FUSE_ARNO_VIC
 
  subroutine update_surfaceFlx_FUSE_TOPMODEL(precipitation,surface_runoff)
