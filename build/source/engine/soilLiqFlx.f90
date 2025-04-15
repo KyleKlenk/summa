@@ -79,13 +79,6 @@ USE mDecisions_module,only:   &
   liquidFlux,                 & ! liquid water flux
   zeroFlux                      ! zero flux
 
-! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
-USE mDecisions_module,only:         &
-                    closedForm,     &      ! use temperature with closed form heat capacity
-                    enthalpyFormLU, &      ! use enthalpy with soil temperature-enthalpy lookup tables
-                    enthalpyForm           ! use enthalpy with soil temperature-enthalpy analytical solution
-
-
 ! -----------------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -964,7 +957,7 @@ contains
    dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
   &)
    dq_dHydStateVec(:) = 0._rkind
-   dq_dNrgStateVec(:) = 0._rkind
+   dq_dNrgStateVec(:) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
   end associate
  end subroutine initialize_surfaceFlx
 
@@ -1112,6 +1105,7 @@ contains
        case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
      end select
      ! compute the energy derivative at the surface
+     ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
      dq_dNrgStateVec(1) = 0._rkind
    else
      dNum = 0._rkind
@@ -1172,6 +1166,7 @@ contains
        case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
      end select
      ! compute the energy derivative at the surface
+     ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
      dq_dNrgStateVec(1) = 0._rkind
    else
      dNum = 0._rkind
@@ -1280,6 +1275,7 @@ contains
        case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
      end select
      ! compute the energy derivative at the surface
+     ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
      dq_dNrgStateVec(1) = 0._rkind
    else
      dNum = 0._rkind
@@ -1358,6 +1354,7 @@ contains
        case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
      end select
      ! compute the energy derivative at the surface
+     ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
      dq_dNrgStateVec(1) = -(dHydCond_dTemp/2._rkind)*(scalarMatricHeadLiq - upperBoundHead)/(mLayerDepth(1)*0.5_rkind) + dHydCond_dTemp/2._rkind
    else
      dNum = 0._rkind
@@ -1381,7 +1378,7 @@ contains
      call update_surfaceFlx_liquidFlux_computation; if (return_flag) return 
    else ! do not compute infiltration after first flux call in a splitting operation
      dq_dHydStateVec(:) = 0._rkind
-     dq_dNrgStateVec(:) = 0._rkind
+     dq_dNrgStateVec(:) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    end if 
   end associate
 
@@ -1672,6 +1669,7 @@ contains
    dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea)&
                       & * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) )&
                       & + (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+   ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea)&
                       & * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  )&
                       & + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
