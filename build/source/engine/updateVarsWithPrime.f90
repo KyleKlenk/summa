@@ -282,7 +282,7 @@ subroutine updateVarsWithPrime(&
     dPsiLiq_dTemp           => deriv_data%var(iLookDERIV%dPsiLiq_dTemp)%dat              ,& ! intent(out): [dp(:)]  derivative in the liquid water matric potential w.r.t. temperature
     mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat           ,& ! intent(out): [dp(:)]  derivative of volumetric liquid water content w.r.t. temperature
     dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)        ,& ! intent(out): [dp]     derivative of volumetric liquid water content w.r.t. temperature
-    dFracLiqSnow_dTk        => deriv_data%var(iLookDERIV%dFracLiqSnow_dTk)%dat           ,& ! intent(out): [dp(:)]  derivative in fraction of liquid snow w.r.t. temperature
+    dFracLiqWat_dTk        => deriv_data%var(iLookDERIV%dFracLiqWat_dTk)%dat             ,& ! intent(out): [dp(:)]  derivative in fraction of liquid water w.r.t. temperature
     dFracLiqVeg_dTkCanopy   => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy)%dat(1)   ,& ! intent(out): [dp   ]  derivative in fraction of (throughfall + drainage) w.r.t. temperature
     ! derivatives inside solver for Jacobian only
     d2VolTot_dPsi02         => deriv_data%var(iLookDERIV%d2VolTot_dPsi02)%dat            ,& ! intent(out): [dp(:)]  second derivative in total water content w.r.t. total water matric potential
@@ -431,6 +431,7 @@ subroutine updateVarsWithPrime(&
       ! compute temperature from enthalpy and water content for remaining domains 
       if(ixDomainType==iname_veg)then
         if(enthalpyStateVec)then
+          scalarCanopyTempTrial = scalarCanopyTemp ! start at previous value
           call enthalpy2T_veg(&
                    computJac,                  & ! intent(in):    flag if computing for Jacobian update          
                    canopyDepth,                & ! intent(in):    canopy depth (m)
@@ -450,6 +451,7 @@ subroutine updateVarsWithPrime(&
         endif
       elseif(ixDomainType==iname_snow)then
         if(enthalpyStateVec)then
+          mLayerTempTrial(iLayer) = mLayerTemp(iLayer) ! start at previous value
           call enthalpy2T_snow(&
                    computJac,                      & ! intent(in):    flag if computing for Jacobian update       
                    snowfrz_scale,                  & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
@@ -466,6 +468,7 @@ subroutine updateVarsWithPrime(&
         endif
       elseif(ixDomainType==iname_soil)then
         if(enthalpyStateVec)then
+          mLayerTempTrial(iLayer) = mLayerTemp(iLayer) ! start at previous value
           call enthalpy2T_soil(&
                    computJac,                              & ! intent(in):    flag if computing for Jacobian update
                    use_lookup,                             & ! intent(in):    flag to use the lookup table for soil enthalpy
@@ -556,14 +559,14 @@ subroutine updateVarsWithPrime(&
                 d2Theta_dTkCanopy2 = 2._rkind * snowfrz_scale**2_i4b * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqVeg_dTkCanopy - fLiq**2_i4b ) * scalarCanopyWatTrial/(iden_water*canopyDepth)
               endif
             case(iname_snow)
-              dFracLiqSnow_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)
-              mLayerdTheta_dTk(iLayer) = dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatTrial(iLayer)
+              dFracLiqWat_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)
+              mLayerdTheta_dTk(iLayer) = dFracLiqWat_dTk(iLayer) * mLayerVolFracWatTrial(iLayer)
               if(computJac)then
                 fLiq = fracLiquid(xTemp,snowfrz_scale)
-                mLayerd2Theta_dTk2(iLayer) = 2._rkind * snowfrz_scale**2_i4b * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqSnow_dTk(iLayer) - fLiq**2_i4b ) * mLayerVolFracWatTrial(iLayer)
+                mLayerd2Theta_dTk2(iLayer) = 2._rkind * snowfrz_scale**2_i4b * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqWat_dTk(iLayer) - fLiq**2_i4b ) * mLayerVolFracWatTrial(iLayer)
               endif
             case(iname_soil)
-              dFracLiqSnow_dTk(iLayer) = 0._rkind !dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))/ mLayerVolFracWatTrial(iLayer)
+              dFracLiqWat_dTk(iLayer) = 0._rkind !dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))/ mLayerVolFracWatTrial(iLayer)
               mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
               if(computJac)then
                 mLayerd2Theta_dTk2(iLayer) = d2Theta_dTk2(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
@@ -575,7 +578,8 @@ subroutine updateVarsWithPrime(&
         else
           select case(ixDomainType)
             case(iname_veg);              dTheta_dTkCanopy         = 0._rkind; d2Theta_dTkCanopy2         = 0._rkind; dFracLiqVeg_dTkCanopy    = 0._rkind
-            case(iname_snow, iname_soil); mLayerdTheta_dTk(iLayer) = 0._rkind; mLayerd2Theta_dTk2(iLayer) = 0._rkind; dFracLiqSnow_dTk(iLayer) = 0._rkind
+            case(iname_snow, iname_soil); mLayerdTheta_dTk(iLayer) = 0._rkind; mLayerd2Theta_dTk2(iLayer) = 0._rkind; dFracLiqWat_dTk(iLayer) = 0._rkind
+            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
           end select  ! domain type
         endif
 

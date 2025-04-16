@@ -698,7 +698,7 @@ MODULE var_lookup
   integer(i4b)    :: dAquiferTrans_dTGround          = integerMissing ! derivative in the aquifer transpiration flux w.r.t. ground temperature
   integer(i4b)    :: dAquiferTrans_dCanWat           = integerMissing ! derivative in the aquifer transpiration flux w.r.t. canopy total water
  ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
-  integer(i4b)    :: dFracLiqSnow_dTk                = integerMissing ! derivative in fraction of liquid snow w.r.t. temperature
+  integer(i4b)    :: dFracLiqWat_dTk                 = integerMissing ! derivative in fraction of liquid water w.r.t. temperature
   integer(i4b)    :: mLayerdTheta_dTk                = integerMissing ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   integer(i4b)    :: mLayerd2Theta_dTk2              = integerMissing ! second derivative of volumetric liquid water content w.r.t. temperature
  ! derivatives in time

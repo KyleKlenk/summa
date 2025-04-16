@@ -271,7 +271,7 @@ subroutine computJacobWithPrime(&
     dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow           )%dat     ,& ! intent(in): [dp(:)]  change in flux at layer interfaces w.r.t. states in the layer below
     dq_dNrgStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec    )%dat     ,& ! intent(in): [dp(:)]  change in the flux in soil surface interface w.r.t. state variables in layers
     ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
-    dFracLiqSnow_dTk             => deriv_data%var(iLookDERIV%dFracLiqSnow_dTk            )%dat     ,& ! intent(in): [dp(:)]  derivative in fraction of liquid snow w.r.t. temperature
+    dFracLiqWat_dTk              => deriv_data%var(iLookDERIV%dFracLiqWat_dTk             )%dat     ,& ! intent(in): [dp(:)]  derivative in fraction of liquid water w.r.t. temperature
     mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk            )%dat     ,& ! intent(in): [dp(:)]  derivative in volumetric liquid water content w.r.t. temperature
     mLayerd2Theta_dTk2           => deriv_data%var(iLookDERIV%mLayerd2Theta_dTk2          )%dat     ,& ! intent(in): [dp(:)]  second derivative of volumetric liquid water content w.r.t. temperature
     ! derivative in bulk heat capacity w.r.t. relevant state variables
@@ -337,7 +337,7 @@ subroutine computJacobWithPrime(&
                                     + dVolHtCapBulk_dTk(iLayer) * mLayerTempPrime(iLayer) &
                                     + dCm_dTk(iLayer) * mLayerVolFracWatPrime(iLayer) &
                                     + LH_fus*iden_water * mLayerTempPrime(iLayer)  * mLayerd2Theta_dTk2(iLayer) &
-                                    + LH_fus*iden_water * dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
+                                    + LH_fus*iden_water * dFracLiqWat_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
       endif
     end do
 
@@ -353,7 +353,8 @@ subroutine computJacobWithPrime(&
       endif
     end do
 
-    ! if using enthalpy as a state variable, zero out usual RHS terms and add them end of the iteration loop
+    ! if using enthalpy as a state variable, zero out usual RHS terms and add them end of the iteration loop 
+    ! NOTE: other terms on RHS that are not fluxes are zeroed out by not computing heat capacity and Cm and their derivatives
     if(enthalpyStateVec)then 
       if(ixCasNrg/=integerMissing) dMat(ixCasNrg) = 0._rkind
       if(ixVegNrg/=integerMissing) dMat(ixVegNrg) = 0._rkind
@@ -515,7 +516,7 @@ subroutine computJacobWithPrime(&
               aJac(ixOffDiag(nrgState,watState),watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fu0*iden_water * cj &
                                           + dVolHtCapBulk_dTheta(iLayer) * mLayerTempPrime(iLayer) + mLayerCm(iLayer) * cj &
                                           + (dt/mLayerDepth(iLayer))*(-dNrgFlux_dWatBelow(iLayer-1) + dNrgFlux_dWatAbove(iLayer)) &
-                                          + LH_fu0*iden_water * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
+                                          + LH_fu0*iden_water * mLayerTempPrime(iLayer) * dFracLiqWat_dTk(iLayer)    ! (dF/dLiq)
 
               ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
               aJac(ixOffDiag(watState,nrgState),nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
@@ -657,16 +658,16 @@ subroutine computJacobWithPrime(&
               endif
 
               ! - include derivatives w.r.t. ground evaporation
-              if(nSnow==0 .and. iLayer==1)then  ! upper-most soil layer, assume here that kl>=4
-                if(computeVegFlux)then
+              if(nSnow==0 .and. iLayer==1)then 
+                if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixTopNrg),ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixOffDiag(ixTopHyd,ixTopNrg),ixTopNrg) ! dVol/dT (K-1)
+                if(computeVegFlux)then ! upper-most soil layer, assume here that kl>=4
                   if(ixCasNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
                   if(ixVegNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixVegNrg),ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) + aJac(ixOffDiag(ixTopHyd,ixVegNrg),ixVegNrg) ! dVol/dT (K-1)
                   if(ixVegHyd/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  + aJac(ixOffDiag(ixTopHyd,ixVegHyd),ixVegHyd) ! dVol/dLiq (kg m-2)-1
                 endif
-                if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixTopNrg),ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixOffDiag(ixTopHyd,ixTopNrg),ixTopNrg) ! dVol/dT (K-1)
               endif
 
-              ! - only include banded terms for derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration) in banded structure
+              ! - only include banded terms for derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration) in banded structure 
               if(computeVegFlux)then
                 if(ixCasNrg/=integerMissing)then
                   if(watState-ixCasNrg <= kl) aJac(ixOffDiag(watState,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-mLayerdTrans_dTCanair(iLayer)) + aJac(ixOffDiag(watState,ixCasNrg),ixCasNrg) ! dVol/dT (K-1)
@@ -870,7 +871,7 @@ subroutine computJacobWithPrime(&
               aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fu0*iden_water * cj &
                                           + dVolHtCapBulk_dTheta(iLayer) * mLayerTempPrime(iLayer) + mLayerCm(iLayer) * cj &
                                           + (dt/mLayerDepth(iLayer))*(-dNrgFlux_dWatBelow(iLayer-1) + dNrgFlux_dWatAbove(iLayer)) &
-                                          + LH_fu0*iden_water * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
+                                          + LH_fu0*iden_water * mLayerTempPrime(iLayer) * dFracLiqWat_dTk(iLayer)    ! (dF/dLiq)
 
               ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
               aJac(watState,nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
@@ -998,14 +999,14 @@ subroutine computJacobWithPrime(&
                 if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSoilOnlyHyd(iLayer+1),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))     ! K-1
               endif
 
-              ! - include derivatives of energy w.r.t. ground evaporation
-              if(nSnow==0 .and. iLayer==1)then  ! upper-most soil layer
+              ! - include derivatives w.r.t. ground evaporation
+              if(nSnow==0 .and. iLayer==1)then 
+                if(ixTopNrg/=integerMissing) aJac(ixTopHyd,ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixTopHyd,ixTopNrg) ! dVol/dT (K-1)
                 if(computeVegFlux)then
                   if(ixCasNrg/=integerMissing) aJac(ixTopHyd,ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
                   if(ixVegNrg/=integerMissing) aJac(ixTopHyd,ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) + aJac(ixTopHyd,ixVegNrg) ! dVol/dT (K-1)
                   if(ixVegHyd/=integerMissing) aJac(ixTopHyd,ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  + aJac(ixTopHyd,ixVegHyd) ! dVol/dLiq (kg m-2)-1
                 endif
-                if(ixTopNrg/=integerMissing) aJac(ixTopHyd,ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixTopHyd,ixTopNrg) ! dVol/dT (K-1)
               endif
 
               ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)

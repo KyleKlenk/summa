@@ -840,7 +840,7 @@ contains
   case('dAquiferTrans_dTGround'         ); get_ixDeriv = iLookDERIV%dAquiferTrans_dTGround         ! derivative in the aquifer transpiration flux w.r.t. ground temperature
   case('dAquiferTrans_dCanWat'          ); get_ixDeriv = iLookDERIV%dAquiferTrans_dCanWat          ! derivative in the aquifer transpiration flux w.r.t. canopy total water
  ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
-  case('dFracLiqSnow_dTk'               ); get_ixDeriv = iLookDERIV%dFracLiqSnow_dTk               ! derivative in fraction of liquid snow w.r.t. temperature
+  case('dFracLiqWat_dTk'                ); get_ixDeriv = iLookDERIV%dFracLiqWat_dTk                ! derivative in fraction of liquid water w.r.t. temperature
   case('mLayerdTheta_dTk'               ); get_ixDeriv = iLookDERIV%mLayerdTheta_dTk               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   case('mLayerd2Theta_dTk2'             ); get_ixDeriv = iLookDERIV%mLayerd2Theta_dTk2             ! second derivative of volumetric liquid water content w.r.t. temperature
   ! derivatives in time
