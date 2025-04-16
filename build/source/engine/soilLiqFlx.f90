@@ -964,7 +964,7 @@ contains
  subroutine update_surfaceFlx
   ! **** Update operations for surfaceFlx ****
   ! test parameters -- SJT: to be removed once functionality is confirmed
-  logical(lgt),parameter :: test_FUSE         =.true.      ! flag for FUSE testing
+  logical(lgt),parameter :: test_FUSE         =.false.      ! flag for FUSE testing
   integer(i4b),parameter :: FUSE_Param        =2           ! selected FUSE parameterization
   real(rkind) ,parameter :: precipitation     =1.e-5_rkind ! precipitation (m s-1)
   real(rkind) ,parameter :: saturated_area_max=0.5_rkind   ! maximum saturated area (-)
@@ -1183,7 +1183,7 @@ contains
   real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
 
   ! * local variables *
-  logical(lgt),parameter :: test_FUSE=.true. ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
+  logical(lgt),parameter :: test_FUSE=.false. ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
   real(rkind) :: saturated_area              ! saturated area (-)
   ! FUSE parameters and variables
   real(rkind),parameter :: lambda=9._rkind ! mean
