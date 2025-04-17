@@ -984,8 +984,7 @@ contains
 
    ! test FUSE parameterizations -- SJT: to be removed once functionality is confirmed
    if (test_FUSE) then
-    call update_surfaceFlx_FUSE(FUSE_Param,precipitation,saturated_area_max,tension_fraction,storage_max,exponent_ARNO_VIC,&
-                                &surface_runoff)
+    call update_surfaceFlx_FUSE(FUSE_Param,precipitation,saturated_area_max,tension_fraction,storage_max,exponent_ARNO_VIC)
     stop ! stop program following FUSE parameterization test
    end if
 
@@ -1005,19 +1004,15 @@ contains
   end associate
  end subroutine update_surfaceFlx
 
- subroutine update_surfaceFlx_FUSE(FUSE_Param,precipitation,saturated_area_max,tension_fraction,storage_max,exponent_ARNO_VIC,&
-                                  &surface_runoff)
+ subroutine update_surfaceFlx_FUSE(FUSE_Param,p,Ac_max,phi_tens,S1_max,b)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) ****
   ! input
   integer(i4b),intent(in) :: FUSE_Param ! selected FUSE parameterization
-  real(rkind),intent(in) :: precipitation      ! precipitation (m s-1)
-  real(rkind),intent(in) :: saturated_area_max ! maximum saturated area (-)
-  real(rkind),intent(in) :: tension_fraction   ! fraction of total storage as tension storage (-)
-  real(rkind),intent(in) :: storage_max        ! Maximum storage in the upper layer (m)
-  real(rkind),intent(in) :: exponent_ARNO_VIC  ! ARNO/VIC exponent (-) 
-  
-  ! output
-  real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
+  real(rkind),intent(in)  :: p        ! precipitation (m s-1)
+  real(rkind),intent(in)  :: Ac_max   ! maximum saturated area (-)
+  real(rkind),intent(in)  :: phi_tens ! fraction of total storage as tension storage (-)
+  real(rkind),intent(in)  :: S1_max   ! Maximum storage in the upper layer (m)
+  real(rkind),intent(in)  :: b        ! ARNO/VIC exponent (-) 
 
   ! local variables
   integer(i4b),parameter :: FUSE_PRMS=0     ! FUSE: PRMS     parametrization
@@ -1027,13 +1022,13 @@ contains
   ! compute infiltration, runoff, and derivatives for selected FUSE parameterization
   select case(FUSE_Param)
    case(FUSE_PRMS)
-    call update_surfaceFlx_FUSE_PRMS(precipitation,saturated_area_max,tension_fraction,storage_max,surface_runoff)
+    call update_surfaceFlx_FUSE_PRMS(p,Ac_max,phi_tens,S1_max)
 
    case(FUSE_ARNO_VIC)
-    call update_surfaceFlx_FUSE_ARNO_VIC(precipitation,storage_max,exponent_ARNO_VIC,surface_runoff)
+    call update_surfaceFlx_FUSE_ARNO_VIC(p,S1_max,b)
 
    case(FUSE_TOPMODEL)
-    call update_surfaceFlx_FUSE_TOPMODEL(precipitation,surface_runoff)
+    call update_surfaceFlx_FUSE_TOPMODEL(p)
 
    case default
     associate(&
@@ -1047,42 +1042,46 @@ contains
 
  end subroutine update_surfaceFlx_FUSE
 
- subroutine update_surfaceFlx_FUSE_PRMS(precipitation,saturated_area_max,tension_fraction,storage_max,surface_runoff)
+ subroutine update_surfaceFlx_FUSE_PRMS(p,Ac_max,phi_tens,S1_max)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- PRMS ****
   ! input
-  real(rkind),intent(in) :: precipitation      ! precipitation (m s-1)
-  real(rkind),intent(in) :: saturated_area_max ! maximum saturated area (-)
-  real(rkind),intent(in) :: tension_fraction   ! fraction of total storage as tension storage (m)
-  real(rkind),intent(in) :: storage_max        ! Maximum storage in the upper layer (m)
-
-  ! output
-  real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
+  real(rkind),intent(in) :: p        ! precipitation (m s-1)
+  real(rkind),intent(in) :: Ac_max   ! maximum saturated area (-)
+  real(rkind),intent(in) :: phi_tens ! fraction of total storage as tension storage (m)
+  real(rkind),intent(in) :: S1_max   ! Maximum storage in the upper layer (m)
 
   ! local variables
-  real(rkind) :: saturated_area            ! saturated area (-)
-  real(rkind) :: tension_water_content     ! tension water content in upper soil layer (m)
-  real(rkind) :: tension_water_content_max ! maximum tension water content in upper soil layer (m)
-  real(rkind) :: total_water_content       ! total water content in upper soil layer (m)
-  real(rkind) :: layer_thickness           ! thickness of the upper layer (m)
+  real(rkind) :: Ac       ! saturated area (-)
+  real(rkind) :: S1       ! total water content in upper soil layer (m)
+  real(rkind) :: S1_T     ! tension water content in upper soil layer (m)
+  real(rkind) :: S1_T_max ! maximum tension water content in upper soil layer (m)
+  real(rkind) :: layer_thickness ! thickness of the upper layer (m)
+  real(rkind) :: qsx             ! surface runoff (m s-1)
+  real(rkind) :: infiltration    ! surface infiltration (m s-1)
 
-  ! compute tension water content
+  ! compute water content in upper soil layer
   associate(&
    ! input: state and diagnostic variables
    scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
    ! input: depth of upper-most soil layer (m)
    mLayerDepth  => in_surfaceFlx % mLayerDepth & ! depth of upper-most soil layer (m)
   &)
-   layer_thickness= mLayerDepth(1) ! SJT: needs verification -- mLayer depth includes snow layers as well
-   total_water_content=scalarVolFracLiq*layer_thickness
+   layer_thickness= mLayerDepth(1)     ! SJT: needs verification -- mLayer depth includes snow layers as well
+   S1=scalarVolFracLiq*layer_thickness ! total water content in upper soil layer
   end associate
-  tension_water_content_max=tension_fraction*storage_max
-  tension_water_content=min(total_water_content,tension_water_content_max)
+
+  ! compute tension water content
+  S1_T_max=phi_tens*S1_max
+  S1_T=min(S1,S1_T_max)
 
   ! compute saturated area
-  saturated_area = (tension_water_content/tension_water_content_max)*saturated_area_max
+  Ac = (S1_T/S1_T_max)*Ac_max
 
   ! compute surface runoff
-  surface_runoff = precipitation * saturated_area
+  qsx = Ac * p
+
+  ! compute surface infiltration
+  infiltration = (1._rkind - Ac) * p
 
   ! compute flux derivatives -- SJT: in progress
   associate(&
@@ -1100,8 +1099,13 @@ contains
    if (deriv_desired) then
      ! compute the hydrology derivative at the surface
      select case(ixRichards)  ! select form of Richards' equation
-       case(moisture); dq_dHydStateVec(1) = 0._rkind 
-       case(mixdform); dq_dHydStateVec(1) = 0._rkind 
+       case(moisture)
+        if (S1<S1_T_max) then
+         dq_dHydStateVec(1) = -p*Ac_max/S1_T_max*layer_thickness
+        else  
+         dq_dHydStateVec(1) = 0._rkind
+        end if 
+       case(mixdform); dq_dHydStateVec(1) = 0._rkind ! SJT: with respect to pressure head? (use moisture capacity) 
        case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
      end select
      ! compute the energy derivative at the surface
@@ -1113,20 +1117,19 @@ contains
   end associate
  end subroutine update_surfaceFlx_FUSE_PRMS
 
- subroutine update_surfaceFlx_FUSE_ARNO_VIC(precipitation,storage_max,exponent_ARNO_VIC,surface_runoff)
+ subroutine update_surfaceFlx_FUSE_ARNO_VIC(p,S1_max,b)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- ARNO/VIC ****
   ! input
-  real(rkind),intent(in) :: precipitation      ! precipitation (m s-1)
-  real(rkind),intent(in) :: storage_max        ! Maximum storage in the upper layer (m)
-  real(rkind),intent(in) :: exponent_ARNO_VIC  ! ARNO/VIC exponent (-) 
-
-  ! output
-  real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
+  real(rkind),intent(in) :: p      ! precipitation (m s-1)
+  real(rkind),intent(in) :: S1_max ! Maximum storage in the upper layer (m)
+  real(rkind),intent(in) :: b      ! ARNO/VIC exponent (-) 
 
   ! local variables
-  real(rkind) :: saturated_area            ! saturated area (-)
-  real(rkind) :: total_water_content       ! total water content in upper soil layer (m)
-  real(rkind) :: layer_thickness           ! thickness of the upper layer (m)
+  real(rkind) :: Ac              ! saturated area (-)
+  real(rkind) :: S1              ! total water content in upper soil layer (m)
+  real(rkind) :: layer_thickness ! thickness of the upper layer (m)
+  real(rkind) :: qsx             ! surface runoff (m s-1)
+  real(rkind) :: infiltration    ! surface infiltration (m s-1)
 
   ! compute total water content
   associate(&
@@ -1136,14 +1139,17 @@ contains
    mLayerDepth  => in_surfaceFlx % mLayerDepth & ! depth of upper-most soil layer (m)
   &)
    layer_thickness= mLayerDepth(1) ! SJT: needs verification -- mLayer depth includes snow layers as well
-   total_water_content=scalarVolFracLiq*layer_thickness
+   S1=scalarVolFracLiq*layer_thickness
   end associate
 
   ! compute saturated area
-  saturated_area = 1._rkind - (1._rkind-total_water_content/storage_max)**exponent_ARNO_VIC
+  Ac = 1._rkind - (1._rkind-S1/S1_max)**b
 
   ! compute surface runoff
-  surface_runoff = precipitation * saturated_area
+  qsx = Ac * p
+
+  ! compute surface infiltration
+  infiltration = (1._rkind - Ac) * p
 
   ! compute flux derivatives -- SJT: in progress
   associate(&
@@ -1174,17 +1180,21 @@ contains
   end associate
  end subroutine update_surfaceFlx_FUSE_ARNO_VIC
 
- subroutine update_surfaceFlx_FUSE_TOPMODEL(precipitation,surface_runoff)
+ subroutine update_surfaceFlx_FUSE_TOPMODEL(p)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
   ! input
-  real(rkind),intent(in) :: precipitation   ! precipitation (m s-1)
+  real(rkind),intent(in) :: p   ! precipitation (m s-1)
 
   ! output
-  real(rkind),intent(out) :: surface_runoff ! surface runoff (m s-1)
 
   ! * local variables *
   logical(lgt),parameter :: test_FUSE=.false. ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
-  real(rkind) :: saturated_area              ! saturated area (-)
+
+  ! runoff and infiltration variables
+  real(rkind) :: Ac           ! saturated area (-)
+  real(rkind) :: qsx          ! surface runoff (m s-1)
+  real(rkind) :: infiltration ! surface infiltration (m s-1)
+
   ! FUSE parameters and variables
   real(rkind),parameter :: lambda=9._rkind ! mean
   real(rkind),parameter :: chi=3._rkind    ! scale
@@ -1193,18 +1203,18 @@ contains
   real(rkind) :: phi ! shape (computed from other parameters)
   
   ! Gamma distribution parameters and variables
-  real(rkind) :: alpha      ! shape
-  real(rkind) :: theta      ! scale
-  real(rkind) :: x_critical ! critical x (random variable) value
+  real(rkind) :: alpha  ! shape
+  real(rkind) :: theta  ! scale
+  real(rkind) :: x_crit ! critical x (random variable) value
 
   ! topographic index variables
   real(rkind),parameter :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
-  real(rkind) :: zeta_critical_n           ! critical topographic index value (power-transfomred)
-  real(rkind) :: zeta_critical             ! critical topographic index value (log space)
-  real(rkind) :: F1,F2    ! temporary storage for regularized incomplete gamma function values
-  real(rkind) :: lambda_n ! mean of the power-transformed topographic index
+  real(rkind) :: zeta_crit_n ! critical topographic index value (power-transfomred)
+  real(rkind) :: zeta_crit   ! critical topographic index value (log space)
+  real(rkind) :: F1,F2       ! temporary storage for regularized incomplete gamma function values
+  real(rkind) :: lambda_n    ! mean of the power-transformed topographic index
 
-  ! reservoir variables
+  ! lower FUSE layer variables
   real(rkind),parameter :: S2_max=1._rkind ! max storage in lower layer (m)
   real(rkind),parameter :: S2=0.5_rkind    ! total water content in lower layer (m) -- may depend on aquifer model selected in general
 
@@ -1241,18 +1251,21 @@ contains
   end if
 
   ! compute critical zeta value
-  zeta_critical_n=lambda_n/(S2/S2_max) ! power-transformed critical topographic index
+  zeta_crit_n=lambda_n/(S2/S2_max) ! power-transformed critical topographic index
 
-  zeta_critical=log(zeta_critical_n**n) ! critical topographic index in log space
+  zeta_crit=log(zeta_crit_n**n) ! critical topographic index in log space
 
   ! transform to x random variable
-  x_critical=zeta_critical-mu
+  x_crit=zeta_crit-mu
 
   ! compute saturated area
-  saturated_area = 1._rkind-gammp(alpha,x_critical/theta)
+  Ac = 1._rkind-gammp(alpha,x_crit/theta)
 
   ! compute surface runoff
-  surface_runoff = precipitation * saturated_area
+  qsx = Ac * p
+
+  ! compute surface infiltration
+  infiltration = (1._rkind - Ac) * p
 
   ! compute flux derivatives -- SJT: in progress
   associate(&
