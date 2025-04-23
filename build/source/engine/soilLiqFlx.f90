@@ -1087,8 +1087,7 @@ contains
   ! compute surface infiltration
   infiltration = (1._rkind - Ac) * p
 
-  ! * interface FUSE runoff and infiltration to SUMMA variables *
-  ! runoff and infiltration
+  ! interface FUSE runoff and infiltration to SUMMA variables
   associate(&
    ! output: runoff and infiltration
    scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
@@ -1096,17 +1095,6 @@ contains
   &)
    scalarSurfaceRunoff       = qsx 
    scalarSurfaceInfiltration = infiltration
-  end associate
-
-   ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
-  associate(&
-   ! input-output: hydraulic conductivity and diffusivity at the surface
-   ! NOTE: intent(inout) because infiltration may only be computed for the first iteration
-   surfaceHydCond => io_surfaceFlx % surfaceHydCond , & ! hydraulic conductivity (m s-1)
-   surfaceDiffuse => io_surfaceFlx % surfaceDiffuse   & ! hydraulic diffusivity at the surface (m2 s-1)
-  &)
-   surfaceHydCond = realMissing
-   surfaceDiffuse = realMissing
   end associate
 
   ! compute flux derivatives
@@ -1129,7 +1117,7 @@ contains
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   ! compute the derivative
+   ! compute the derivatives for surface infiltration
    if (deriv_desired) then
      ! compute the hydrology derivative at the surface
      select case(ixRichards)  ! select form of Richards' equation
@@ -1159,10 +1147,13 @@ contains
 
   ! * additional assignment statements for input-output object based on FUSE values *
   ! the minimum saturated area is not constrained in FUSE PRMS
-  io_surfaceFlx % xMaxInfilRate     = p ! maximum infiltration rate (m s-1)
+  io_surfaceFlx % xMaxInfilRate    = p ! maximum infiltration rate (m s-1)
   ! no freezing assumed for FUSE PRMS
-  io_surfaceFlx % scalarInfilArea   = 1._rkind - Ac ! fraction of unfrozen area where water can infiltrate (-)
-  io_surfaceFlx % scalarFrozenArea  = 0._rkind ! fraction of area that is considered impermeable due to soil ice (-)
+  io_surfaceFlx % scalarInfilArea  = 1._rkind - Ac ! fraction of unfrozen area where water can infiltrate (-)
+  io_surfaceFlx % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
+  ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
+  io_surfaceFlx % surfaceHydCond   = realMissing ! hydraulic conductivity (m s-1)
+  io_surfaceFlx % surfaceDiffuse   = realMissing ! hydraulic diffusivity at the surface (m2 s-1)
 
  end subroutine update_surfaceFlx_FUSE_PRMS
 
@@ -1208,11 +1199,29 @@ contains
   ! compute surface infiltration
   infiltration = (1._rkind - Ac) * p
 
-  ! compute flux derivatives -- SJT: in progress
+  ! interface FUSE runoff and infiltration to SUMMA variables
+  associate(&
+   ! output: runoff and infiltration
+   scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
+  &)
+   scalarSurfaceRunoff       = qsx 
+   scalarSurfaceInfiltration = infiltration
+  end associate
+
+  ! compute flux derivatives
   associate(&
    ! input: model control
    deriv_desired  => in_surfaceFlx % deriv_desired  , & ! flag to indicate if derivatives are desired
    ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: state and diagnostic variables
+   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
+   ! input: soil parameters
+   vGn_alpha           => in_surfaceFlx % vGn_alpha           , & ! van Genuchten "alpha" parameter (m-1)
+   vGn_n               => in_surfaceFlx % vGn_n               , & ! van Genuchten "n" parameter (-)
+   vGn_m               => in_surfaceFlx % vGn_m               , & ! van Genuchten "m" parameter (-)
+   theta_sat           => in_surfaceFlx % theta_sat           , & ! soil porosity (-)
+   theta_res           => in_surfaceFlx % theta_res           , & ! soil residual volumetric water content (-)
    ! output: derivatives in surface infiltration w.r.t. ...
    dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
    dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
@@ -1220,12 +1229,13 @@ contains
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   ! compute the derivative
+   ! compute the derivatives for surface infiltration
    if (deriv_desired) then
      ! compute the hydrology derivative at the surface
      select case(ixRichards)  ! select form of Richards' equation
-       case(moisture); dq_dHydStateVec(1) = 0._rkind 
-       case(mixdform); dq_dHydStateVec(1) = 0._rkind 
+       case(moisture); dq_dHydStateVec(1) = (-p*layer_thickness/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) ! w.r.t. moisture content 
+       case(mixdform); dq_dHydStateVec(1) = (-p*layer_thickness/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) &
+                                          & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! w.r.t. pressure head
        case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
      end select
      ! compute the energy derivative at the surface
@@ -1235,6 +1245,17 @@ contains
      dNum = 0._rkind
    end if
   end associate
+
+  ! * additional assignment statements for input-output object based on FUSE values *
+  ! the minimum saturated area is not constrained in FUSE ARNO/VIC
+  io_surfaceFlx % xMaxInfilRate    = p ! maximum infiltration rate (m s-1)
+  ! no freezing assumed for FUSE PRMS
+  io_surfaceFlx % scalarInfilArea  = 1._rkind - Ac ! fraction of unfrozen area where water can infiltrate (-)
+  io_surfaceFlx % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
+  ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
+  io_surfaceFlx % surfaceHydCond   = realMissing ! hydraulic conductivity (m s-1)
+  io_surfaceFlx % surfaceDiffuse   = realMissing ! hydraulic diffusivity at the surface (m2 s-1)
+
  end subroutine update_surfaceFlx_FUSE_ARNO_VIC
 
  subroutine update_surfaceFlx_FUSE_TOPMODEL()
@@ -1341,7 +1362,7 @@ contains
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   ! compute the derivative
+   ! compute the derivatives for surface infiltration
    if (deriv_desired) then
      ! compute the hydrology derivative at the surface
      select case(ixRichards)  ! select form of Richards' equation
