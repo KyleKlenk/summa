@@ -1274,7 +1274,6 @@ contains
   real(rkind),parameter :: lambda=9._rkind ! mean
   real(rkind),parameter :: chi=3._rkind    ! scale
   real(rkind),parameter :: mu=3._rkind     ! offset
-  real(rkind),parameter :: n=3.5_rkind     ! base flow exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
   real(rkind) :: phi ! shape (computed from other parameters)
   
   ! Gamma distribution parameters and variables
@@ -1290,8 +1289,25 @@ contains
   real(rkind) :: lambda_n    ! mean of the power-transformed topographic index
 
   ! lower FUSE layer variables
-  real(rkind),parameter :: S2_max=1._rkind ! max storage in lower layer (m)
+  real(rkind) :: S2_max ! max storage in lower layer (m)
   real(rkind),parameter :: S2=0.5_rkind    ! total water content in lower layer (m) -- may depend on aquifer model selected in general
+  real(rkind) :: n ! base flow exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
+
+  ! * interface SUMMA aquifer input values with FUSE lower layer variables *
+  ! interface base flow exponent
+  n=in_surfaceFlx % aquiferBaseflowExp
+  S2_max=in_surfaceFlx % scalarAquiferStorageTrial ! SJT -- verify this (might be S2 instead)
+  ! validation of parameters
+  associate(&
+   ! output: error control
+   err     => out_surfaceFlx % err    , & ! error code
+   message => out_surfaceFlx % message  & ! error message
+  &)
+   ! validate baseflow exponent to avoid divergence of lambda_n
+   if (n < 3.5_rkind) then
+    err=10; message=trim(message)//"FUSE base flow exponent must be at least 3.5"; return_flag=.true.; return
+   end if
+  end associate
 
   ! set FUSE parameters - input parameters are lambda, chi, and mu
   phi=(lambda-mu)/chi
