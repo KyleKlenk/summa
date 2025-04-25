@@ -1290,13 +1290,14 @@ contains
 
   ! lower FUSE layer variables
   real(rkind) :: S2_max ! max storage in lower layer (m)
-  real(rkind),parameter :: S2=0.5_rkind    ! total water content in lower layer (m) -- may depend on aquifer model selected in general
-  real(rkind) :: n ! base flow exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
+  real(rkind) :: S2     ! total water content in lower layer (m)
+  real(rkind) :: n      ! base flow exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
 
   ! * interface SUMMA aquifer input values with FUSE lower layer variables *
   ! interface base flow exponent
-  n=in_surfaceFlx % aquiferBaseflowExp
-  S2_max=in_surfaceFlx % scalarAquiferStorageTrial ! SJT -- verify this (might be S2 instead)
+  n      = in_surfaceFlx % aquiferBaseflowExp
+  S2     = in_surfaceFlx % scalarAquiferStorageTrial 
+  S2_max = in_surfaceFlx % aquiferScaleFactor 
   ! validation of parameters
   associate(&
    ! output: error control
