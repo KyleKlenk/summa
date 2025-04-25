@@ -863,7 +863,7 @@ subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
   USE soil_utils_module,only:hydCond_liq           ! compute hydraulic conductivity as a function of volumetric liquid water content (m s-1)
   USE soil_utils_module,only:dPsi_dTheta           ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
   USE soil_utils_module,only:crit_soilT            ! compute critical temperature below which ice exists
-  USE soil_utils_module,only:gammp                 ! compute the cumulative probabilty based on the Gamma distribution
+  USE soil_utils_module,only:gammp                 ! compute the regularized lower incomplete Gamma function
   ! compute infiltraton at the surface and its derivative w.r.t. mass in the upper soil layer
   implicit none
   ! -----------------------------------------------------------------------------------------------------------------------------
