@@ -682,8 +682,9 @@ MODULE data_types
    real(rkind) :: soilIceScale        ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
    real(rkind) :: soilIceCV           ! soil ice CV in Gamma distribution used to define frozen area (-)
    ! input: aquifer variables for FUSE parameterizations
-   real(rkind) :: aquiferBaseflowExp  ! baseflow exponent (-)
+   real(rkind) :: aquiferBaseflowExp        ! baseflow exponent (-)
    real(rkind) :: scalarAquiferStorageTrial ! trial value of aquifer storage (m)
+   real(rkind) :: aquiferScaleFactor        ! scaling factor for aquifer storage in the big bucket (m)
   contains
    procedure :: initialize => initialize_in_surfaceFlx
  end type in_type_surfaceFlx 
@@ -1841,10 +1842,12 @@ contains
   ! intent(in): aquifer values for FUSE parameterizations
   associate(&
    aquiferBaseflowExp        => mpar_data%var(iLookPARAM%aquiferBaseflowExp)%dat(1), & ! baseflow exponent (-)
-   scalarAquiferStorageTrial => in_soilLiqFlx % scalarAquiferStorageTrial            & ! trial value of aquifer storage (m)
+   scalarAquiferStorageTrial => in_soilLiqFlx % scalarAquiferStorageTrial,           & ! trial value of aquifer storage (m)
+   aquiferScaleFactor        => mpar_data%var(iLookPARAM%aquiferScaleFactor)%dat(1)  & ! scaling factor for aquifer storage in the big bucket (m)
   &)
    in_surfaceFlx % aquiferBaseflowExp        = aquiferBaseflowExp        ! baseflow exponent (-)
    in_surfaceFlx % scalarAquiferStorageTrial = scalarAquiferStorageTrial ! trial value of aquifer storage (m)
+   in_surfaceFlx % aquiferScaleFactor        = aquiferScaleFactor        ! scaling factor for aquifer storage in the big bucket (m)
   end associate
  end subroutine initialize_in_surfaceFlx
 
