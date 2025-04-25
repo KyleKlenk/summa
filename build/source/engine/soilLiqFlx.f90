@@ -981,7 +981,7 @@ contains
 
    ! test FUSE parameterizations -- SJT: to be removed once functionality is confirmed
    if (test_FUSE) then
-    call update_surfaceFlx_FUSE(FUSE_Param,saturated_area_max,tension_fraction,storage_max,exponent_ARNO_VIC)
+    call update_surfaceFlx_FUSE(FUSE_Param,saturated_area_max,tension_fraction,storage_max,exponent_ARNO_VIC); if (return_flag) return
     stop ! stop program following FUSE parameterization test
    end if
 
@@ -1018,13 +1018,13 @@ contains
   ! compute infiltration, runoff, and derivatives for selected FUSE parameterization
   select case(FUSE_Param)
    case(FUSE_PRMS)
-    call update_surfaceFlx_FUSE_PRMS(Ac_max,phi_tens,S1_max)
+    call update_surfaceFlx_FUSE_PRMS(Ac_max,phi_tens,S1_max); if (return_flag) return
 
    case(FUSE_ARNO_VIC)
-    call update_surfaceFlx_FUSE_ARNO_VIC(S1_max,b)
+    call update_surfaceFlx_FUSE_ARNO_VIC(S1_max,b);           if (return_flag) return
 
    case(FUSE_TOPMODEL)
-    call update_surfaceFlx_FUSE_TOPMODEL()
+    call update_surfaceFlx_FUSE_TOPMODEL();                   if (return_flag) return
 
    case default
     associate(&
