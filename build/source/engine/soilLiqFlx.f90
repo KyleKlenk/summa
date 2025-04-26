@@ -1145,7 +1145,7 @@ contains
    end if
   end associate
 
-  ! * additional assignment statements for input-output object based on FUSE values *
+  ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
   ! the minimum saturated area is not constrained in FUSE PRMS
   io_surfaceFlx % xMaxInfilRate    = p ! maximum infiltration rate (m s-1)
   ! no freezing assumed for FUSE PRMS
@@ -1246,10 +1246,10 @@ contains
    end if
   end associate
 
-  ! * additional assignment statements for input-output object based on FUSE values *
+  ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
   ! the minimum saturated area is not constrained in FUSE ARNO/VIC
   io_surfaceFlx % xMaxInfilRate    = p ! maximum infiltration rate (m s-1)
-  ! no freezing assumed for FUSE PRMS
+  ! no freezing assumed for FUSE ARNO/VIC
   io_surfaceFlx % scalarInfilArea  = 1._rkind - Ac ! fraction of unfrozen area where water can infiltrate (-)
   io_surfaceFlx % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
   ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
@@ -1367,7 +1367,17 @@ contains
   ! compute surface infiltration
   infiltration = (1._rkind - Ac) * p
 
-  ! compute flux derivatives -- SJT: in progress
+  ! interface FUSE runoff and infiltration to SUMMA variables
+  associate(&
+   ! output: runoff and infiltration
+   scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
+  &)
+   scalarSurfaceRunoff       = qsx 
+   scalarSurfaceInfiltration = infiltration
+  end associate
+
+  ! compute flux derivatives
   associate(&
    ! input: model control
    deriv_desired  => in_surfaceFlx % deriv_desired  , & ! flag to indicate if derivatives are desired
@@ -1382,6 +1392,7 @@ contains
    ! compute the derivatives for surface infiltration
    if (deriv_desired) then
      ! compute the hydrology derivative at the surface
+     ! note: infiltration depends on water content in the aquifer, which is presumed to not explicitly depend on hydrology state variables
      select case(ixRichards)  ! select form of Richards' equation
        case(moisture); dq_dHydStateVec(1) = 0._rkind 
        case(mixdform); dq_dHydStateVec(1) = 0._rkind 
@@ -1394,6 +1405,16 @@ contains
      dNum = 0._rkind
    end if
   end associate
+
+  ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
+  ! the minimum saturated area is not constrained in FUSE TOPMODEL
+  io_surfaceFlx % xMaxInfilRate    = p ! maximum infiltration rate (m s-1)
+  ! no freezing assumed for FUSE TOPMODEL
+  io_surfaceFlx % scalarInfilArea  = 1._rkind - Ac ! fraction of unfrozen area where water can infiltrate (-)
+  io_surfaceFlx % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
+  ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
+  io_surfaceFlx % surfaceHydCond   = realMissing ! hydraulic conductivity (m s-1)
+  io_surfaceFlx % surfaceDiffuse   = realMissing ! hydraulic diffusivity at the surface (m2 s-1)
  end subroutine update_surfaceFlx_FUSE_TOPMODEL
 
  subroutine update_surfaceFlx_prescribedHead
