@@ -1100,7 +1100,6 @@ contains
   ! compute flux derivatives
   associate(&
    ! input: model control
-   deriv_desired  => in_surfaceFlx % deriv_desired  , & ! flag to indicate if derivatives are desired
    ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
    scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
@@ -1117,32 +1116,28 @@ contains
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   ! compute the derivatives for surface infiltration
-   if (deriv_desired) then
-     ! compute the hydrology derivative at the surface
-     select case(ixRichards)  ! select form of Richards' equation
-       case(moisture) ! w.r.t water content
-        if (S1<S1_T_max) then
-         dq_dHydStateVec(1) = -p*Ac_max/S1_T_max*layer_thickness
-        else  
-         dq_dHydStateVec(1) = 0._rkind
-        end if 
-       case(mixdform) ! w.r.t pressure head
-        if (S1<S1_T_max) then
-         ! evaluate using the chain rule (tranforms dq_dTheta into dq_dPsi)
-         dq_dHydStateVec(1) = -p*Ac_max/S1_T_max*layer_thickness &
-                            & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-        else
-         dq_dHydStateVec(1) = 0._rkind
-        end if 
-       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-     end select
-     ! compute the energy derivative at the surface
-     ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-     dq_dNrgStateVec(1) = 0._rkind
-   else
-     dNum = 0._rkind
-   end if
+   ! * compute the derivatives for surface infiltration *
+   ! compute the hydrology derivative at the surface
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture) ! w.r.t water content
+      if (S1<S1_T_max) then
+       dq_dHydStateVec(1) = -p*Ac_max/S1_T_max*layer_thickness
+      else  
+       dq_dHydStateVec(1) = 0._rkind
+      end if 
+     case(mixdform) ! w.r.t pressure head
+      if (S1<S1_T_max) then
+       ! evaluate using the chain rule (tranforms dq_dTheta into dq_dPsi)
+       dq_dHydStateVec(1) = -p*Ac_max/S1_T_max*layer_thickness &
+                          & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+      else
+       dq_dHydStateVec(1) = 0._rkind
+      end if 
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select
+   ! compute the energy derivative at the surface
+   ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   dq_dNrgStateVec(1) = 0._rkind
   end associate
 
   ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
@@ -1212,7 +1207,6 @@ contains
   ! compute flux derivatives
   associate(&
    ! input: model control
-   deriv_desired  => in_surfaceFlx % deriv_desired  , & ! flag to indicate if derivatives are desired
    ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
    scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
@@ -1229,21 +1223,17 @@ contains
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   ! compute the derivatives for surface infiltration
-   if (deriv_desired) then
-     ! compute the hydrology derivative at the surface
-     select case(ixRichards)  ! select form of Richards' equation
-       case(moisture); dq_dHydStateVec(1) = (-p*layer_thickness/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) ! w.r.t. moisture content 
-       case(mixdform); dq_dHydStateVec(1) = (-p*layer_thickness/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) &
-                                          & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! w.r.t. pressure head
-       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-     end select
-     ! compute the energy derivative at the surface
-     ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-     dq_dNrgStateVec(1) = 0._rkind
-   else
-     dNum = 0._rkind
-   end if
+   ! * compute the derivatives for surface infiltration *
+   ! compute the hydrology derivative at the surface
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture); dq_dHydStateVec(1) = (-p*layer_thickness/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) ! w.r.t. moisture content 
+     case(mixdform); dq_dHydStateVec(1) = (-p*layer_thickness/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) &
+                                        & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! w.r.t. pressure head
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select
+   ! compute the energy derivative at the surface
+   ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   dq_dNrgStateVec(1) = 0._rkind
   end associate
 
   ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
@@ -1380,7 +1370,6 @@ contains
   ! compute flux derivatives
   associate(&
    ! input: model control
-   deriv_desired  => in_surfaceFlx % deriv_desired  , & ! flag to indicate if derivatives are desired
    ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
    ! output: derivatives in surface infiltration w.r.t. ...
    dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
@@ -1389,21 +1378,17 @@ contains
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   ! compute the derivatives for surface infiltration
-   if (deriv_desired) then
-     ! compute the hydrology derivative at the surface
-     ! note: infiltration depends on water content in the aquifer, which is presumed to not explicitly depend on hydrology state variables
-     select case(ixRichards)  ! select form of Richards' equation
-       case(moisture); dq_dHydStateVec(1) = 0._rkind 
-       case(mixdform); dq_dHydStateVec(1) = 0._rkind 
-       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-     end select
-     ! compute the energy derivative at the surface
-     ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-     dq_dNrgStateVec(1) = 0._rkind
-   else
-     dNum = 0._rkind
-   end if
+   ! * compute the derivatives for surface infiltration *
+   ! compute the hydrology derivative at the surface
+   ! note: infiltration depends on water content in the aquifer, which is presumed to not explicitly depend on hydrology state variables
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture); dq_dHydStateVec(1) = 0._rkind 
+     case(mixdform); dq_dHydStateVec(1) = 0._rkind 
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select
+   ! compute the energy derivative at the surface
+   ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   dq_dNrgStateVec(1) = 0._rkind
   end associate
 
   ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
