@@ -964,7 +964,7 @@ contains
  subroutine update_surfaceFlx
   ! **** Update operations for surfaceFlx ****
   ! test parameters -- SJT: to be removed once functionality is confirmed
-  logical(lgt),parameter :: test_FUSE         =.false.     ! flag for FUSE testing
+  logical(lgt),parameter :: test_FUSE         =.true.     ! flag for FUSE testing
   integer(i4b),parameter :: FUSE_Param        =2           ! selected FUSE parameterization
   real(rkind) ,parameter :: saturated_area_max=0.5_rkind   ! maximum saturated area (-)
   real(rkind) ,parameter :: tension_fraction  =0.5_rkind   ! fraction of total storage as tension storage (-)
@@ -1252,7 +1252,7 @@ contains
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
 
   ! * local variables *
-  logical(lgt),parameter :: test_FUSE=.false. ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
+  logical(lgt),parameter :: test_FUSE=.true. ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
 
   ! runoff and infiltration variables
   real(rkind) :: p            ! precipitation (m s-1)
@@ -1287,7 +1287,12 @@ contains
   ! interface base flow exponent
   n      = in_surfaceFlx % aquiferBaseflowExp
   S2     = in_surfaceFlx % scalarAquiferStorageTrial 
-  S2_max = in_surfaceFlx % aquiferScaleFactor 
+  S2_max = in_surfaceFlx % aquiferScaleFactor
+!!! SJT: test block   
+  print *, "n=",n
+  print *, "S2=",S2
+  print *, "S2_max=",S2_max
+!!! SJT: end test block   
   ! validation of parameters
   associate(&
    ! output: error control
@@ -1296,52 +1301,64 @@ contains
   &)
    ! validate baseflow exponent to avoid divergence of lambda_n
    if (n < 3.5_rkind) then
+    print *, "n=",n
     err=10; message=trim(message)//"FUSE base flow exponent must be at least 3.5"; return_flag=.true.; return
+   end if
+   if (S2 < 0._rkind) then
+    print *, "S2=",S2
+    err=10; message=trim(message)//"invalid water content value detected in lower FUSE layer"; return_flag=.true.; return
    end if
   end associate
 
-  ! set FUSE parameters - input parameters are lambda, chi, and mu
-  phi=(lambda-mu)/chi
+  ! check water content in lower FUSE layer 
+  if (S2 > 0._rkind) then ! if some water is stored in lower FUSE layer
 
-  ! set Gamma distribution parameters
-  alpha=phi
-  theta=chi
+   ! set FUSE parameters - input parameters are lambda, chi, and mu
+   phi=(lambda-mu)/chi
 
-  ! * compute the mean power-transformed topographic index *
-  ! compute gamma CDF values
-  F1=gammp(alpha,(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta)
-  F2=gammp(alpha,(-(mu*n - mu*theta)/n)/theta)
+   ! set Gamma distribution parameters
+   alpha=phi
+   theta=chi
 
-  ! mean power-transformed topographic index (translated to Fortran from SageMath)
-  lambda_n=((-mu + zeta_upper)**alpha*(F1 - 1)*exp(mu/n)*gamma(alpha)/(-(mu*n - mu*theta - &
-          &(n - theta)*zeta_upper)/(n*theta))**alpha - (-mu)**alpha*(F2 - 1)*exp(mu/n)*gamma(alpha)/&
-          &(-(mu*n - mu*theta)/(n*theta))**alpha)/(theta**alpha*gamma(alpha))
+   ! * compute the mean power-transformed topographic index *
+   ! compute gamma CDF values
+   F1=gammp(alpha,(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta)
+   F2=gammp(alpha,(-(mu*n - mu*theta)/n)/theta)
 
-  ! test block -- SJT: to be removed once functionality is confirmed
-  if (test_FUSE) then
-   print *, "update_surfaceFlx_FUSE_TOPMODEL:"
-   print *, "alpha=",alpha,"theta",theta
-   print *, "t/theta=",1._rkind
-   print *, "gammp=",gammp(alpha,1._rkind)
-   print *, "t/theta=",(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta,"t=",(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)
-   print *, "F1(alpha,t/theta)=",F1
-   print *, "t/theta=",(-(mu*n - mu*theta)/n)/theta,"t=",(-(mu*n - mu*theta)/n)
-   print *, "F2=",F2
-   print *, "lambda_n=",lambda_n
-   print *, "gammp(3,3)=",gammp(3._rkind,3._rkind)
-   print *, ""
+   ! mean power-transformed topographic index (translated to Fortran from SageMath)
+   lambda_n=((-mu + zeta_upper)**alpha*(F1 - 1)*exp(mu/n)*gamma(alpha)/(-(mu*n - mu*theta - &
+           &(n - theta)*zeta_upper)/(n*theta))**alpha - (-mu)**alpha*(F2 - 1)*exp(mu/n)*gamma(alpha)/&
+           &(-(mu*n - mu*theta)/(n*theta))**alpha)/(theta**alpha*gamma(alpha))
+
+   ! test block -- SJT: to be removed once functionality is confirmed
+   if (test_FUSE) then
+    print *, "update_surfaceFlx_FUSE_TOPMODEL:"
+    print *, "alpha=",alpha,"theta",theta
+    print *, "t/theta=",1._rkind
+    print *, "gammp=",gammp(alpha,1._rkind)
+    print *, "t/theta=",(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta,"t=",(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)
+    print *, "F1(alpha,t/theta)=",F1
+    print *, "t/theta=",(-(mu*n - mu*theta)/n)/theta,"t=",(-(mu*n - mu*theta)/n)
+    print *, "F2=",F2
+    print *, "lambda_n=",lambda_n
+    print *, "gammp(3,3)=",gammp(3._rkind,3._rkind)
+    print *, ""
+   end if
+
+   ! compute critical zeta value
+   zeta_crit_n=lambda_n/(S2/S2_max) ! power-transformed critical topographic index
+
+   zeta_crit=log(zeta_crit_n**n) ! critical topographic index in log space
+
+   ! transform to x random variable
+   x_crit=zeta_crit-mu
+
+   ! compute saturated area
+   Ac = 1._rkind-gammp(alpha,x_crit/theta)
+
+  else ! if no water is stored in lower FUSE layer
+   Ac = 0._rkind
   end if
-
-  ! compute critical zeta value
-  zeta_crit_n=lambda_n/(S2/S2_max) ! power-transformed critical topographic index
-
-  zeta_crit=log(zeta_crit_n**n) ! critical topographic index in log space
-
-  ! transform to x random variable
-  x_crit=zeta_crit-mu
-
-  ! compute saturated area
-  Ac = 1._rkind-gammp(alpha,x_crit/theta)
 
   ! interface precipitation value (zero melt presumed)
   associate(&
@@ -1350,7 +1367,10 @@ contains
   )
    p = scalarRainPlusMelt
   end associate
-
+!!! SJT: test block   
+  print *, "p=",p
+!!! SJT: endtest block
+   
   ! compute surface runoff
   qsx = Ac * p
 
