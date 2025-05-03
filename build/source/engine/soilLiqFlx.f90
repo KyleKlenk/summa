@@ -982,21 +982,22 @@ contains
    ! test FUSE parameterizations -- SJT: to be removed once functionality is confirmed
    if (test_FUSE) then
     call update_surfaceFlx_FUSE(FUSE_Param,saturated_area_max,tension_fraction,storage_max,exponent_ARNO_VIC); if (return_flag) return
-    stop ! stop program following FUSE parameterization test
-   end if
+    !stop ! stop program following FUSE parameterization test
+   else
 
-   ! compute the surface flux and its derivative
-   select case(bc_upper)
+    ! compute the surface flux and its derivative
+    select case(bc_upper)
  
-     case(prescribedHead) ! head condition
-       call update_surfaceFlx_prescribedHead; if (return_flag) return 
+      case(prescribedHead) ! head condition
+        call update_surfaceFlx_prescribedHead; if (return_flag) return 
  
-     case(liquidFlux) ! flux condition
-       call update_surfaceFlx_liquidFlux;     if (return_flag) return 
+      case(liquidFlux) ! flux condition
+        call update_surfaceFlx_liquidFlux;     if (return_flag) return 
  
-     case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
+      case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
  
-   end select 
+    end select 
+   end if
 
   end associate
  end subroutine update_surfaceFlx
@@ -1252,7 +1253,7 @@ contains
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
 
   ! * local variables *
-  logical(lgt),parameter :: test_FUSE=.true. ! flag for FUSE testing -- SJT: to be removed once functionality is confirmed
+  logical(lgt),parameter :: test_FUSE=.false. ! flag for testing 
 
   ! runoff and infiltration variables
   real(rkind) :: p            ! precipitation (m s-1)
@@ -1288,25 +1289,24 @@ contains
   n      = in_surfaceFlx % aquiferBaseflowExp
   S2     = in_surfaceFlx % scalarAquiferStorageTrial 
   S2_max = in_surfaceFlx % aquiferScaleFactor
-!!! SJT: test block   
-  print *, "n=",n
-  print *, "S2=",S2
-  print *, "S2_max=",S2_max
-!!! SJT: end test block   
+
   ! validation of parameters
   associate(&
    ! output: error control
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   ! validate baseflow exponent to avoid divergence of lambda_n
-   if (n < 3.5_rkind) then
+   if (n < 3.5_rkind) then ! validate baseflow exponent to avoid divergence of lambda_n
     print *, "n=",n
     err=10; message=trim(message)//"FUSE base flow exponent must be at least 3.5"; return_flag=.true.; return
    end if
-   if (S2 < 0._rkind) then
+   if (S2 < 0._rkind) then ! check for negative water content values in the lower FUSE layer
     print *, "S2=",S2
     err=10; message=trim(message)//"invalid water content value detected in lower FUSE layer"; return_flag=.true.; return
+   end if
+   if (S2 > S2_max) then   ! check if water content in lower FUSE layer exceeds the maximum storage
+    print *, "S2,S2_max=",S2,S2_max
+    err=10; message=trim(message)//"invalid water content in lower FUSE layer exceeds max storage"; return_flag=.true.; return
    end if
   end associate
 
@@ -1330,19 +1330,10 @@ contains
            &(n - theta)*zeta_upper)/(n*theta))**alpha - (-mu)**alpha*(F2 - 1)*exp(mu/n)*gamma(alpha)/&
            &(-(mu*n - mu*theta)/(n*theta))**alpha)/(theta**alpha*gamma(alpha))
 
-   ! test block -- SJT: to be removed once functionality is confirmed
+   ! test block for debugging purposes
    if (test_FUSE) then
-    print *, "update_surfaceFlx_FUSE_TOPMODEL:"
-    print *, "alpha=",alpha,"theta",theta
-    print *, "t/theta=",1._rkind
-    print *, "gammp=",gammp(alpha,1._rkind)
-    print *, "t/theta=",(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta,"t=",(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)
-    print *, "F1(alpha,t/theta)=",F1
-    print *, "t/theta=",(-(mu*n - mu*theta)/n)/theta,"t=",(-(mu*n - mu*theta)/n)
-    print *, "F2=",F2
+    print *, "phi,chi,mu=",phi,chi,mu
     print *, "lambda_n=",lambda_n
-    print *, "gammp(3,3)=",gammp(3._rkind,3._rkind)
-    print *, ""
    end if
 
    ! compute critical zeta value
@@ -1367,9 +1358,6 @@ contains
   )
    p = scalarRainPlusMelt
   end associate
-!!! SJT: test block   
-  print *, "p=",p
-!!! SJT: endtest block
    
   ! compute surface runoff
   qsx = Ac * p
@@ -1420,6 +1408,14 @@ contains
   ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
   io_surfaceFlx % surfaceHydCond   = realMissing ! hydraulic conductivity (m s-1)
   io_surfaceFlx % surfaceDiffuse   = realMissing ! hydraulic diffusivity at the surface (m2 s-1)
+
+  ! test block for debugging purposes
+  if (test_FUSE) then
+   print *, "n=",n
+   print *, "S2,S2_max=",S2,S2_max
+   print *, "Ac,p=",Ac,p
+   print *, "qsx,infiltration=",qsx,infiltration
+  end if
  end subroutine update_surfaceFlx_FUSE_TOPMODEL
 
  subroutine update_surfaceFlx_prescribedHead
