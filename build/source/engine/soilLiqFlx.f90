@@ -1163,19 +1163,19 @@ contains
   real(rkind) :: p               ! precipitation (m s-1)
   real(rkind) :: Ac              ! saturated area (-)
   real(rkind) :: S1              ! total water content in upper soil layer (m)
-  real(rkind) :: layer_thickness ! thickness of the upper layer (m)
+  !real(rkind) :: layer_thickness ! thickness of the upper layer (m)
   real(rkind) :: qsx             ! surface runoff (m s-1)
   real(rkind) :: infiltration    ! surface infiltration (m s-1)
 
   ! compute total water content
   associate(&
    ! input: state and diagnostic variables
-   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
+   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq & ! volumetric liquid water content in the upper-most soil layer (-)
    ! input: depth of upper-most soil layer (m)
-   mLayerDepth  => in_surfaceFlx % mLayerDepth & ! depth of upper-most soil layer (m)
+   !mLayerDepth  => in_surfaceFlx % mLayerDepth & ! depth of upper-most soil layer (m)
   &)
-   layer_thickness= mLayerDepth(1) ! SJT: needs verification -- mLayer depth includes snow layers as well
-   S1=scalarVolFracLiq*layer_thickness
+   !layer_thickness= mLayerDepth(1) ! SJT: needs verification -- mLayer depth includes snow layers as well
+   S1=scalarVolFracLiq ! SJT: ****** Update -- should be the integrated water content ******
   end associate
 
   ! compute saturated area
@@ -1227,8 +1227,8 @@ contains
    ! * compute the derivatives for surface infiltration *
    ! compute the hydrology derivative at the surface
    select case(ixRichards)  ! select form of Richards' equation
-     case(moisture); dq_dHydStateVec(1) = (-p*layer_thickness/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) ! w.r.t. moisture content 
-     case(mixdform); dq_dHydStateVec(1) = (-p*layer_thickness/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) &
+     case(moisture); dq_dHydStateVec(1) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) ! w.r.t. moisture content 
+     case(mixdform); dq_dHydStateVec(1) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) &
                                         & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! w.r.t. pressure head
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
    end select
