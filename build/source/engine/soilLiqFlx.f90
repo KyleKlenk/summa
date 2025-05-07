@@ -965,7 +965,7 @@ contains
   ! **** Update operations for surfaceFlx ****
   ! test parameters -- SJT: to be removed once functionality is confirmed
   logical(lgt),parameter :: test_FUSE         =.true.     ! flag for FUSE testing
-  integer(i4b),parameter :: FUSE_Param        =2           ! selected FUSE parameterization
+  integer(i4b),parameter :: FUSE_Param        =1           ! selected FUSE parameterization
   real(rkind) ,parameter :: saturated_area_max=0.5_rkind   ! maximum saturated area (-)
   real(rkind) ,parameter :: tension_fraction  =0.5_rkind   ! fraction of total storage as tension storage (-)
   real(rkind) ,parameter :: storage_max       =1._rkind    ! Maximum storage in the upper layer (m)
@@ -1022,7 +1022,7 @@ contains
     call update_surfaceFlx_FUSE_PRMS(Ac_max,phi_tens,S1_max); if (return_flag) return
 
    case(FUSE_ARNO_VIC)
-    call update_surfaceFlx_FUSE_ARNO_VIC(S1_max,b);           if (return_flag) return
+    call update_surfaceFlx_FUSE_ARNO_VIC(b);           if (return_flag) return
 
    case(FUSE_TOPMODEL)
     call update_surfaceFlx_FUSE_TOPMODEL();                   if (return_flag) return
@@ -1153,29 +1153,27 @@ contains
 
  end subroutine update_surfaceFlx_FUSE_PRMS
 
- subroutine update_surfaceFlx_FUSE_ARNO_VIC(S1_max,b)
+ subroutine update_surfaceFlx_FUSE_ARNO_VIC(b)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- ARNO/VIC ****
   ! input
-  real(rkind),intent(in) :: S1_max ! Maximum storage in the upper layer (m)
   real(rkind),intent(in) :: b      ! ARNO/VIC exponent (-) 
 
   ! local variables
   real(rkind) :: p               ! precipitation (m s-1)
   real(rkind) :: Ac              ! saturated area (-)
   real(rkind) :: S1              ! total water content in upper soil layer (m)
-  !real(rkind) :: layer_thickness ! thickness of the upper layer (m)
+  real(rkind) :: S1_max          ! max water content in upper soil layer (m)
   real(rkind) :: qsx             ! surface runoff (m s-1)
   real(rkind) :: infiltration    ! surface infiltration (m s-1)
 
-  ! compute total water content
+  ! compute total water content in upper FUSE layer
   associate(&
-   ! input: state and diagnostic variables
-   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq & ! volumetric liquid water content in the upper-most soil layer (-)
-   ! input: depth of upper-most soil layer (m)
-   !mLayerDepth  => in_surfaceFlx % mLayerDepth & ! depth of upper-most soil layer (m)
+   nSoil              => in_surfaceFlx % nSoil,              & ! number of soil layers
+   scalarTotalSoilLiq => in_surfaceFlx % scalarTotalSoilLiq, & ! total liquid water in the soil column (kg m-2)
+   iLayerHeight       => in_surfaceFlx % iLayerHeight        & ! height at the interface of each layer (m)
   &)
-   !layer_thickness= mLayerDepth(1) ! SJT: needs verification -- mLayer depth includes snow layers as well
-   S1=scalarVolFracLiq ! SJT: ****** Update -- should be the integrated water content ******
+   S1=scalarTotalSoilLiq/iden_water ! total water content in upper FUSE layer (m)
+   S1_max=iLayerHeight(nSoil) ! max water storage for upper FUSE layer (m)
   end associate
 
   ! compute saturated area
