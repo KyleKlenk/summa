@@ -965,10 +965,9 @@ contains
   ! **** Update operations for surfaceFlx ****
   ! test parameters -- SJT: to be removed once functionality is confirmed
   logical(lgt),parameter :: test_FUSE         =.true.     ! flag for FUSE testing
-  integer(i4b),parameter :: FUSE_Param        =1           ! selected FUSE parameterization
-  real(rkind) ,parameter :: saturated_area_max=0.5_rkind   ! maximum saturated area (-)
+  integer(i4b),parameter :: FUSE_Param        =0           ! selected FUSE parameterization
+  real(rkind) ,parameter :: saturated_area_max=0.95_rkind   ! maximum saturated area (-)
   real(rkind) ,parameter :: tension_fraction  =0.5_rkind   ! fraction of total storage as tension storage (-)
-  real(rkind) ,parameter :: storage_max       =1._rkind    ! Maximum storage in the upper layer (m)
   real(rkind) ,parameter :: exponent_ARNO_VIC =2._rkind    ! ARNO/VIC exponent (-) 
 
   associate(&
@@ -981,7 +980,7 @@ contains
 
    ! test FUSE parameterizations -- SJT: to be removed once functionality is confirmed
    if (test_FUSE) then
-    call update_surfaceFlx_FUSE(FUSE_Param,saturated_area_max,tension_fraction,storage_max,exponent_ARNO_VIC); if (return_flag) return
+    call update_surfaceFlx_FUSE(FUSE_Param,saturated_area_max,tension_fraction,exponent_ARNO_VIC); if (return_flag) return
     !stop ! stop program following FUSE parameterization test
    else
 
@@ -1002,13 +1001,12 @@ contains
   end associate
  end subroutine update_surfaceFlx
 
- subroutine update_surfaceFlx_FUSE(FUSE_Param,Ac_max,phi_tens,S1_max,b)
+ subroutine update_surfaceFlx_FUSE(FUSE_Param,Ac_max,phi_tens,b)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) ****
   ! input
   integer(i4b),intent(in) :: FUSE_Param ! selected FUSE parameterization
   real(rkind),intent(in)  :: Ac_max   ! maximum saturated area (-)
   real(rkind),intent(in)  :: phi_tens ! fraction of total storage as tension storage (-)
-  real(rkind),intent(in)  :: S1_max   ! Maximum storage in the upper layer (m)
   real(rkind),intent(in)  :: b        ! ARNO/VIC exponent (-) 
 
   ! local variables
@@ -1019,7 +1017,7 @@ contains
   ! compute infiltration, runoff, and derivatives for selected FUSE parameterization
   select case(FUSE_Param)
    case(FUSE_PRMS)
-    call update_surfaceFlx_FUSE_PRMS(Ac_max,phi_tens,S1_max); if (return_flag) return
+    call update_surfaceFlx_FUSE_PRMS(Ac_max,phi_tens); if (return_flag) return
 
    case(FUSE_ARNO_VIC)
     call update_surfaceFlx_FUSE_ARNO_VIC(b);           if (return_flag) return
@@ -1039,32 +1037,44 @@ contains
 
  end subroutine update_surfaceFlx_FUSE
 
- subroutine update_surfaceFlx_FUSE_PRMS(Ac_max,phi_tens,S1_max)
+ subroutine update_surfaceFlx_FUSE_PRMS(Ac_max,phi_tens)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- PRMS ****
   ! input
   real(rkind),intent(in) :: Ac_max   ! maximum saturated area (-)
   real(rkind),intent(in) :: phi_tens ! fraction of total storage as tension storage (m)
-  real(rkind),intent(in) :: S1_max   ! Maximum storage in the upper layer (m)
 
   ! local variables
   real(rkind) :: p        ! precipitation (m s-1)
   real(rkind) :: Ac       ! saturated area (-)
   real(rkind) :: S1       ! total water content in upper soil layer (m)
+  real(rkind) :: S1_max   ! Maximum storage in the upper layer (m)
   real(rkind) :: S1_T     ! tension water content in upper soil layer (m)
   real(rkind) :: S1_T_max ! maximum tension water content in upper soil layer (m)
-  real(rkind) :: layer_thickness ! thickness of the upper layer (m)
   real(rkind) :: qsx             ! surface runoff (m s-1)
   real(rkind) :: infiltration    ! surface infiltration (m s-1)
 
+  ! validation of parameters
+  associate(&
+   ! output: error control
+   err     => out_surfaceFlx % err    , & ! error code
+   message => out_surfaceFlx % message  & ! error message
+  &)
+   if ((Ac_max<0._rkind).or.(Ac_max>1._rkind)) then
+    err=10; message=trim(message)//"FUSE PRMS surface runoff error: invalid Ac_max (max saturated area) value"; return_flag=.true.; return
+   end if
+   if ((phi_tens<0._rkind).or.(phi_tens>1._rkind)) then
+    err=10; message=trim(message)//"FUSE PRMS surface runoff error: invalid phi_tens (tension storage fraction) value"; return_flag=.true.; return
+   end if
+  end associate
+
   ! compute water content in upper soil layer
   associate(&
-   ! input: state and diagnostic variables
-   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
-   ! input: depth of upper-most soil layer (m)
-   mLayerDepth  => in_surfaceFlx % mLayerDepth & ! depth of upper-most soil layer (m)
+   nSoil              => in_surfaceFlx % nSoil,              & ! number of soil layers
+   scalarTotalSoilLiq => in_surfaceFlx % scalarTotalSoilLiq, & ! total liquid water in the soil column (kg m-2)
+   iLayerHeight       => in_surfaceFlx % iLayerHeight        & ! height at the interface of each layer (m)
   &)
-   layer_thickness= mLayerDepth(1)     ! SJT: needs verification -- mLayer depth includes snow layers as well
-   S1=scalarVolFracLiq*layer_thickness ! total water content in upper soil layer
+   S1=scalarTotalSoilLiq/iden_water ! total water content in upper FUSE layer (m)
+   S1_max=iLayerHeight(nSoil) ! max water storage for upper FUSE layer (m)
   end associate
 
   ! compute tension water content
@@ -1122,14 +1132,14 @@ contains
    select case(ixRichards)  ! select form of Richards' equation
      case(moisture) ! w.r.t water content
       if (S1<S1_T_max) then
-       dq_dHydStateVec(1) = -p*Ac_max/S1_T_max*layer_thickness
+       dq_dHydStateVec(1) = -p*Ac_max/S1_T_max
       else  
        dq_dHydStateVec(1) = 0._rkind
       end if 
      case(mixdform) ! w.r.t pressure head
       if (S1<S1_T_max) then
        ! evaluate using the chain rule (tranforms dq_dTheta into dq_dPsi)
-       dq_dHydStateVec(1) = -p*Ac_max/S1_T_max*layer_thickness &
+       dq_dHydStateVec(1) = -p*Ac_max/S1_T_max &
                           & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
       else
        dq_dHydStateVec(1) = 0._rkind
