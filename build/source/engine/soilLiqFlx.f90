@@ -964,7 +964,7 @@ contains
  subroutine update_surfaceFlx
   ! **** Update operations for surfaceFlx ****
   ! test parameters -- SJT: to be removed once functionality is confirmed
-  logical(lgt),parameter :: test_FUSE         =.true.     ! flag for FUSE testing
+  logical(lgt),parameter :: test_FUSE         =.false.     ! flag for FUSE testing
   integer(i4b),parameter :: FUSE_Param        =0           ! selected FUSE parameterization
   real(rkind) ,parameter :: saturated_area_max=0.95_rkind   ! maximum saturated area (-)
   real(rkind) ,parameter :: tension_fraction  =0.5_rkind   ! fraction of total storage as tension storage (-)
