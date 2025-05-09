@@ -77,7 +77,10 @@ USE mDecisions_module,only:   &
   funcBottomHead,             & ! function of matric head in the lower-most layer
   freeDrainage,               & ! free drainage
   liquidFlux,                 & ! liquid water flux
-  zeroFlux                      ! zero flux
+  zeroFlux,                   & ! zero flux
+  FUSEPRMS,                   & ! FUSE PRMS     surface runoff parameterization 
+  FUSEAVIC,                   & ! FUSE ARNO/VIC surface runoff parameterization
+  FUSETOPM                      ! FUSE TOPMODEL surface runoff parameterization 
 
 ! -----------------------------------------------------------------------------------------------------------
 implicit none
@@ -990,9 +993,18 @@ contains
       case(prescribedHead) ! head condition
         call update_surfaceFlx_prescribedHead; if (return_flag) return 
  
-      case(liquidFlux) ! flux condition
+      case(liquidFlux)     ! flux condition
         call update_surfaceFlx_liquidFlux;     if (return_flag) return 
  
+      case(FUSEPRMS)       ! FUSE PRMS surface runoff
+        call update_surfaceFlx_FUSE_PRMS(saturated_area_max,tension_fraction); if (return_flag) return 
+
+      case(FUSEAVIC)       ! FUSE ARNO/VIC surface runoff
+        call update_surfaceFlx_FUSE_ARNO_VIC(exponent_ARNO_VIC);               if (return_flag) return
+
+      case(FUSETOPM)       ! FUSE TOPMODEL surface runoff
+        call update_surfaceFlx_FUSE_TOPMODEL();                                if (return_flag) return
+
       case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
  
     end select 
