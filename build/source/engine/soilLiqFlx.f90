@@ -967,8 +967,6 @@ contains
  subroutine update_surfaceFlx
   ! **** Update operations for surfaceFlx ****
   ! test parameters -- SJT: to be removed once functionality is confirmed
-  logical(lgt),parameter :: test_FUSE         =.false.     ! flag for FUSE testing
-  integer(i4b),parameter :: FUSE_Param        =0           ! selected FUSE parameterization
   real(rkind) ,parameter :: saturated_area_max=0.95_rkind   ! maximum saturated area (-)
   real(rkind) ,parameter :: tension_fraction  =0.5_rkind   ! fraction of total storage as tension storage (-)
   real(rkind) ,parameter :: exponent_ARNO_VIC =2._rkind    ! ARNO/VIC exponent (-) 
@@ -981,73 +979,30 @@ contains
    message  => out_surfaceFlx % message  & ! error message
   &)
 
-   ! test FUSE parameterizations -- SJT: to be removed once functionality is confirmed
-   if (test_FUSE) then
-    call update_surfaceFlx_FUSE(FUSE_Param,saturated_area_max,tension_fraction,exponent_ARNO_VIC); if (return_flag) return
-    !stop ! stop program following FUSE parameterization test
-   else
-
-    ! compute the surface flux and its derivative
-    select case(bc_upper)
+   ! compute the surface flux and its derivative
+   select case(bc_upper)
  
-      case(prescribedHead) ! head condition
-        call update_surfaceFlx_prescribedHead; if (return_flag) return 
+     case(prescribedHead) ! head condition
+       call update_surfaceFlx_prescribedHead; if (return_flag) return 
  
-      case(liquidFlux)     ! flux condition
-        call update_surfaceFlx_liquidFlux;     if (return_flag) return 
+     case(liquidFlux)     ! flux condition
+       call update_surfaceFlx_liquidFlux;     if (return_flag) return 
  
-      case(FUSEPRMS)       ! FUSE PRMS surface runoff
-        call update_surfaceFlx_FUSE_PRMS(saturated_area_max,tension_fraction); if (return_flag) return 
+     case(FUSEPRMS)       ! FUSE PRMS surface runoff
+       call update_surfaceFlx_FUSE_PRMS(saturated_area_max,tension_fraction); if (return_flag) return 
 
-      case(FUSEAVIC)       ! FUSE ARNO/VIC surface runoff
-        call update_surfaceFlx_FUSE_ARNO_VIC(exponent_ARNO_VIC);               if (return_flag) return
+     case(FUSEAVIC)       ! FUSE ARNO/VIC surface runoff
+       call update_surfaceFlx_FUSE_ARNO_VIC(exponent_ARNO_VIC);               if (return_flag) return
 
-      case(FUSETOPM)       ! FUSE TOPMODEL surface runoff
-        call update_surfaceFlx_FUSE_TOPMODEL();                                if (return_flag) return
+     case(FUSETOPM)       ! FUSE TOPMODEL surface runoff
+       call update_surfaceFlx_FUSE_TOPMODEL();                                if (return_flag) return
 
-      case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
+     case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
  
-    end select 
-   end if
+   end select 
 
   end associate
  end subroutine update_surfaceFlx
-
- subroutine update_surfaceFlx_FUSE(FUSE_Param,Ac_max,phi_tens,b)
-  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) ****
-  ! input
-  integer(i4b),intent(in) :: FUSE_Param ! selected FUSE parameterization
-  real(rkind),intent(in)  :: Ac_max   ! maximum saturated area (-)
-  real(rkind),intent(in)  :: phi_tens ! fraction of total storage as tension storage (-)
-  real(rkind),intent(in)  :: b        ! ARNO/VIC exponent (-) 
-
-  ! local variables
-  integer(i4b),parameter :: FUSE_PRMS=0     ! FUSE: PRMS     parametrization
-  integer(i4b),parameter :: FUSE_ARNO_VIC=1 ! FUSE: ARNO/VIC parametrization
-  integer(i4b),parameter :: FUSE_TOPMODEL=2 ! FUSE: TOPMODEL parametrization
-
-  ! compute infiltration, runoff, and derivatives for selected FUSE parameterization
-  select case(FUSE_Param)
-   case(FUSE_PRMS)
-    call update_surfaceFlx_FUSE_PRMS(Ac_max,phi_tens); if (return_flag) return
-
-   case(FUSE_ARNO_VIC)
-    call update_surfaceFlx_FUSE_ARNO_VIC(b);           if (return_flag) return
-
-   case(FUSE_TOPMODEL)
-    call update_surfaceFlx_FUSE_TOPMODEL();                   if (return_flag) return
-
-   case default
-    associate(&
-     ! output: error control
-     err      => out_surfaceFlx % err    , & ! error code
-     message  => out_surfaceFlx % message  & ! error message
-    &)
-     err=20; message=trim(message)//'unknown FUSE parameterization for surface runoff'; return_flag=.true.; return
-    end associate
-  end select
-
- end subroutine update_surfaceFlx_FUSE
 
  subroutine update_surfaceFlx_FUSE_PRMS(Ac_max,phi_tens)
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- PRMS ****
@@ -1273,7 +1228,6 @@ contains
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
 
   ! * local variables *
-  logical(lgt),parameter :: test_FUSE=.false. ! flag for testing 
 
   ! runoff and infiltration variables
   real(rkind) :: p            ! precipitation (m s-1)
@@ -1350,12 +1304,6 @@ contains
            &(n - theta)*zeta_upper)/(n*theta))**alpha - (-mu)**alpha*(F2 - 1)*exp(mu/n)*gamma(alpha)/&
            &(-(mu*n - mu*theta)/(n*theta))**alpha)/(theta**alpha*gamma(alpha))
 
-   ! test block for debugging purposes
-   if (test_FUSE) then
-    print *, "phi,chi,mu=",phi,chi,mu
-    print *, "lambda_n=",lambda_n
-   end if
-
    ! compute critical zeta value
    zeta_crit_n=lambda_n/(S2/S2_max) ! power-transformed critical topographic index
 
@@ -1429,13 +1377,6 @@ contains
   io_surfaceFlx % surfaceHydCond   = realMissing ! hydraulic conductivity (m s-1)
   io_surfaceFlx % surfaceDiffuse   = realMissing ! hydraulic diffusivity at the surface (m2 s-1)
 
-  ! test block for debugging purposes
-  if (test_FUSE) then
-   print *, "n=",n
-   print *, "S2,S2_max=",S2,S2_max
-   print *, "Ac,p=",Ac,p
-   print *, "qsx,infiltration=",qsx,infiltration
-  end if
  end subroutine update_surfaceFlx_FUSE_TOPMODEL
 
  subroutine update_surfaceFlx_prescribedHead
