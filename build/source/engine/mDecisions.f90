@@ -699,6 +699,13 @@ subroutine mDecisions(err,message)
     end if
   end if
 
+  ! check bigBucket groundwater option is used when FUSE TOPMODEL surface runoff is selected
+  if(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision == FUSETOPM)then
+    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
+      message=trim(message)//'groundwater parameterization must be bigBucket when using FUSE TOPMODEL surface runoff'
+      err=20; return
+    end if
+  end if
 end subroutine mDecisions
 
 
