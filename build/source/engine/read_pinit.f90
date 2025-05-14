@@ -141,6 +141,39 @@ contains
 
  end if
 
+!!!SJT start
+ ! set FUSE parameter defaults for backwards compatibility
+ if (isLocal) then ! dealing with parameters for local column
+  if (parFallback(iLookPARAM%FUSE_Ac_max)%default_val == realMissing) then   ! FUSE PRMS max saturated area
+   parFallback(iLookPARAM%FUSE_Ac_max)%default_val=0.95_rkind
+  end if
+  if (parFallback(iLookPARAM%FUSE_phi_tens)%default_val == realMissing) then ! FUSE PRMS tension storage fraction
+   parFallback(iLookPARAM%FUSE_phi_tens)%default_val=0.5_rkind
+  end if
+  if (parFallback(iLookPARAM%FUSE_b)%default_val == realMissing) then        ! FUSE ARNO/VIC exponent
+   parFallback(iLookPARAM%FUSE_b)%default_val=2._rkind
+  end if
+  if (parFallback(iLookPARAM%FUSE_lambda)%default_val == realMissing) then   ! FUSE TOPMODEL gamma distribution lambda parameter
+   parFallback(iLookPARAM%FUSE_lambda)%default_val=7._rkind
+  end if
+  if (parFallback(iLookPARAM%FUSE_chi)%default_val == realMissing) then      ! FUSE TOPMODEL gamma distribution chi    parameter
+   parFallback(iLookPARAM%FUSE_chi)%default_val=3._rkind
+  end if
+  if (parFallback(iLookPARAM%FUSE_mu)%default_val == realMissing) then       ! FUSE TOPMODEL gamma distribution mu     parameter
+   parFallback(iLookPARAM%FUSE_mu)%default_val=3._rkind
+  end if
+ end if
+
+! ! FUSE surface runoff
+!  integer(i4b)    :: FUSE_Ac_max           = integerMissing    ! FUSE PRMS max saturated area
+!  integer(i4b)    :: FUSE_phi_tens         = integerMissing    ! FUSE PRMS tension storage fraction
+!  integer(i4b)    :: FUSE_b                = integerMissing    ! FUSE ARNO/VIC exponent
+!  integer(i4b)    :: FUSE_lambda           = integerMissing    ! FUSE TOPMODEL gamma distribution lambda parameter
+!  integer(i4b)    :: FUSE_chi              = integerMissing    ! FUSE TOPMODEL gamma distribution chi    parameter
+!  integer(i4b)    :: FUSE_mu               = integerMissing    ! FUSE TOPMODEL gamma distribution mu     parameter
+
+!!!SJT end
+
  ! check we have populated all variables
  ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
  if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file

@@ -308,9 +308,9 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%FUSE_Ac_max  )               = var_info('FUSE_Ac_max'   , 'FUSE PRMS max saturated area'                     , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%FUSE_phi_tens)               = var_info('FUSE_phi_tens' , 'FUSE PRMS tension storage fraction'               , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%FUSE_b       )               = var_info('FUSE_b'        , 'FUSE ARNO/VIC exponent'                           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_lambda  )               = var_info('FUSE_lambda'   , 'FUSE TOPMODEL gamma distribution lambda parameter', '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_lambda  )               = var_info('FUSE_lambda'   , 'FUSE TOPMODEL gamma distribution lambda parameter', 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%FUSE_chi     )               = var_info('FUSE_chi'      , 'FUSE TOPMODEL gamma distribution chi parameter'   , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_mu      )               = var_info('FUSE_mu'       , 'FUSE TOPMODEL gamma distribution mu parameter'    , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_mu      )               = var_info('FUSE_mu'       , 'FUSE TOPMODEL gamma distribution mu parameter'    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------
