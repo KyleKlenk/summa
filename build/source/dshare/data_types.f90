@@ -686,6 +686,13 @@ MODULE data_types
    real(rkind) :: aquiferBaseflowExp        ! baseflow exponent (-)
    real(rkind) :: scalarAquiferStorageTrial ! trial value of aquifer storage (m)
    real(rkind) :: aquiferScaleFactor        ! scaling factor for aquifer storage in the big bucket (m)
+   ! input: FUSE parameters
+   real(rkind) :: FUSE_Ac_max   ! FUSE PRMS max saturated area
+   real(rkind) :: FUSE_phi_tens ! FUSE PRMS tension fraction
+   real(rkind) :: FUSE_b        ! FUSE ARNO/VIC exponent
+   real(rkind) :: FUSE_lambda   ! FUSE TOPMODEL gamma distribution lambda parameter
+   real(rkind) :: FUSE_chi      ! FUSE TOPMODEL chi   distribution lambda parameter
+   real(rkind) :: FUSE_mu       ! FUSE TOPMODEL mu    distribution lambda parameter
   contains
    procedure :: initialize => initialize_in_surfaceFlx
  end type in_type_surfaceFlx 
@@ -1851,6 +1858,23 @@ contains
    in_surfaceFlx % aquiferBaseflowExp        = aquiferBaseflowExp        ! baseflow exponent (-)
    in_surfaceFlx % scalarAquiferStorageTrial = scalarAquiferStorageTrial ! trial value of aquifer storage (m)
    in_surfaceFlx % aquiferScaleFactor        = aquiferScaleFactor        ! scaling factor for aquifer storage in the big bucket (m)
+  end associate
+
+  ! intent(in): FUSE parameters
+  associate(&
+   FUSE_Ac_max   => mpar_data%var(iLookPARAM%FUSE_Ac_max  )%dat(1), & ! FUSE PRMS max saturated area
+   FUSE_phi_tens => mpar_data%var(iLookPARAM%FUSE_phi_tens)%dat(1), & ! FUSE PRMS tension fraction
+   FUSE_b        => mpar_data%var(iLookPARAM%FUSE_b       )%dat(1), & ! FUSE ARNO/VIC exponent
+   FUSE_lambda   => mpar_data%var(iLookPARAM%FUSE_lambda  )%dat(1), & ! FUSE TOPMODEL gamma distribution lambda parameter
+   FUSE_chi      => mpar_data%var(iLookPARAM%FUSE_chi     )%dat(1), & ! FUSE TOPMODEL chi   distribution lambda parameter
+   FUSE_mu       => mpar_data%var(iLookPARAM%FUSE_mu      )%dat(1)  & ! FUSE TOPMODEL mu    distribution lambda parameter
+  &)
+   in_surfaceFlx % FUSE_Ac_max   = FUSE_Ac_max   ! FUSE PRMS max saturated area
+   in_surfaceFlx % FUSE_phi_tens = FUSE_phi_tens ! FUSE PRMS tension fraction
+   in_surfaceFlx % FUSE_b        = FUSE_b        ! FUSE ARNO/VIC exponent
+   in_surfaceFlx % FUSE_lambda   = FUSE_lambda   ! FUSE TOPMODEL gamma distribution lambda parameter
+   in_surfaceFlx % FUSE_chi      = FUSE_chi      ! FUSE TOPMODEL chi   distribution lambda parameter
+   in_surfaceFlx % FUSE_mu       = FUSE_mu       ! FUSE TOPMODEL mu    distribution lambda parameter
   end associate
  end subroutine initialize_in_surfaceFlx
 
