@@ -966,10 +966,6 @@ contains
 
  subroutine update_surfaceFlx
   ! **** Update operations for surfaceFlx ****
-  ! test parameters -- SJT: to be removed once functionality is confirmed
-  real(rkind) ,parameter :: saturated_area_max=0.95_rkind   ! maximum saturated area (-)
-  real(rkind) ,parameter :: tension_fraction  =0.5_rkind   ! fraction of total storage as tension storage (-)
-  real(rkind) ,parameter :: exponent_ARNO_VIC =2._rkind    ! ARNO/VIC exponent (-) 
 
   associate(&
    ! input: model control
@@ -989,13 +985,13 @@ contains
        call update_surfaceFlx_liquidFlux;     if (return_flag) return 
  
      case(FUSEPRMS)       ! FUSE PRMS surface runoff
-       call update_surfaceFlx_FUSE_PRMS(saturated_area_max,tension_fraction); if (return_flag) return 
+       call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return 
 
      case(FUSEAVIC)       ! FUSE ARNO/VIC surface runoff
-       call update_surfaceFlx_FUSE_ARNO_VIC(exponent_ARNO_VIC);               if (return_flag) return
+       call update_surfaceFlx_FUSE_ARNO_VIC;  if (return_flag) return
 
      case(FUSETOPM)       ! FUSE TOPMODEL surface runoff
-       call update_surfaceFlx_FUSE_TOPMODEL();                                if (return_flag) return
+       call update_surfaceFlx_FUSE_TOPMODEL;  if (return_flag) return
 
      case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
  
@@ -1004,11 +1000,11 @@ contains
   end associate
  end subroutine update_surfaceFlx
 
- subroutine update_surfaceFlx_FUSE_PRMS(Ac_max,phi_tens)
+ subroutine update_surfaceFlx_FUSE_PRMS
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- PRMS ****
   ! input
-  real(rkind),intent(in) :: Ac_max   ! maximum saturated area (-)
-  real(rkind),intent(in) :: phi_tens ! fraction of total storage as tension storage (m)
+  real(rkind) :: Ac_max   ! maximum saturated area (-)
+  real(rkind) :: phi_tens ! fraction of total storage as tension storage (m)
 
   ! local variables
   real(rkind) :: p        ! precipitation (m s-1)
@@ -1026,6 +1022,10 @@ contains
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
+   ! interface input parameters
+   Ac_max   = in_surfaceFlx % FUSE_Ac_max 
+   phi_tens = in_surfaceFlx % FUSE_phi_tens
+   ! validate input parameters 
    if ((Ac_max<0._rkind).or.(Ac_max>1._rkind)) then
     err=10; message=trim(message)//"FUSE PRMS surface runoff error: invalid Ac_max (max saturated area) value"; return_flag=.true.; return
    end if
@@ -1130,10 +1130,10 @@ contains
 
  end subroutine update_surfaceFlx_FUSE_PRMS
 
- subroutine update_surfaceFlx_FUSE_ARNO_VIC(b)
+ subroutine update_surfaceFlx_FUSE_ARNO_VIC
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- ARNO/VIC ****
   ! input
-  real(rkind),intent(in) :: b      ! ARNO/VIC exponent (-) 
+  real(rkind) :: b               ! ARNO/VIC exponent (-) 
 
   ! local variables
   real(rkind) :: p               ! precipitation (m s-1)
@@ -1154,6 +1154,7 @@ contains
   end associate
 
   ! compute saturated area
+  b  = in_surfaceFlx % FUSE_b ! interface ARNO/VIC exponent
   Ac = 1._rkind - (1._rkind-S1/S1_max)**b
 
   ! interface precipitation value (zero melt presumed)
@@ -1224,7 +1225,7 @@ contains
 
  end subroutine update_surfaceFlx_FUSE_ARNO_VIC
 
- subroutine update_surfaceFlx_FUSE_TOPMODEL()
+ subroutine update_surfaceFlx_FUSE_TOPMODEL
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
 
   ! * local variables *
@@ -1236,10 +1237,10 @@ contains
   real(rkind) :: infiltration ! surface infiltration (m s-1)
 
   ! FUSE parameters and variables
-  real(rkind),parameter :: lambda=9._rkind ! mean
-  real(rkind),parameter :: chi=3._rkind    ! scale
-  real(rkind),parameter :: mu=3._rkind     ! offset
-  real(rkind) :: phi ! shape (computed from other parameters)
+  real(rkind) :: lambda ! mean
+  real(rkind) :: chi    ! scale
+  real(rkind) :: mu     ! offset
+  real(rkind) :: phi    ! shape (computed from other parameters)
   
   ! Gamma distribution parameters and variables
   real(rkind) :: alpha  ! shape
@@ -1258,8 +1259,12 @@ contains
   real(rkind) :: S2     ! total water content in lower layer (m)
   real(rkind) :: n      ! base flow exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
 
-  ! * interface SUMMA aquifer input values with FUSE lower layer variables *
-  ! interface base flow exponent
+  ! interface FUSE input parameters
+  lambda = in_surfaceFlx % FUSE_lambda
+  chi    = in_surfaceFlx % FUSE_chi
+  mu     = in_surfaceFlx % FUSE_mu
+
+  ! interface SUMMA aquifer input values with FUSE lower layer variables
   n      = in_surfaceFlx % aquiferBaseflowExp
   S2     = in_surfaceFlx % scalarAquiferStorageTrial 
   S2_max = in_surfaceFlx % aquiferScaleFactor
