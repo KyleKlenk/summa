@@ -243,7 +243,7 @@ contains
 
   ! initialize error control
   err=0
-  message="set_ida_defaults/"
+  message="set_FUSE_defaults/"
   warning_flag=.false.
 
   ! set FUSE parameter defaults for backwards compatibility
