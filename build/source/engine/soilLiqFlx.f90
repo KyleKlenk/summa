@@ -1065,6 +1065,11 @@ contains
   ! compute surface infiltration
   infiltration = (1._rkind - Ac) * p
 
+  ! ensure computed runoff and infiltration values are non-negative
+  ! note: it is possible that small negative values occur due to round-off error
+  qsx=max(0._rkind,qsx) 
+  infiltration=max(0._rkind,infiltration) 
+
   ! interface FUSE runoff and infiltration to SUMMA variables
   associate(&
    ! output: runoff and infiltration
@@ -1170,6 +1175,11 @@ contains
 
   ! compute surface infiltration
   infiltration = (1._rkind - Ac) * p
+
+  ! ensure computed runoff and infiltration values are non-negative
+  ! note: it is possible that small negative values occur due to round-off error
+  qsx=max(0._rkind,qsx) 
+  infiltration=max(0._rkind,infiltration) 
 
   ! interface FUSE runoff and infiltration to SUMMA variables
   associate(&
@@ -1337,6 +1347,11 @@ contains
 
   ! compute surface infiltration
   infiltration = (1._rkind - Ac) * p
+
+  ! ensure computed runoff and infiltration values are non-negative
+  ! note: it is possible that small negative values occur due to round-off error
+  qsx=max(0._rkind,qsx) 
+  infiltration=max(0._rkind,infiltration) 
 
   ! interface FUSE runoff and infiltration to SUMMA variables
   associate(&
