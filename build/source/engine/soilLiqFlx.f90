@@ -1041,7 +1041,7 @@ contains
    iLayerHeight       => in_surfaceFlx % iLayerHeight        & ! height at the interface of each layer (m)
   &)
    S1=scalarTotalSoilLiq/iden_water ! total water content in upper FUSE layer (m)
-   S1_max=iLayerHeight(nSoil) ! max water storage for upper FUSE layer (m)
+   S1_max=iLayerHeight(nSoil)       ! max water storage for upper FUSE layer (m)
   end associate
 
   ! compute tension water content
@@ -1051,7 +1051,7 @@ contains
   ! compute saturated area
   Ac = (S1_T/S1_T_max)*Ac_max
 
-  ! interface precipitation value (zero melt presumed)
+  ! interface precipitation value (melt included for generality)
   associate(&
    ! input: flux at the upper boundary
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt  & ! rain plus melt  (m s-1)
@@ -1126,7 +1126,7 @@ contains
   ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
   ! the minimum saturated area is not constrained in FUSE PRMS
   io_surfaceFlx % xMaxInfilRate    = p ! maximum infiltration rate (m s-1)
-  ! no freezing assumed for FUSE PRMS
+  ! no soil ice assumed for FUSE PRMS
   io_surfaceFlx % scalarInfilArea  = 1._rkind - Ac ! fraction of unfrozen area where water can infiltrate (-)
   io_surfaceFlx % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
   ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
@@ -1155,14 +1155,14 @@ contains
    iLayerHeight       => in_surfaceFlx % iLayerHeight        & ! height at the interface of each layer (m)
   &)
    S1=scalarTotalSoilLiq/iden_water ! total water content in upper FUSE layer (m)
-   S1_max=iLayerHeight(nSoil) ! max water storage for upper FUSE layer (m)
+   S1_max=iLayerHeight(nSoil)       ! max water storage for upper FUSE layer (m)
   end associate
 
   ! compute saturated area
   b  = in_surfaceFlx % FUSE_b ! interface ARNO/VIC exponent
   Ac = 1._rkind - (1._rkind-S1/S1_max)**b
 
-  ! interface precipitation value (zero melt presumed)
+  ! interface precipitation value (melt included for generality)
   associate(&
    ! input: flux at the upper boundary
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt  & ! rain plus melt  (m s-1)
@@ -1226,7 +1226,7 @@ contains
   ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
   ! the minimum saturated area is not constrained in FUSE ARNO/VIC
   io_surfaceFlx % xMaxInfilRate    = p ! maximum infiltration rate (m s-1)
-  ! no freezing assumed for FUSE ARNO/VIC
+  ! no soil ice assumed for FUSE ARNO/VIC
   io_surfaceFlx % scalarInfilArea  = 1._rkind - Ac ! fraction of unfrozen area where water can infiltrate (-)
   io_surfaceFlx % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
   ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
@@ -1334,7 +1334,7 @@ contains
    Ac = 0._rkind
   end if
 
-  ! interface precipitation value (zero melt presumed)
+  ! interface precipitation value (melt included for generality)
   associate(&
    ! input: flux at the upper boundary
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt  & ! rain plus melt  (m s-1)
@@ -1390,7 +1390,7 @@ contains
   ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
   ! the minimum saturated area is not constrained in FUSE TOPMODEL
   io_surfaceFlx % xMaxInfilRate    = p ! maximum infiltration rate (m s-1)
-  ! no freezing assumed for FUSE TOPMODEL
+  ! no soil ice assumed for FUSE TOPMODEL
   io_surfaceFlx % scalarInfilArea  = 1._rkind - Ac ! fraction of unfrozen area where water can infiltrate (-)
   io_surfaceFlx % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
   ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
