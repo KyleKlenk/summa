@@ -631,9 +631,9 @@ FUNCTION gcf(a,x,gln)
   real(rkind), PARAMETER :: EPS=epsilon(x),FPMIN=tiny(x)/EPS
   INTEGER(I4B) :: i
   real(rkind) :: an,b,c,d,del,h
-  if (x == 0.0) then
-  gcf=1.0
-  RETURN
+  if (x == 0.0_rkind) then
+   gcf=1.0_rkind
+   RETURN
   end if
   b=x+1.0_rkind-a
   c=1.0_rkind/FPMIN
