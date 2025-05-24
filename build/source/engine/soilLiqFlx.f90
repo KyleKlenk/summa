@@ -866,7 +866,7 @@ subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
   USE soil_utils_module,only:hydCond_liq           ! compute hydraulic conductivity as a function of volumetric liquid water content (m s-1)
   USE soil_utils_module,only:dPsi_dTheta           ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
   USE soil_utils_module,only:crit_soilT            ! compute critical temperature below which ice exists
-  USE soil_utils_module,only:gammp                 ! compute the regularized lower incomplete Gamma function
+  USE soil_utils_module,only:gammp,gammp_complex   ! compute the regularized lower incomplete Gamma function
   ! compute infiltraton at the surface and its derivative w.r.t. mass in the upper soil layer
   implicit none
   ! -----------------------------------------------------------------------------------------------------------------------------
@@ -1261,8 +1261,8 @@ contains
   real(rkind),parameter :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
   real(rkind) :: zeta_crit_n ! critical topographic index value (power-transfomred)
   real(rkind) :: zeta_crit   ! critical topographic index value (log space)
-  real(rkind) :: F1,F2       ! temporary storage for regularized incomplete gamma function values
-  real(rkind) :: lambda_n    ! mean of the power-transformed topographic index
+  complex(rkind) :: F1,F2    ! temporary storage for regularized incomplete gamma function values
+  complex(rkind) :: lambda_n ! mean of the power-transformed topographic index
 
   ! lower FUSE layer variables
   real(rkind) :: S2_max ! max storage in lower layer (m)
@@ -1309,26 +1309,68 @@ contains
    alpha=phi
    theta=chi
 
+!!!SJT start
+!   print *, "A:"
+!   print *, "lambda,chi,mu=",lambda,chi,mu
+!   print *, "phi=",phi
+!   print *, "alpha=",alpha
+!   print *, "arg1=",(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta
+!   print *, "arg2=",(-(mu*n - mu*theta)/n)/theta
+!!!SJT start end
+
    ! * compute the mean power-transformed topographic index *
    ! compute gamma CDF values
-   F1=gammp(alpha,(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta)
-   F2=gammp(alpha,(-(mu*n - mu*theta)/n)/theta)
+   F1=gammp_complex(alpha,(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta)
+   F2=gammp_complex(alpha,(-(mu*n - mu*theta)/n)/theta)
+
+
+!!!SJT start
+!   print *, "A2:"
+!   print *, "F1,F2=",F1,F2
+!!!SJT start
 
    ! mean power-transformed topographic index (translated to Fortran from SageMath)
-   lambda_n=((-mu + zeta_upper)**alpha*(F1 - 1)*exp(mu/n)*gamma(alpha)/(-(mu*n - mu*theta - &
-           &(n - theta)*zeta_upper)/(n*theta))**alpha - (-mu)**alpha*(F2 - 1)*exp(mu/n)*gamma(alpha)/&
-           &(-(mu*n - mu*theta)/(n*theta))**alpha)/(theta**alpha*gamma(alpha))
+   lambda_n=(cmplx(-mu + zeta_upper,0._rkind,rkind)**alpha*(F1 - 1)*exp(mu/n)*gamma(alpha)/cmplx(-(mu*n - mu*theta - &
+           &(n - theta)*zeta_upper)/(n*theta),0._rkind,rkind)**alpha - cmplx(-mu,0._rkind,rkind)**alpha*(F2 - 1)*exp(mu/n)*gamma(alpha)/&
+           &cmplx(-(mu*n - mu*theta)/(n*theta),0._rkind,rkind)**alpha)/(cmplx(theta,0._rkind,rkind)**alpha*gamma(alpha))
 
    ! compute critical zeta value
-   zeta_crit_n=lambda_n/(S2/S2_max) ! power-transformed critical topographic index
+   ! note: to obtain physical topography values, only the real part of lambda_n is used 
+   zeta_crit_n=lambda_n%re/(S2/S2_max) ! power-transformed critical topographic index
+
+!!!SJT start
+!   print *, "B:"
+!   print *, "lambda_n=",lambda_n
+!   print *, "S2,S2_max=",S2,S2_max
+!   print *, "zeta_crit_n=",zeta_crit_n
+!   print *, "n=",n
+!!!SJT start end
 
    zeta_crit=log(zeta_crit_n**n) ! critical topographic index in log space
 
    ! transform to x random variable
    x_crit=zeta_crit-mu
 
+!!!SJT start
+!   print *, "C:"
+!   print *, "alpha=",alpha
+!   print *, "x_crit,theta=",x_crit,theta
+!   print *, "arg3=",x_crit/theta
+!!!SJT start end
+
    ! compute saturated area
    Ac = 1._rkind-gammp(alpha,x_crit/theta)
+
+!!!SJT start
+!   print *, "D:"
+!   print *, gammp_complex(3.3_rkind,5.1_rkind) 
+!   print *, gammp(3.3_rkind,5.1_rkind) 
+!   print *, gammp_complex(4.3_rkind,0.0_rkind) 
+!   print *, gammp_complex(4.3_rkind,-1.1_rkind) 
+!   print *, gammp_complex(1.5_rkind,-0.1_rkind) 
+!   print *, gammp_complex(-1.5_rkind,-0.1_rkind) 
+!   stop
+!!!SJT start end
 
   else ! if no water is stored in lower FUSE layer
    Ac = 0._rkind
