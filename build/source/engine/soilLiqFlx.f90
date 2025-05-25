@@ -1285,6 +1285,21 @@ contains
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
+   ! validate gamma distribution parameters
+   if (lambda <= mu) then
+    print *, "lambda=",lambda
+    print *, "mu=",mu
+    err=10; message=trim(message)//"FUSE TOPMODEL lambda value must be greater than mu value"; return_flag=.true.; return
+   end if
+   if (chi <= 0._rkind) then
+    print *, "chi=",chi
+    err=10; message=trim(message)//"FUSE TOPMODEL chi value must be positive"; return_flag=.true.; return
+   end if
+   if (mu <= 0._rkind) then
+    print *, "mu=",mu
+    err=10; message=trim(message)//"FUSE TOPMODEL mu value must be positive"; return_flag=.true.; return
+   end if
+
    if (n < 3.5_rkind) then ! validate baseflow exponent to avoid divergence of lambda_n
     print *, "n=",n
     err=10; message=trim(message)//"FUSE base flow exponent must be at least 3.5"; return_flag=.true.; return
@@ -1309,25 +1324,10 @@ contains
    alpha=phi
    theta=chi
 
-!!!SJT start
-!   print *, "A:"
-!   print *, "lambda,chi,mu=",lambda,chi,mu
-!   print *, "phi=",phi
-!   print *, "alpha=",alpha
-!   print *, "arg1=",(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta
-!   print *, "arg2=",(-(mu*n - mu*theta)/n)/theta
-!!!SJT start end
-
    ! * compute the mean power-transformed topographic index *
    ! compute gamma CDF values
    F1=gammp_complex(alpha,(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta)
    F2=gammp_complex(alpha,(-(mu*n - mu*theta)/n)/theta)
-
-
-!!!SJT start
-!   print *, "A2:"
-!   print *, "F1,F2=",F1,F2
-!!!SJT start
 
    ! mean power-transformed topographic index (translated to Fortran from SageMath)
    lambda_n=(cmplx(-mu + zeta_upper,0._rkind,rkind)**alpha*(F1 - 1)*exp(mu/n)*gamma(alpha)/cmplx(-(mu*n - mu*theta - &
@@ -1338,39 +1338,26 @@ contains
    ! note: to obtain physical topography values, only the real part of lambda_n is used 
    zeta_crit_n=lambda_n%re/(S2/S2_max) ! power-transformed critical topographic index
 
-!!!SJT start
-!   print *, "B:"
-!   print *, "lambda_n=",lambda_n
-!   print *, "S2,S2_max=",S2,S2_max
-!   print *, "zeta_crit_n=",zeta_crit_n
-!   print *, "n=",n
-!!!SJT start end
-
    zeta_crit=log(zeta_crit_n**n) ! critical topographic index in log space
 
-   ! transform to x random variable
+   ! transform to x random variable and validate result
    x_crit=zeta_crit-mu
-
-!!!SJT start
-!   print *, "C:"
-!   print *, "alpha=",alpha
-!   print *, "x_crit,theta=",x_crit,theta
-!   print *, "arg3=",x_crit/theta
-!!!SJT start end
+   if (x_crit <= 0._rkind) then
+    print *, "zeta_crit=",zeta_crit
+    print *, "mu=",mu
+    associate(&
+     ! output: error control
+     err     => out_surfaceFlx % err    , & ! error code
+     message => out_surfaceFlx % message  & ! error message
+    &)
+     err=10; message=trim(message)//"FUSE TOPMODEL zeta_crit value must be greater than mu value -- &
+                    &try increasing lambda or decreasing mu";
+     return_flag=.true.; return
+    end associate
+   end if
 
    ! compute saturated area
    Ac = 1._rkind-gammp(alpha,x_crit/theta)
-
-!!!SJT start
-!   print *, "D:"
-!   print *, gammp_complex(3.3_rkind,5.1_rkind) 
-!   print *, gammp(3.3_rkind,5.1_rkind) 
-!   print *, gammp_complex(4.3_rkind,0.0_rkind) 
-!   print *, gammp_complex(4.3_rkind,-1.1_rkind) 
-!   print *, gammp_complex(1.5_rkind,-0.1_rkind) 
-!   print *, gammp_complex(-1.5_rkind,-0.1_rkind) 
-!   stop
-!!!SJT start end
 
   else ! if no water is stored in lower FUSE layer
    Ac = 0._rkind
