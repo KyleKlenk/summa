@@ -89,6 +89,9 @@ integer(i4b),parameter,public :: liquidFlux           = 161    ! liquid water fl
 integer(i4b),parameter,public :: prescribedHead       = 162    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
 integer(i4b),parameter,public :: funcBottomHead       = 163    ! function of matric head in the lower-most layer
 integer(i4b),parameter,public :: freeDrainage         = 164    ! free drainage
+integer(i4b),parameter,public :: FUSEPRMS             = 165    ! FUSE PRMS surface runoff
+integer(i4b),parameter,public :: FUSEAVIC             = 166    ! FUSE ARNO/VIC surface runoff
+integer(i4b),parameter,public :: FUSETOPM             = 167    ! FUSE TOPMODEL surface runoff
 ! look-up values for the choice of parameterization for vegetation roughness length and displacement height
 integer(i4b),parameter,public :: Raupach_BLM1994      = 171    ! Raupach (BLM 1994) "Simplified expressions..."
 integer(i4b),parameter,public :: CM_QJRMS1988         = 172    ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
@@ -509,6 +512,9 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision))
     case('presHead'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = prescribedHead      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
     case('liq_flux'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = liquidFlux          ! liquid water flux
+    case('FUSEPRMS'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = FUSEPRMS            ! FUSE PRMS surface runoff
+    case('FUSEAVIC'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = FUSEAVIC            ! FUSE ARNO/VIC surface runoff
+    case('FUSETOPM'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = FUSETOPM            ! FUSE TOPMODEL surface runoff
     case default
       err=10; message=trim(message)//"unknown upper boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision)//"]"; return
   end select
@@ -693,6 +699,13 @@ subroutine mDecisions(err,message)
     end if
   end if
 
+  ! check bigBucket groundwater option is used when FUSE TOPMODEL surface runoff is selected
+  if(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision == FUSETOPM)then
+    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
+      message=trim(message)//'groundwater parameterization must be bigBucket when using FUSE TOPMODEL surface runoff'
+      err=20; return
+    end if
+  end if
 end subroutine mDecisions
 
 

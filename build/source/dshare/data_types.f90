@@ -457,6 +457,7 @@ MODULE data_types
    logical(lgt)             :: firstSplitOper                    ! intent(in):    flag indicating first flux call in a splitting operation
    logical(lgt)             :: scalarSolution                    ! intent(in):    flag to indicate the scalar solution
    logical(lgt)             :: deriv_desired                     ! intent(in):    flag indicating if derivatives are desired
+   real(rkind)              :: scalarAquiferStorageTrial         ! intent(in):    trial value of aquifer storage (m)
    real(rkind), allocatable :: mLayerTempTrial(:)                ! intent(in):    trial temperature at the current iteration (K)
    real(rkind), allocatable :: mLayerMatricHeadTrial(:)          ! intent(in):    matric potential (m)
    real(rkind), allocatable :: mLayerMatricHeadLiqTrial(:)       ! intent(in):    liquid water matric potential (m)
@@ -647,6 +648,7 @@ MODULE data_types
    real(rkind)             :: scalarMatricHeadLiq ! liquid matric head in the upper-most soil layer (m)
    real(rkind),allocatable :: mLayerMatricHead(:) ! matric head in each soil layer (m)
    real(rkind)             :: scalarVolFracLiq    ! volumetric liquid water content in the upper-most soil layer (-)
+   real(rkind)             :: scalarTotalSoilLiq  ! total liquid water in the soil column (kg m-2)
    real(rkind),allocatable :: mLayerVolFracLiq(:) ! volumetric liquid water content in each soil layer (-)
    real(rkind),allocatable :: mLayerVolFracIce(:) ! volumetric ice content in each soil layer (-)
    ! input: pre-computed derivatives (all of these would need to be recomputed if wanted a numerical derivative)
@@ -680,6 +682,17 @@ MODULE data_types
    real(rkind) :: wettingFrontSuction ! Green-Ampt wetting front suction (m)
    real(rkind) :: soilIceScale        ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
    real(rkind) :: soilIceCV           ! soil ice CV in Gamma distribution used to define frozen area (-)
+   ! input: aquifer variables for FUSE parameterizations
+   real(rkind) :: aquiferBaseflowExp        ! baseflow exponent (-)
+   real(rkind) :: scalarAquiferStorageTrial ! trial value of aquifer storage (m)
+   real(rkind) :: aquiferScaleFactor        ! scaling factor for aquifer storage in the big bucket (m)
+   ! input: FUSE parameters
+   real(rkind) :: FUSE_Ac_max   ! FUSE PRMS max saturated area
+   real(rkind) :: FUSE_phi_tens ! FUSE PRMS tension fraction
+   real(rkind) :: FUSE_b        ! FUSE ARNO/VIC exponent
+   real(rkind) :: FUSE_lambda   ! FUSE TOPMODEL gamma distribution lambda parameter
+   real(rkind) :: FUSE_chi      ! FUSE TOPMODEL chi   distribution lambda parameter
+   real(rkind) :: FUSE_mu       ! FUSE TOPMODEL mu    distribution lambda parameter
   contains
    procedure :: initialize => initialize_in_surfaceFlx
  end type in_type_surfaceFlx 
@@ -1252,7 +1265,7 @@ contains
  ! **** end snowLiqFlx ****
 
  ! **** soilLiqFlx ****
- subroutine initialize_in_soilLiqFlx(in_soilLiqFlx,nsnow,nSoil,nlayers,firstSplitOper,scalarSolution,firstFluxCall,&
+ subroutine initialize_in_soilLiqFlx(in_soilLiqFlx,nsnow,nSoil,nlayers,firstSplitOper,scalarSolution,firstFluxCall,scalarAquiferStorageTrial,&
                                      mLayerTempTrial,mLayerMatricHeadTrial,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,&
                                      above_soilLiqFluxDeriv,above_soildLiq_dTk,above_soilFracLiq,flux_data,deriv_data)
   class(in_type_soilLiqFlx),intent(out) :: in_soilLiqFlx               ! class object for intent(in) soilLiqFlx arguments
@@ -1262,6 +1275,7 @@ contains
   logical(lgt),intent(in)               :: firstSplitOper              ! flag to indicate if we are processing the first flux call in a splitting operation
   logical(lgt),intent(in)               :: scalarSolution              ! flag to denote if implementing the scalar solution
   logical(lgt),intent(in)               :: firstFluxCall               ! flag to indicate if we are processing the first flux call
+  real(rkind),intent(in)                :: scalarAquiferStorageTrial   ! trial value of aquifer storage (m)
   real(rkind),intent(in)                :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)
   real(rkind),intent(in)                :: mLayerMatricHeadTrial(:)    ! trial value for the total water matric potential (m)
   real(rkind),intent(in)                :: mLayerMatricHeadLiqTrial(:) ! trial value for the liquid water matric potential (m)
@@ -1278,6 +1292,9 @@ contains
   in_soilLiqFlx % firstSplitOper=firstSplitOper                                ! intent(in): flag indicating first flux call in a splitting operation
   in_soilLiqFlx % scalarSolution=(scalarSolution .and. .not.firstFluxCall)     ! intent(in): flag to indicate the scalar solution
   in_soilLiqFlx % deriv_desired =.true.                                        ! intent(in): flag indicating if derivatives are desired
+
+  ! intent(in) arguments: aquifer variables needed for FUSE parameterizations
+  in_soilLiqFlx % scalarAquiferStorageTrial = scalarAquiferStorageTrial        ! intent(in): trial value of aquifer storage (m)
 
   ! intent(in) arguments: trial temperature, matric potential, and volumetric fractions
   in_soilLiqFlx % mLayerTempTrial=mLayerTempTrial(nSnow+1:nLayers)             ! intent(in): trial temperature at the current iteration (K)
@@ -1736,13 +1753,15 @@ contains
    mLayerMatricHeadLiqTrial => in_soilLiqFlx % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
    mLayerMatricHeadTrial    => in_soilLiqFlx % mLayerMatricHeadTrial,    & ! intent(in): matric head in each layer at the current iteration (m)
    mLayerVolFracLiqTrial    => in_soilLiqFlx % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
-   mLayerVolFracIceTrial    => in_soilLiqFlx % mLayerVolFracIceTrial     & ! volumetric fraction of ice at the current iteration (-)
+   mLayerVolFracIceTrial    => in_soilLiqFlx % mLayerVolFracIceTrial,    & ! volumetric fraction of ice at the current iteration (-)
+   scalarTotalSoilLiq       => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1) & ! total liquid water in the soil column (kg m-2)
   &)
    ! intent(in): state variables
    in_surfaceFlx % mLayerTemp          = mLayerTempTrial             ! temperature (K)
    in_surfaceFlx % scalarMatricHeadLiq = mLayerMatricHeadLiqTrial(1) ! liquid matric head in the upper-most soil layer (m)
    in_surfaceFlx % mLayerMatricHead    = mLayerMatricHeadTrial       ! matric head in each soil layer (m)
    in_surfaceFlx % scalarVolFracLiq    = mLayerVolFracLiqTrial(1)    ! volumetric liquid water content the upper-most soil layer (-)
+   in_surfaceFlx % scalarTotalSoilLiq  = scalarTotalSoilLiq          ! total liquid water in the soil column (kg m-2)
    in_surfaceFlx % mLayerVolFracLiq    = mLayerVolFracLiqTrial       ! volumetric liquid water content in each soil layer (-)
    in_surfaceFlx % mLayerVolFracIce    = mLayerVolFracIceTrial       ! volumetric ice content in each soil layer (-)
   end associate
@@ -1828,6 +1847,34 @@ contains
    in_surfaceFlx % wettingFrontSuction = wettingFrontSuction ! Green-Ampt wetting front suction (m)
    in_surfaceFlx % soilIceScale        = soilIceScale        ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
    in_surfaceFlx % soilIceCV           = soilIceCV           ! soil ice CV in Gamma distribution used to define frozen area (-)
+  end associate
+
+  ! intent(in): aquifer values for FUSE parameterizations
+  associate(&
+   aquiferBaseflowExp        => mpar_data%var(iLookPARAM%aquiferBaseflowExp)%dat(1), & ! baseflow exponent (-)
+   scalarAquiferStorageTrial => in_soilLiqFlx % scalarAquiferStorageTrial,           & ! trial value of aquifer storage (m)
+   aquiferScaleFactor        => mpar_data%var(iLookPARAM%aquiferScaleFactor)%dat(1)  & ! scaling factor for aquifer storage in the big bucket (m)
+  &)
+   in_surfaceFlx % aquiferBaseflowExp        = aquiferBaseflowExp        ! baseflow exponent (-)
+   in_surfaceFlx % scalarAquiferStorageTrial = scalarAquiferStorageTrial ! trial value of aquifer storage (m)
+   in_surfaceFlx % aquiferScaleFactor        = aquiferScaleFactor        ! scaling factor for aquifer storage in the big bucket (m)
+  end associate
+
+  ! intent(in): FUSE parameters
+  associate(&
+   FUSE_Ac_max   => mpar_data%var(iLookPARAM%FUSE_Ac_max  )%dat(1), & ! FUSE PRMS max saturated area
+   FUSE_phi_tens => mpar_data%var(iLookPARAM%FUSE_phi_tens)%dat(1), & ! FUSE PRMS tension fraction
+   FUSE_b        => mpar_data%var(iLookPARAM%FUSE_b       )%dat(1), & ! FUSE ARNO/VIC exponent
+   FUSE_lambda   => mpar_data%var(iLookPARAM%FUSE_lambda  )%dat(1), & ! FUSE TOPMODEL gamma distribution lambda parameter
+   FUSE_chi      => mpar_data%var(iLookPARAM%FUSE_chi     )%dat(1), & ! FUSE TOPMODEL chi   distribution lambda parameter
+   FUSE_mu       => mpar_data%var(iLookPARAM%FUSE_mu      )%dat(1)  & ! FUSE TOPMODEL mu    distribution lambda parameter
+  &)
+   in_surfaceFlx % FUSE_Ac_max   = FUSE_Ac_max   ! FUSE PRMS max saturated area
+   in_surfaceFlx % FUSE_phi_tens = FUSE_phi_tens ! FUSE PRMS tension fraction
+   in_surfaceFlx % FUSE_b        = FUSE_b        ! FUSE ARNO/VIC exponent
+   in_surfaceFlx % FUSE_lambda   = FUSE_lambda   ! FUSE TOPMODEL gamma distribution lambda parameter
+   in_surfaceFlx % FUSE_chi      = FUSE_chi      ! FUSE TOPMODEL chi   distribution lambda parameter
+   in_surfaceFlx % FUSE_mu       = FUSE_mu       ! FUSE TOPMODEL mu    distribution lambda parameter
   end associate
  end subroutine initialize_in_surfaceFlx
 

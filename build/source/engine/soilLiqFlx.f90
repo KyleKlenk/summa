@@ -77,7 +77,10 @@ USE mDecisions_module,only:   &
   funcBottomHead,             & ! function of matric head in the lower-most layer
   freeDrainage,               & ! free drainage
   liquidFlux,                 & ! liquid water flux
-  zeroFlux                      ! zero flux
+  zeroFlux,                   & ! zero flux
+  FUSEPRMS,                   & ! FUSE PRMS     surface runoff parameterization 
+  FUSEAVIC,                   & ! FUSE ARNO/VIC surface runoff parameterization
+  FUSETOPM                      ! FUSE TOPMODEL surface runoff parameterization 
 
 ! -----------------------------------------------------------------------------------------------------------
 implicit none
@@ -863,7 +866,7 @@ subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
   USE soil_utils_module,only:hydCond_liq           ! compute hydraulic conductivity as a function of volumetric liquid water content (m s-1)
   USE soil_utils_module,only:dPsi_dTheta           ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
   USE soil_utils_module,only:crit_soilT            ! compute critical temperature below which ice exists
-  USE soil_utils_module,only:gammp                 ! compute the cumulative probabilty based on the Gamma distribution
+  USE soil_utils_module,only:gammp,gammp_complex   ! compute the regularized lower incomplete Gamma function
   ! compute infiltraton at the surface and its derivative w.r.t. mass in the upper soil layer
   implicit none
   ! -----------------------------------------------------------------------------------------------------------------------------
@@ -957,12 +960,13 @@ contains
    dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
   &)
    dq_dHydStateVec(:) = 0._rkind
-   dq_dNrgStateVec(:) = 0._rkind
+   dq_dNrgStateVec(:) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
   end associate
  end subroutine initialize_surfaceFlx
 
  subroutine update_surfaceFlx
   ! **** Update operations for surfaceFlx ****
+
   associate(&
    ! input: model control
    bc_upper => in_surfaceFlx % bc_upper, & ! index defining the type of boundary conditions
@@ -977,15 +981,452 @@ contains
      case(prescribedHead) ! head condition
        call update_surfaceFlx_prescribedHead; if (return_flag) return 
  
-     case(liquidFlux) ! flux condition
+     case(liquidFlux)     ! flux condition
        call update_surfaceFlx_liquidFlux;     if (return_flag) return 
  
+     case(FUSEPRMS)       ! FUSE PRMS surface runoff
+       call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return 
+
+     case(FUSEAVIC)       ! FUSE ARNO/VIC surface runoff
+       call update_surfaceFlx_FUSE_ARNO_VIC;  if (return_flag) return
+
+     case(FUSETOPM)       ! FUSE TOPMODEL surface runoff
+       call update_surfaceFlx_FUSE_TOPMODEL;  if (return_flag) return
+
      case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
  
    end select 
 
   end associate
  end subroutine update_surfaceFlx
+
+ subroutine update_surfaceFlx_FUSE_PRMS
+  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- PRMS ****
+  ! input
+  real(rkind) :: Ac_max   ! maximum saturated area (-)
+  real(rkind) :: phi_tens ! fraction of total storage as tension storage (m)
+
+  ! local variables
+  real(rkind) :: p        ! precipitation (m s-1)
+  real(rkind) :: Ac       ! saturated area (-)
+  real(rkind) :: S1       ! total water content in upper soil layer (m)
+  real(rkind) :: S1_max   ! Maximum storage in the upper layer (m)
+  real(rkind) :: S1_T     ! tension water content in upper soil layer (m)
+  real(rkind) :: S1_T_max ! maximum tension water content in upper soil layer (m)
+  real(rkind) :: qsx             ! surface runoff (m s-1)
+  real(rkind) :: infiltration    ! surface infiltration (m s-1)
+
+  ! validation of parameters
+  associate(&
+   ! output: error control
+   err     => out_surfaceFlx % err    , & ! error code
+   message => out_surfaceFlx % message  & ! error message
+  &)
+   ! interface input parameters
+   Ac_max   = in_surfaceFlx % FUSE_Ac_max 
+   phi_tens = in_surfaceFlx % FUSE_phi_tens
+   ! validate input parameters 
+   if ((Ac_max<0._rkind).or.(Ac_max>1._rkind)) then
+    err=10; message=trim(message)//"FUSE PRMS surface runoff error: invalid Ac_max (max saturated area) value"; return_flag=.true.; return
+   end if
+   if ((phi_tens<0._rkind).or.(phi_tens>1._rkind)) then
+    err=10; message=trim(message)//"FUSE PRMS surface runoff error: invalid phi_tens (tension storage fraction) value"; return_flag=.true.; return
+   end if
+  end associate
+
+  ! compute water content in upper soil layer
+  associate(&
+   nSoil              => in_surfaceFlx % nSoil,              & ! number of soil layers
+   scalarTotalSoilLiq => in_surfaceFlx % scalarTotalSoilLiq, & ! total liquid water in the soil column (kg m-2)
+   iLayerHeight       => in_surfaceFlx % iLayerHeight        & ! height at the interface of each layer (m)
+  &)
+   S1=scalarTotalSoilLiq/iden_water ! total water content in upper FUSE layer (m)
+   S1_max=iLayerHeight(nSoil)       ! max water storage for upper FUSE layer (m)
+  end associate
+
+  ! compute tension water content
+  S1_T_max=phi_tens*S1_max
+  S1_T=min(S1,S1_T_max)
+
+  ! compute saturated area
+  Ac = (S1_T/S1_T_max)*Ac_max
+
+  ! interface precipitation value (melt included for generality)
+  associate(&
+   ! input: flux at the upper boundary
+   scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt  & ! rain plus melt  (m s-1)
+  )
+   p = scalarRainPlusMelt
+  end associate
+
+  ! compute surface runoff
+  qsx = Ac * p
+
+  ! compute surface infiltration
+  infiltration = (1._rkind - Ac) * p
+
+  ! ensure computed runoff and infiltration values are non-negative
+  ! note: it is possible that small negative values occur due to round-off error
+  qsx=max(0._rkind,qsx) 
+  infiltration=max(0._rkind,infiltration) 
+
+  ! interface FUSE runoff and infiltration to SUMMA variables
+  associate(&
+   ! output: runoff and infiltration
+   scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
+  &)
+   scalarSurfaceRunoff       = qsx 
+   scalarSurfaceInfiltration = infiltration
+  end associate
+
+  ! compute flux derivatives
+  associate(&
+   ! input: model control
+   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: state and diagnostic variables
+   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
+   ! input: soil parameters
+   vGn_alpha           => in_surfaceFlx % vGn_alpha           , & ! van Genuchten "alpha" parameter (m-1)
+   vGn_n               => in_surfaceFlx % vGn_n               , & ! van Genuchten "n" parameter (-)
+   vGn_m               => in_surfaceFlx % vGn_m               , & ! van Genuchten "m" parameter (-)
+   theta_sat           => in_surfaceFlx % theta_sat           , & ! soil porosity (-)
+   theta_res           => in_surfaceFlx % theta_res           , & ! soil residual volumetric water content (-)
+   ! output: derivatives in surface infiltration w.r.t. ...
+   dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   ! output: error control
+   err     => out_surfaceFlx % err    , & ! error code
+   message => out_surfaceFlx % message  & ! error message
+  &)
+   ! * compute the derivatives for surface infiltration *
+   ! compute the hydrology derivative at the surface
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture) ! w.r.t water content
+      if (S1<S1_T_max) then
+       dq_dHydStateVec(1) = -p*Ac_max/S1_T_max
+      else  
+       dq_dHydStateVec(1) = 0._rkind
+      end if 
+     case(mixdform) ! w.r.t pressure head
+      if (S1<S1_T_max) then
+       ! evaluate using the chain rule (tranforms dq_dTheta into dq_dPsi)
+       dq_dHydStateVec(1) = -p*Ac_max/S1_T_max &
+                          & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+      else
+       dq_dHydStateVec(1) = 0._rkind
+      end if 
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select
+   ! compute the energy derivative at the surface
+   ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   dq_dNrgStateVec(1) = 0._rkind
+  end associate
+
+  ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
+  ! the minimum saturated area is not constrained in FUSE PRMS
+  io_surfaceFlx % xMaxInfilRate    = p ! maximum infiltration rate (m s-1)
+  ! no soil ice assumed for FUSE PRMS
+  io_surfaceFlx % scalarInfilArea  = 1._rkind - Ac ! fraction of unfrozen area where water can infiltrate (-)
+  io_surfaceFlx % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
+  ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
+  io_surfaceFlx % surfaceHydCond   = realMissing ! hydraulic conductivity (m s-1)
+  io_surfaceFlx % surfaceDiffuse   = realMissing ! hydraulic diffusivity at the surface (m2 s-1)
+
+ end subroutine update_surfaceFlx_FUSE_PRMS
+
+ subroutine update_surfaceFlx_FUSE_ARNO_VIC
+  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- ARNO/VIC ****
+  ! input
+  real(rkind) :: b               ! ARNO/VIC exponent (-) 
+
+  ! local variables
+  real(rkind) :: p               ! precipitation (m s-1)
+  real(rkind) :: Ac              ! saturated area (-)
+  real(rkind) :: S1              ! total water content in upper soil layer (m)
+  real(rkind) :: S1_max          ! max water content in upper soil layer (m)
+  real(rkind) :: qsx             ! surface runoff (m s-1)
+  real(rkind) :: infiltration    ! surface infiltration (m s-1)
+
+  ! compute total water content in upper FUSE layer
+  associate(&
+   nSoil              => in_surfaceFlx % nSoil,              & ! number of soil layers
+   scalarTotalSoilLiq => in_surfaceFlx % scalarTotalSoilLiq, & ! total liquid water in the soil column (kg m-2)
+   iLayerHeight       => in_surfaceFlx % iLayerHeight        & ! height at the interface of each layer (m)
+  &)
+   S1=scalarTotalSoilLiq/iden_water ! total water content in upper FUSE layer (m)
+   S1_max=iLayerHeight(nSoil)       ! max water storage for upper FUSE layer (m)
+  end associate
+
+  ! compute saturated area
+  b  = in_surfaceFlx % FUSE_b ! interface ARNO/VIC exponent
+  Ac = 1._rkind - (1._rkind-S1/S1_max)**b
+
+  ! interface precipitation value (melt included for generality)
+  associate(&
+   ! input: flux at the upper boundary
+   scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt  & ! rain plus melt  (m s-1)
+  )
+   p = scalarRainPlusMelt
+  end associate
+
+  ! compute surface runoff
+  qsx = Ac * p
+
+  ! compute surface infiltration
+  infiltration = (1._rkind - Ac) * p
+
+  ! ensure computed runoff and infiltration values are non-negative
+  ! note: it is possible that small negative values occur due to round-off error
+  qsx=max(0._rkind,qsx) 
+  infiltration=max(0._rkind,infiltration) 
+
+  ! interface FUSE runoff and infiltration to SUMMA variables
+  associate(&
+   ! output: runoff and infiltration
+   scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
+  &)
+   scalarSurfaceRunoff       = qsx 
+   scalarSurfaceInfiltration = infiltration
+  end associate
+
+  ! compute flux derivatives
+  associate(&
+   ! input: model control
+   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: state and diagnostic variables
+   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
+   ! input: soil parameters
+   vGn_alpha           => in_surfaceFlx % vGn_alpha           , & ! van Genuchten "alpha" parameter (m-1)
+   vGn_n               => in_surfaceFlx % vGn_n               , & ! van Genuchten "n" parameter (-)
+   vGn_m               => in_surfaceFlx % vGn_m               , & ! van Genuchten "m" parameter (-)
+   theta_sat           => in_surfaceFlx % theta_sat           , & ! soil porosity (-)
+   theta_res           => in_surfaceFlx % theta_res           , & ! soil residual volumetric water content (-)
+   ! output: derivatives in surface infiltration w.r.t. ...
+   dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   ! output: error control
+   err     => out_surfaceFlx % err    , & ! error code
+   message => out_surfaceFlx % message  & ! error message
+  &)
+   ! * compute the derivatives for surface infiltration *
+   ! compute the hydrology derivative at the surface
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture); dq_dHydStateVec(1) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) ! w.r.t. moisture content 
+     case(mixdform); dq_dHydStateVec(1) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) &
+                                        & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! w.r.t. pressure head
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select
+   ! compute the energy derivative at the surface
+   ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   dq_dNrgStateVec(1) = 0._rkind
+  end associate
+
+  ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
+  ! the minimum saturated area is not constrained in FUSE ARNO/VIC
+  io_surfaceFlx % xMaxInfilRate    = p ! maximum infiltration rate (m s-1)
+  ! no soil ice assumed for FUSE ARNO/VIC
+  io_surfaceFlx % scalarInfilArea  = 1._rkind - Ac ! fraction of unfrozen area where water can infiltrate (-)
+  io_surfaceFlx % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
+  ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
+  io_surfaceFlx % surfaceHydCond   = realMissing ! hydraulic conductivity (m s-1)
+  io_surfaceFlx % surfaceDiffuse   = realMissing ! hydraulic diffusivity at the surface (m2 s-1)
+
+ end subroutine update_surfaceFlx_FUSE_ARNO_VIC
+
+ subroutine update_surfaceFlx_FUSE_TOPMODEL
+  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
+
+  ! * local variables *
+
+  ! runoff and infiltration variables
+  real(rkind) :: p            ! precipitation (m s-1)
+  real(rkind) :: Ac           ! saturated area (-)
+  real(rkind) :: qsx          ! surface runoff (m s-1)
+  real(rkind) :: infiltration ! surface infiltration (m s-1)
+
+  ! FUSE parameters and variables
+  real(rkind) :: lambda ! mean
+  real(rkind) :: chi    ! scale
+  real(rkind) :: mu     ! offset
+  real(rkind) :: phi    ! shape (computed from other parameters)
+  
+  ! Gamma distribution parameters and variables
+  real(rkind) :: alpha  ! shape
+  real(rkind) :: theta  ! scale
+  real(rkind) :: x_crit ! critical x (random variable) value
+
+  ! topographic index variables
+  real(rkind),parameter :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
+  real(rkind) :: zeta_crit_n ! critical topographic index value (power-transfomred)
+  real(rkind) :: zeta_crit   ! critical topographic index value (log space)
+  complex(rkind) :: F1,F2    ! temporary storage for regularized incomplete gamma function values
+  complex(rkind) :: lambda_n ! mean of the power-transformed topographic index
+
+  ! lower FUSE layer variables
+  real(rkind) :: S2_max ! max storage in lower layer (m)
+  real(rkind) :: S2     ! total water content in lower layer (m)
+  real(rkind) :: n      ! base flow exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
+
+  ! interface FUSE input parameters
+  lambda = in_surfaceFlx % FUSE_lambda
+  chi    = in_surfaceFlx % FUSE_chi
+  mu     = in_surfaceFlx % FUSE_mu
+
+  ! interface SUMMA aquifer input values with FUSE lower layer variables
+  n      = in_surfaceFlx % aquiferBaseflowExp
+  S2     = in_surfaceFlx % scalarAquiferStorageTrial 
+  S2_max = in_surfaceFlx % aquiferScaleFactor
+
+  ! validation of parameters
+  associate(&
+   ! output: error control
+   err     => out_surfaceFlx % err    , & ! error code
+   message => out_surfaceFlx % message  & ! error message
+  &)
+   ! validate gamma distribution parameters
+   if (lambda <= mu) then
+    print *, "lambda=",lambda
+    print *, "mu=",mu
+    err=10; message=trim(message)//"FUSE TOPMODEL lambda value must be greater than mu value"; return_flag=.true.; return
+   end if
+   if (chi <= 0._rkind) then
+    print *, "chi=",chi
+    err=10; message=trim(message)//"FUSE TOPMODEL chi value must be positive"; return_flag=.true.; return
+   end if
+   if (mu <= 0._rkind) then
+    print *, "mu=",mu
+    err=10; message=trim(message)//"FUSE TOPMODEL mu value must be positive"; return_flag=.true.; return
+   end if
+
+   if (n < 3.5_rkind) then ! validate baseflow exponent to avoid divergence of lambda_n
+    print *, "n=",n
+    err=10; message=trim(message)//"FUSE base flow exponent must be at least 3.5"; return_flag=.true.; return
+   end if
+   if (S2 < 0._rkind) then ! check for negative water content values in the lower FUSE layer
+    print *, "S2=",S2
+    err=10; message=trim(message)//"invalid water content value detected in lower FUSE layer"; return_flag=.true.; return
+   end if
+   if (S2 > S2_max) then   ! check if water content in lower FUSE layer exceeds the maximum storage
+    print *, "S2,S2_max=",S2,S2_max
+    err=10; message=trim(message)//"invalid water content in lower FUSE layer exceeds max storage"; return_flag=.true.; return
+   end if
+  end associate
+
+  ! check water content in lower FUSE layer 
+  if (S2 > 0._rkind) then ! if some water is stored in lower FUSE layer
+
+   ! set FUSE parameters - input parameters are lambda, chi, and mu
+   phi=(lambda-mu)/chi
+
+   ! set Gamma distribution parameters
+   alpha=phi
+   theta=chi
+
+   ! * compute the mean power-transformed topographic index *
+   ! compute gamma CDF values
+   F1=gammp_complex(alpha,(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta)
+   F2=gammp_complex(alpha,(-(mu*n - mu*theta)/n)/theta)
+
+   ! mean power-transformed topographic index (translated to Fortran from SageMath)
+   lambda_n=(cmplx(-mu + zeta_upper,0._rkind,rkind)**alpha*(F1 - 1)*exp(mu/n)*gamma(alpha)/cmplx(-(mu*n - mu*theta - &
+           &(n - theta)*zeta_upper)/(n*theta),0._rkind,rkind)**alpha - cmplx(-mu,0._rkind,rkind)**alpha*(F2 - 1)*exp(mu/n)*gamma(alpha)/&
+           &cmplx(-(mu*n - mu*theta)/(n*theta),0._rkind,rkind)**alpha)/(cmplx(theta,0._rkind,rkind)**alpha*gamma(alpha))
+
+   ! compute critical zeta value
+   ! note: to obtain physical topography values, only the real part of lambda_n is used 
+   zeta_crit_n=lambda_n%re/(S2/S2_max) ! power-transformed critical topographic index
+
+   zeta_crit=log(zeta_crit_n**n) ! critical topographic index in log space
+
+   ! transform to x random variable and validate result
+   x_crit=zeta_crit-mu
+   if (x_crit <= 0._rkind) then
+    print *, "zeta_crit=",zeta_crit
+    print *, "mu=",mu
+    associate(&
+     ! output: error control
+     err     => out_surfaceFlx % err    , & ! error code
+     message => out_surfaceFlx % message  & ! error message
+    &)
+     err=10; message=trim(message)//"FUSE TOPMODEL zeta_crit value must be greater than mu value -- &
+                    &try increasing lambda or decreasing mu";
+     return_flag=.true.; return
+    end associate
+   end if
+
+   ! compute saturated area
+   Ac = 1._rkind-gammp(alpha,x_crit/theta)
+
+  else ! if no water is stored in lower FUSE layer
+   Ac = 0._rkind
+  end if
+
+  ! interface precipitation value (melt included for generality)
+  associate(&
+   ! input: flux at the upper boundary
+   scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt  & ! rain plus melt  (m s-1)
+  )
+   p = scalarRainPlusMelt
+  end associate
+   
+  ! compute surface runoff
+  qsx = Ac * p
+
+  ! compute surface infiltration
+  infiltration = (1._rkind - Ac) * p
+
+  ! ensure computed runoff and infiltration values are non-negative
+  ! note: it is possible that small negative values occur due to round-off error
+  qsx=max(0._rkind,qsx) 
+  infiltration=max(0._rkind,infiltration) 
+
+  ! interface FUSE runoff and infiltration to SUMMA variables
+  associate(&
+   ! output: runoff and infiltration
+   scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
+  &)
+   scalarSurfaceRunoff       = qsx 
+   scalarSurfaceInfiltration = infiltration
+  end associate
+
+  ! compute flux derivatives
+  associate(&
+   ! input: model control
+   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! output: derivatives in surface infiltration w.r.t. ...
+   dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   ! output: error control
+   err     => out_surfaceFlx % err    , & ! error code
+   message => out_surfaceFlx % message  & ! error message
+  &)
+   ! * compute the derivatives for surface infiltration *
+   ! compute the hydrology derivative at the surface
+   ! note: infiltration depends on water content in the aquifer, which is presumed to not explicitly depend on hydrology state variables
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture); dq_dHydStateVec(1) = 0._rkind 
+     case(mixdform); dq_dHydStateVec(1) = 0._rkind 
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select
+   ! compute the energy derivative at the surface
+   ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   dq_dNrgStateVec(1) = 0._rkind
+  end associate
+
+  ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
+  ! the minimum saturated area is not constrained in FUSE TOPMODEL
+  io_surfaceFlx % xMaxInfilRate    = p ! maximum infiltration rate (m s-1)
+  ! no soil ice assumed for FUSE TOPMODEL
+  io_surfaceFlx % scalarInfilArea  = 1._rkind - Ac ! fraction of unfrozen area where water can infiltrate (-)
+  io_surfaceFlx % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
+  ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
+  io_surfaceFlx % surfaceHydCond   = realMissing ! hydraulic conductivity (m s-1)
+  io_surfaceFlx % surfaceDiffuse   = realMissing ! hydraulic diffusivity at the surface (m2 s-1)
+
+ end subroutine update_surfaceFlx_FUSE_TOPMODEL
 
  subroutine update_surfaceFlx_prescribedHead
   ! **** Update operations for surfaceFlx: prescribed pressure head condition ****
@@ -1014,7 +1455,7 @@ contains
    ! input-output: hydraulic conductivity and diffusivity at the surface
    ! NOTE: intent(inout) because infiltration may only be computed for the first iteration
    surfaceHydCond => io_surfaceFlx % surfaceHydCond , & ! hydraulic conductivity (m s-1)
-   surfaceDiffuse => io_surfaceFlx % surfaceDiffuse , & ! hydraulic diffusivity at the surface (m
+   surfaceDiffuse => io_surfaceFlx % surfaceDiffuse , & ! hydraulic diffusivity at the surface (m2 s-1)
    ! output: runoff and infiltration
    scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
    scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration , & ! surface infiltration (m s-1)
@@ -1058,6 +1499,7 @@ contains
        case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
      end select
      ! compute the energy derivative at the surface
+     ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
      dq_dNrgStateVec(1) = -(dHydCond_dTemp/2._rkind)*(scalarMatricHeadLiq - upperBoundHead)/(mLayerDepth(1)*0.5_rkind) + dHydCond_dTemp/2._rkind
    else
      dNum = 0._rkind
@@ -1081,7 +1523,7 @@ contains
      call update_surfaceFlx_liquidFlux_computation; if (return_flag) return 
    else ! do not compute infiltration after first flux call in a splitting operation
      dq_dHydStateVec(:) = 0._rkind
-     dq_dNrgStateVec(:) = 0._rkind
+     dq_dNrgStateVec(:) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    end if 
   end associate
 
@@ -1372,6 +1814,7 @@ contains
    dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea)&
                       & * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) )&
                       & + (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+   ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea)&
                       & * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  )&
                       & + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
@@ -1386,7 +1829,7 @@ contains
    ! input-output: hydraulic conductivity and diffusivity at the surface
    ! NOTE: intent(inout) because infiltration may only be computed for the first iteration
    surfaceHydCond => io_surfaceFlx % surfaceHydCond , & ! hydraulic conductivity (m s-1)
-   surfaceDiffuse => io_surfaceFlx % surfaceDiffuse , & ! hydraulic diffusivity at the surface (m
+   surfaceDiffuse => io_surfaceFlx % surfaceDiffuse , & ! hydraulic diffusivity at the surface (m2 s-1)
    ! input-output: surface runoff and infiltration flux (m s-1)
    xMaxInfilRate    => io_surfaceFlx % xMaxInfilRate    , & ! maximum infiltration rate (m s-1)
    scalarInfilArea  => io_surfaceFlx % scalarInfilArea  , & ! fraction of unfrozen area where water can infiltrate (-)

@@ -428,6 +428,13 @@ contains
   case('zmaxLayer2_upper'         ); get_ixParam = iLookPARAM%zmaxLayer2_upper       ! maximum layer depth for the 2nd layer when > 2 layers (m)
   case('zmaxLayer3_upper'         ); get_ixParam = iLookPARAM%zmaxLayer3_upper       ! maximum layer depth for the 3rd layer when > 3 layers (m)
   case('zmaxLayer4_upper'         ); get_ixParam = iLookPARAM%zmaxLayer4_upper       ! maximum layer depth for the 4th layer when > 4 layers (m)
+  ! FUSE surface runoff
+  case('FUSE_Ac_max  '            ); get_ixParam = iLookPARAM%FUSE_Ac_max            ! FUSE PRMS max saturated area                            
+  case('FUSE_phi_tens'            ); get_ixParam = iLookPARAM%FUSE_phi_tens          ! FUSE PRMS tension storage fraction                      
+  case('FUSE_b       '            ); get_ixParam = iLookPARAM%FUSE_b                 ! FUSE ARNO/VIC exponent                                  
+  case('FUSE_lambda  '            ); get_ixParam = iLookPARAM%FUSE_lambda            ! FUSE TOPMODEL gamma distribution lambda parameter       
+  case('FUSE_chi     '            ); get_ixParam = iLookPARAM%FUSE_chi               ! FUSE TOPMODEL gamma distribution chi    parameter       
+  case('FUSE_mu      '            ); get_ixParam = iLookPARAM%FUSE_mu                ! FUSE TOPMODEL gamma distribution mu     parameter       
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
