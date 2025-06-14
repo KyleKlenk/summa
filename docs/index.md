@@ -21,6 +21,14 @@ The important modeling features are:
 ## Documentation
 SUMMA documentation is available [online](http://summa.readthedocs.io/) and remains a work in progress. Additional SUMMA information including publications, test data sets, and sample applications can be found on the [SUMMA web site](http://www.ral.ucar.edu/projects/summa) at NCAR.
 
+## Developer Guidelines for Contributions of New Modular Components
+Contributions of new modular components may be made by using similar existing modular components as a template. This process is illustrated using the addition of a new flux parameterization as an example. The following steps (if applicable) may be used as a guideline.
+1. identify a similar model component
+2. examine argument lists
+3. update derived type definitions
+4. choose a self explanaory name for the new procedure
+5. add operations for the new component
+6. update model decisions
 
 ## Credits
 SUMMA's initial implementation is described in two papers published in [Water Resources Research](http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1944-7973). If you use SUMMA, please credit these two publications.
