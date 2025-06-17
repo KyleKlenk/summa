@@ -23,12 +23,21 @@ SUMMA documentation is available [online](http://summa.readthedocs.io/) and rema
 
 ## Developer Guidelines for Contributions of New Modular Components
 Contributions of new modular components may be made by using similar existing modular components as a template. This process is illustrated using the addition of a new flux parameterization as an example. The following steps (if applicable) may be used as a guideline.
-1. identify a similar model component
-2. examine argument lists
-3. update derived type definitions
-4. choose a self explanaory name for the new procedure
-5. add operations for the new component
-6. update model decisions
+1. Identify a similar model component
+2. Determine input and output variables
+    * Found by examining dummy variables in argument lists
+    * The `intent` attribute within dummy variable declarations indicates usage for input, input-output, or output
+    * Dummy variables may be objects with multiple data and procedure components
+        * Such objects are declared using derived types (most commonly in `data_types.f90`)
+        * Objects may be used to concisely interface data between the procedure and the caller
+4. Create a skeleton of the new procedure
+    * Choose a self explanatory name for the new procedure
+    * Modify the argument list from the template procedure to match the new procedure
+        * Similar variables may be reused
+        * It may be desirable to add data components to existing objects related to the template procedure
+6. Update derived type definitions (if necessary)
+8. Add operations to the skeleton procedure
+9. Update model decisions (if necessary)
 
 ## Credits
 SUMMA's initial implementation is described in two papers published in [Water Resources Research](http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1944-7973). If you use SUMMA, please credit these two publications.
