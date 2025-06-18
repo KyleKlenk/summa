@@ -21,10 +21,26 @@ The important modeling features are:
 ## Documentation
 SUMMA documentation is available [online](http://summa.readthedocs.io/) and remains a work in progress. Additional SUMMA information including publications, test data sets, and sample applications can be found on the [SUMMA web site](http://www.ral.ucar.edu/projects/summa) at NCAR.
 
-## Developer Guidelines for Contributions of New Modular Components
-Contributions of new modular components may be made by using similar existing modular components as a template. This process is illustrated using the addition of a new flux parameterization as an example. The following steps (if applicable) may be used as a guideline.
+## Developer Guidelines for Contributing New Modular Components
+New modular components may be added by using similar existing modular components as a template. The following steps (if applicable) may be used as a guideline. This process is illustrated using the addition of a new surface hydrology flux parameterization as an example.
 1. Identify a similar model component
-2. Determine input and output variables
+    * Identify the appropriate subdirectory within SUMMA's `source` directory such as:
+        * `driver`: high-level program operations including the main driver
+        * `dshare`: modules related to data storage and access
+        * `engine`: low-level operations for physical and numerical processes
+            * e.g., applies to flux calculations
+    * Identify the appropriate source file and module
+        * source files have self-explanatory names
+            * e.g., `soilLiqFlx.f90` corresponds to operations for liquid water fluxes in soil
+        * each source file generally contains one module
+            * e.g., `soilLiqFlx.f90` contains `soilLiqFlx_module`
+    * Identify the appropriate procedure
+        * isolate the module procedure
+            * e.g., within `soilLiqFlx_module`, the `surfaceFlx` module subroutine handles operations for surface hydrology fluxes
+        * isolate the internal procedure
+            * e.g., within the `contains` block of `surfaceFlx`, we have `update_surfaceFlx_prescribedHead` containing operations for specifying a prescirbed pressure head surface boundary condition
+            * `update_surfaceFlx_prescribedHead` may be used as a template for our example contribution    
+3. Determine input and output variables
     * Found by examining dummy variables in argument lists
     * The `intent` attribute within dummy variable declarations indicates usage for input, input-output, or output
     * Dummy variables may be objects with multiple data and procedure components
