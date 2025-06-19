@@ -39,8 +39,12 @@ New modular components may be added by using similar existing modular components
             * e.g., within `soilLiqFlx_module`, the `surfaceFlx` module subroutine handles operations for surface hydrology fluxes
         * isolate the internal procedure
             * e.g., within the `contains` block of `surfaceFlx`, we have `update_surfaceFlx_prescribedHead` containing operations for specifying a prescirbed pressure head surface boundary condition
-            * `update_surfaceFlx_prescribedHead` may be used as a template for our example contribution    
-3. Determine input and output variables
+            * `update_surfaceFlx_prescribedHead` may be used as a template for our example contribution
+        * note that procedure names in SUMMA are organized using the terms *initialize*, *update*, and *finalize* to categorize operation types
+            * *initialize* procedures are used for initial setup steps (initialization of variables, memory allocation, etc.)
+            * *update* procedures are used for major computational operations (e.g., flux calculations)
+            * *finalize* procedures are for post-processing and final error control checks
+2. Determine input and output variables
     * Found by examining dummy variables in argument lists
         * Note that internal procedures inherit the dummy variables from the applicable module procedure by default
         * e.g., for the `update_surfaceFlx_prescribedHead` internal subroutine, the argument list of the `surfaceFlx` module subroutine applies: `subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)`
@@ -51,18 +55,26 @@ New modular components may be added by using similar existing modular components
     * The `intent` attribute within dummy variable declarations indicates usage for input, input-output, or output
         * e.g., within `surfaceFlx` we have `type(in_type_surfaceFlx) ,intent(in)    :: in_surfaceFlx`, indicating the `in_surfaceFlx` object is for input data only
         * as noted above, the `in_surfaceFlx` object interfaces input data between the `surfaceFlx` module subroutine and its caller (the `soilLiqFlx` module subroutine)
-4. Create a skeleton of the new procedure
+3. Create a skeleton of the new procedure
     * Choose a self explanatory name for the new procedure
         * e.g. `update_surfaceFlx_example_flux`
-    * Modify the argument list from the template procedure to match the new procedure
-        * Similar variables may be reused
-        * It may be desirable to add data components to existing objects related to the template procedure
-    * e.g., adding a new numerical constant to be used in calculating a surface hydrology flux would require interfacing that data to the `update_surfaceFlx_example_flux`subroutine
-        * this may be done by adding a new data component to the `in_surfaceFlx` object (see next step)
-    * e.g., at the conclusion of this step, we would have a skeleton similar to ... 
-6. Update derived type definitions (if necessary)
-8. Add operations to the skeleton procedure
-9. Update model decisions (if necessary)
+    * e.g., at the conclusion of this step, we would have a skeleton within the `contains` block of `surfaceFlx` similar to the following:
+
+
+    ````fortran
+    subroutine update_surfaceFlx_example_flux
+    ! main computations for the calculation of an example flux
+    
+    end subroutine update_surfaceFlx_example_flux
+    ````
+
+    * For new module procedures, the argument list from the template routine should be adjusted to match the needs of the new procedure
+    * For internal procedures (such as the example above), adding new data to interface objects from the corresponding module procedure may be required (see next step)
+4. Update derived type definitions for interface objects
+    * It may be desirable to add data components to existing objects related to the template procedure
+        * e.g., adding a new numerical constant to be used in calculating a surface hydrology flux would require interfacing that data to the `update_surfaceFlx_example_flux` subroutine, which can be done using the `in_surfaceFlx` object
+5. Add operations to the skeleton procedure
+6. Update model decisions (if necessary)
 
 ## Credits
 SUMMA's initial implementation is described in two papers published in [Water Resources Research](http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1944-7973). If you use SUMMA, please credit these two publications.
