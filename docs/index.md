@@ -42,7 +42,11 @@ New modular components may be added by using similar existing modular components
             * `update_surfaceFlx_prescribedHead` may be used as a template for our example contribution    
 3. Determine input and output variables
     * Found by examining dummy variables in argument lists
+        * Note that internal procedures inherit the dummy variables from the applicable module procedure
+        * e.g., for the `update_surfaceFlx_prescribedHead` internal subroutine, the argument list of the `surfaceFlx` module subroutine applies: `subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)`
     * The `intent` attribute within dummy variable declarations indicates usage for input, input-output, or output
+        * e.g., within `surfaceFlx`: `type(in_type_surfaceFlx) ,intent(in)    :: in_surfaceFlx`
+        * the nomenclature `in_foobar`, `io_foobar`, and `out_foobar` is used for objects that interface input, input-output, and output data between the `foobar` procedure and its caller, respectively
     * Dummy variables may be objects with multiple data and procedure components
         * Such objects are declared using derived types (most commonly in `data_types.f90`)
         * Objects may be used to concisely interface data between the procedure and the caller
