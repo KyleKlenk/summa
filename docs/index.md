@@ -42,19 +42,24 @@ New modular components may be added by using similar existing modular components
             * `update_surfaceFlx_prescribedHead` may be used as a template for our example contribution    
 3. Determine input and output variables
     * Found by examining dummy variables in argument lists
-        * Note that internal procedures inherit the dummy variables from the applicable module procedure
+        * Note that internal procedures inherit the dummy variables from the applicable module procedure by default
         * e.g., for the `update_surfaceFlx_prescribedHead` internal subroutine, the argument list of the `surfaceFlx` module subroutine applies: `subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)`
-    * The `intent` attribute within dummy variable declarations indicates usage for input, input-output, or output
-        * e.g., within `surfaceFlx`: `type(in_type_surfaceFlx) ,intent(in)    :: in_surfaceFlx`
-        * the nomenclature `in_foobar`, `io_foobar`, and `out_foobar` is used for objects that interface input, input-output, and output data between the `foobar` procedure and its caller, respectively
     * Dummy variables may be objects with multiple data and procedure components
-        * Such objects are declared using derived types (most commonly in `data_types.f90`)
+        * Such objects are declared using derived types (most commonly defined in `data_types.f90`)
         * Objects may be used to concisely interface data between the procedure and the caller
+        * for SUMMA objects, the nomenclature `in_foobar`, `io_foobar`, and `out_foobar` is used for objects that interface input, input-output, and output data between the `foobar` procedure and its caller, respectively
+    * The `intent` attribute within dummy variable declarations indicates usage for input, input-output, or output
+        * e.g., within `surfaceFlx` we have `type(in_type_surfaceFlx) ,intent(in)    :: in_surfaceFlx`, indicating the `in_surfaceFlx` object is for input data only
+        * as noted above, the `in_surfaceFlx` object interfaces input data between the `surfaceFlx` module subroutine and its caller (the `soilLiqFlx` module subroutine)
 4. Create a skeleton of the new procedure
     * Choose a self explanatory name for the new procedure
+        * e.g. `update_surfaceFlx_example_flux`
     * Modify the argument list from the template procedure to match the new procedure
         * Similar variables may be reused
         * It may be desirable to add data components to existing objects related to the template procedure
+    * e.g., adding a new numerical constant to be used in calculating a surface hydrology flux would require interfacing that data to the `update_surfaceFlx_example_flux`subroutine
+        * this may be done by adding a new data component to the `in_surfaceFlx` object (see next step)
+    * e.g., at the conclusion of this step, we would have a skeleton similar to ... 
 6. Update derived type definitions (if necessary)
 8. Add operations to the skeleton procedure
 9. Update model decisions (if necessary)
