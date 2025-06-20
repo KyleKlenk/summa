@@ -182,7 +182,26 @@ New modular components may be added by using similar existing modular components
         * for the above example, we have added a dummy variable for the new example flux constant and an assignment statement to initialize the new data component `in_surfaceFlx % example_flux_constant`
         * note that the corresponding call to `in_surfaceFlx` within the `soilLiqFlx` subroutine would need to be updated to include the additional argument `example_flux_constant`
 5. Add operations to the skeleton procedure
-6. Update model decisions (if necessary)
+    * add main operations within the skeleton procedure created in the above steps to complete the new modular component
+        * for the example flux parameterization (using a toy model of constant infiltration), we have:
+     
+        ````fortran
+        subroutine update_surfaceFlx_example_flux
+         ! main computations for the calculation of an example flux
+         associate(&
+          ! input: flux at the upper boundary
+          scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt , & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
+          ! input: numerical constants
+          example_flux_constant => in_surfaceFlx % example_flux_constant
+          ! output: runoff and infiltration
+          scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+          scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
+         &)
+          scalarSurfaceInfiltration = example_flux_constant                          ! toy model of constant infiltration
+          scalarSurfaceRunoff       = scalarRainPlusMelt - scalarSurfaceInfiltration ! compute surface runoff
+         end associate
+        end subroutine update_surfaceFlx_example_flux
+        ````
 
 ## Credits
 SUMMA's initial implementation is described in two papers published in [Water Resources Research](http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1944-7973). If you use SUMMA, please credit these two publications.
