@@ -13,9 +13,9 @@ The important modeling features are:
 
  1. The formulation of the conservation model equations is cleanly separated from their numerical solution;
 
- 1. Different model representations of physical processes (in particular, different flux parameterizations) can be used within a common set of conservation equations; and
+ 2. Different model representations of physical processes (in particular, different flux parameterizations) can be used within a common set of conservation equations; and
 
- 1. The physical processes can be organized in different spatial configurations, including model elements of different shape and connectivity (e.g., nested multi-scale grids and HRUs).
+ 3. The physical processes can be organized in different spatial configurations, including model elements of different shape and connectivity (e.g., nested multi-scale grids and HRUs).
 
 
 ## Documentation
