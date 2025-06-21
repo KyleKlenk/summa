@@ -97,6 +97,7 @@ contains
   case('snowUnload'      ); get_ixdecisions=iLookDECISIONS%snowUnload  ! choice of parameterization for snow unloading from canopy
   case('nrgConserv'      ); get_ixdecisions=iLookDECISIONS%nrgConserv  ! choice of variable in either energy backward Euler residual or IDA state variable
   case('aquiferIni'      ); get_ixdecisions=iLookDECISIONS%aquiferIni  ! choice of full or empty aquifer at start
+  case('infRateMax'      ); get_ixdecisions=iLookDECISIONS%infRateMax  ! choice of maximum infiltration rate method
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -596,7 +597,7 @@ contains
   case('scalarVolLatHt_fus'             ); get_ixDiag = iLookDIAG%scalarVolLatHt_fus               ! volumetric latent heat of fusion     (J m-3)
   ! timing information
   case('numFluxCalls'                   ); get_ixDiag = iLookDIAG%numFluxCalls                     ! number of flux calls (-)
-  case('wallClockTime'                  ); get_ixDiag = iLookDIAG%wallClockTime                    ! wall clock time (s)
+  case('wallClockTime'                  ); get_ixDiag = iLookDIAG%wallClockTime                    ! wall clock time for physics routines (s)
   case('meanStepSize'                   ); get_ixDiag = iLookDIAG%meanStepSize                     ! mean time step size (s) over data window
   ! balances
   case('balanceCasNrg'                  ); get_ixDiag = iLookDIAG%balanceCasNrg                    ! balance of energy in the canopy air space (W m-3)
@@ -840,7 +841,7 @@ contains
   case('dAquiferTrans_dTGround'         ); get_ixDeriv = iLookDERIV%dAquiferTrans_dTGround         ! derivative in the aquifer transpiration flux w.r.t. ground temperature
   case('dAquiferTrans_dCanWat'          ); get_ixDeriv = iLookDERIV%dAquiferTrans_dCanWat          ! derivative in the aquifer transpiration flux w.r.t. canopy total water
  ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
-  case('dFracLiqSnow_dTk'               ); get_ixDeriv = iLookDERIV%dFracLiqSnow_dTk               ! derivative in fraction of liquid snow w.r.t. temperature
+  case('dFracLiqWat_dTk'                ); get_ixDeriv = iLookDERIV%dFracLiqWat_dTk                ! derivative in fraction of liquid water w.r.t. temperature
   case('mLayerdTheta_dTk'               ); get_ixDeriv = iLookDERIV%mLayerdTheta_dTk               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   case('mLayerd2Theta_dTk2'             ); get_ixDeriv = iLookDERIV%mLayerd2Theta_dTk2             ! second derivative of volumetric liquid water content w.r.t. temperature
   ! derivatives in time

@@ -213,10 +213,8 @@ subroutine summaSolve4ida(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   type(N_Vector),           pointer :: sunvec_y                               ! sundials solution vector
   type(N_Vector),           pointer :: sunvec_yp                              ! sundials derivative vector
-  !type(N_Vector),           pointer :: sunvec_av                              ! sundials tolerance vector
   type(SUNMatrix),          pointer :: sunmat_A                               ! sundials matrix
   type(SUNLinearSolver),    pointer :: sunlinsol_LS                           ! sundials linear solver
-  !type(SUNNonLinearSolver), pointer :: sunnonlin_NLS                          ! sundials nonlinear solver
   type(c_ptr)                       :: ida_mem                                ! IDA memory
   type(c_ptr)                       :: sunctx                                 ! SUNDIALS simulation context
   type(data4ida),           target  :: eqns_data                              ! IDA type
@@ -475,8 +473,8 @@ subroutine summaSolve4ida(&
         if (retval /= 0) then; err=20; message=trim(message)//'error in FIDASetRootDirection'; return; endif
       endif
     
-      eqns_data%firstFluxCall = .false. ! already called for initial
-      eqns_data%firstSplitOper = .true. ! always true at start of dt_cur since no splitting
+      eqns_data%firstFluxCall = .false. ! already called for initial data window
+      eqns_data%firstSplitOper = .false. ! already called for initial data window
 
       ! call IDASolve, advance solver just one internal step
       retvalr = FIDASolve(ida_mem, dt_cur, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)

@@ -76,6 +76,7 @@ MODULE var_lookup
   integer(i4b)    :: snowDenNew = integerMissing     ! choice of method for new snow density
   integer(i4b)    :: nrgConserv = integerMissing     ! choice of variable in either energy backward Euler residual or IDA state variable
   integer(i4b)    :: aquiferIni = integerMissing     ! choice of full or empty aquifer at start
+  integer(i4b)    :: infRateMax = integerMissing     ! choice of method to determine maximum infiltration rate
 
  endtype iLook_decision
 
@@ -477,7 +478,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarVolLatHt_fus              = integerMissing ! volumetric latent heat of fusion     (J m-3)
   ! number of function evaluations
   integer(i4b)    :: numFluxCalls                    = integerMissing ! number of flux calls (-)
-  integer(i4b)    :: wallClockTime                   = integerMissing ! wall clock time (s)
+  integer(i4b)    :: wallClockTime                   = integerMissing ! wall clock time for physics routines(s)
   integer(i4b)    :: meanStepSize                    = integerMissing ! mean time step size over data window (s)
   ! balances
   integer(i4b)    :: balanceCasNrg                   = integerMissing ! balance of energy in the canopy air space (W m-3)
@@ -698,7 +699,7 @@ MODULE var_lookup
   integer(i4b)    :: dAquiferTrans_dTGround          = integerMissing ! derivative in the aquifer transpiration flux w.r.t. ground temperature
   integer(i4b)    :: dAquiferTrans_dCanWat           = integerMissing ! derivative in the aquifer transpiration flux w.r.t. canopy total water
  ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
-  integer(i4b)    :: dFracLiqSnow_dTk                = integerMissing ! derivative in fraction of liquid snow w.r.t. temperature
+  integer(i4b)    :: dFracLiqWat_dTk                 = integerMissing ! derivative in fraction of liquid water w.r.t. temperature
   integer(i4b)    :: mLayerdTheta_dTk                = integerMissing ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   integer(i4b)    :: mLayerd2Theta_dTk2              = integerMissing ! second derivative of volumetric liquid water content w.r.t. temperature
  ! derivatives in time
@@ -893,7 +894,8 @@ MODULE var_lookup
  type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision(  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39, 40)
+                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
+                                                                         41)
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6,  7)
  ! named variables: model forcing data

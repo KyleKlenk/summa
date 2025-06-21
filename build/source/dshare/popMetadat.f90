@@ -449,7 +449,7 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%scalarVolLatHt_fus)              = var_info('scalarVolLatHt_fus'             , 'volumetric latent heat of fusion'                                 , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! timing information
   diag_meta(iLookDIAG%numFluxCalls)                    = var_info('numFluxCalls'                   , 'number of flux calls'                                             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%wallClockTime)                   = var_info('wallClockTime'                  , 'wall clock time'                                                  , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%wallClockTime)                   = var_info('wallClockTime'                  , 'wall clock time for physics routines'                             , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%meanStepSize)                    = var_info('meanStepSize'                   , 'mean time step size over data window'                             , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! balances
   diag_meta(iLookDIAG%balanceCasNrg)                   = var_info('balanceCasNrg'                  , 'balance of energy in the canopy air space on data window'         , 'W m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -664,8 +664,8 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%dAquiferTrans_dTCanopy)        = var_info('dAquiferTrans_dTCanopy'       , 'derivative in the aquifer transpiration flux w.r.t. canopy temperature',    'm s-1 K-1'  , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dAquiferTrans_dTGround)        = var_info('dAquiferTrans_dTGround'       , 'derivative in the aquifer transpiration flux w.r.t. ground temperature',    'm s-1 K-1'  , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dAquiferTrans_dCanWat)         = var_info('dAquiferTrans_dCanWat'        , 'derivative in the aquifer transpiration flux w.r.t. canopy total water',   'm-1 s-1 kg-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! derivative in liquid water fluxes for the soil and snow domain w.rt temperatur
-  deriv_meta(iLookDERIV%dFracLiqSnow_dTk)              = var_info('dFracLiqSnow_dTk'             , 'derivative in fraction of liquid snow w.r.t. temperature'             , 'K-1'            , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  ! derivative in liquid water fluxes for the soil and snow domain w.rt temperature
+  deriv_meta(iLookDERIV%dFracLiqWat_dTk)               = var_info('dFracLiqWat_dTk'              , 'derivative in fraction of liquid water w.r.t. temperature'            , 'K-1'            , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%mLayerdTheta_dTk)              = var_info('mLayerdTheta_dTk'             , 'derivative of volumetric liquid water content w.r.t. temperature'     , 'K-1'            , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%mLayerd2Theta_dTk2)            = var_info('mLayerd2Theta_dTk2'           , 'second derivative of volumetric liquid water content w.r.t. temperature','K-2'           , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! derivatives in time
@@ -970,12 +970,25 @@ subroutine read_output_file(err,message)
           err=20; return
         endif
 
-      ! temporally constant variables use timestep-level output (no aggregation)
-      case default
-        freqName = trim(lineWords(freqIndex))
-        write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting variable in timestep file and will be the same value throughout file'
-        iFreq    = iLookFREQ%timestep
+      ! time and temporally constant variables always outputted at timestep level (no aggregation)
+      case('bpar','attr','type','mpar','time')
+        if(nWords<freqIndex) then
+          freqName = 'empty'
+        else
+          freqName = trim(lineWords(freqIndex))
+        endif
+        if(trim(structName)=='time') then
+          if (freqName/='timestep'.or. freqName/='1') then
+            write(*,*)'WARNING: time variable '//trim(varName)//': outputting variable at timestep level since it cannot be aggregated [entered "'//trim(freqName)//'"]'
+          endif
+        else
+          write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting variable in timestep file with no time dimension'
+        endif
+        iFreq = iLookFREQ%timestep
         freqName = 'timestep'
+
+      ! error control
+      case default;  err=20;message=trim(message)//'unable to identify lookup structure';return
     end select
 
     ! --- identify the desired statistic in the metadata structure  -----------

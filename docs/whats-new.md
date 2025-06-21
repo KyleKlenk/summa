@@ -8,6 +8,7 @@ This page provides simple, high-level documentation about what has changed in ea
     - classes for each flux routine were added to data_types.f90
     - large associate statemements are no longer needed in computFlux (associate blocks are now much shorter)
     - the length of computFlux has been decreased substantially
+- Added a new decision to set maximum infiltration rate method
 
 ### Minor changes
 - Updated SWE balance check in coupled_em for cases where all snow melts in one of the substeps

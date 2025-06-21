@@ -154,6 +154,10 @@ integer(i4b),parameter,public :: enthalpyForm         = 325    ! use enthalpy wi
 ! look-up values for the choice of choice of full or empty aquifer at start
 integer(i4b),parameter,public :: fullStart            = 326    ! full aquifer at start
 integer(i4b),parameter,public :: emptyStart           = 327    ! empty aquifer at start
+! look-up values for the infiltration method
+integer(i4b),parameter,public :: GreenAmpt            = 331    ! Green-Ampt
+integer(i4b),parameter,public :: topmodel_GA          = 332    ! Green-Ampt-ish for use with qbaseTopmodel hydraulic conductivity
+integer(i4b),parameter,public :: noInfiltrationExcess = 333    ! No infiltration excess runoff
 ! ----------------------------------------------------------------------------------------------------------- 
 
 contains
@@ -663,6 +667,16 @@ subroutine mDecisions(err,message)
       err=10; message=trim(message)//"unknown option for snow unloading [option="//trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision)//"]"; return
   end select
 
+  ! choice of maximum infiltration rate method
+  ! NOTE: use greenAmpt as the default, where infiltration method is undefined (not populated yet)
+  select case(trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision))
+    case('GreenAmpt','notPopulatedYet'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = GreenAmpt   ! Green-Ampt
+    case('topmodel_GA'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = topmodel_GA                 ! Green-Ampt with TOPMODEL conductivity rate
+    case('noInfExc'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = noInfiltrationExcess           ! no infiltration excess runoff (saturation excess may still occur)
+    case default
+      err=10; message=trim(message)//"unknown option for infiltration method [option="//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)//"]"; return
+  end select
+
 
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
   ! check for consistency among options
@@ -693,8 +707,25 @@ subroutine mDecisions(err,message)
     end if
   end if
 
-end subroutine mDecisions
+  ! check that maximum infiltration rate assumption aligns with groundwater option
+  ! TOPMODEL baseflow assumes a reduction in hydraulic conductivity with depth, possibly to 0 at the bottom of the soil, and infiltration rate assumptions must match these conductivities
+  ! BigBucket means we have an aquifer below the soil column, for which Green-Ampt is the most basic assumption. TOPMODEL_GA is not appropriate for this but for backward compatability we throw a warning instead of a graceful exit
+  select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
+    case(qbaseTopmodel)
+      if(model_decisions(iLookDECISIONS%infRateMax)%iDecision /= topModel_GA)then
+        message=trim(message)//'maximum infiltration rate method must be topmodel_GA when using qbaseTopmodel for groundwater, not '//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)
+        err=20; return
+      end if
+    case(bigBucket)
+      if(model_decisions(iLookDECISIONS%infRateMax)%iDecision == topModel_GA)then
+        write(*,*) 'DEPRECATION WARNING: Combining groundwater parametrization bigBucket with maximum infiltration rate method topModel_GA is not recommended. This was the default in SUMMA v3.x.x and below, but is not appropriate for this groundwater option. Please use Green-Ampt instead.'
+        ! This preps us for when we want to remove this option in the future
+        !message=trim(message)//'maximum infiltration rate method (infRateMax) cannot be topModel_GA when using BigBucket for groundwater, use GreenAmpt instead'
+        !err=20; return
+      end if
+  end select
 
+end subroutine mDecisions
 
 ! ************************************************************************************************
 ! private subroutine readoption: read information from model decisions file
