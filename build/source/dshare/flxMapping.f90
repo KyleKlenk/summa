@@ -123,7 +123,7 @@ contains
  flux2state_orig(iLookFLUX%scalarCanopyTranspiration)       = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarCanopyEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarGroundEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
- flux2state_orig(iLookFLUX%scalarAquiferTranspire)          = flux2state(state1=iname_watCanopy, state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarAquiferTranspire)          = flux2state(state1=iname_watCanopy, state2=iname_watAquifer)
  flux2state_orig(iLookFLUX%mLayerTranspire)                 = flux2state(state1=iname_matLayer,  state2=integerMissing)
 
  ! liquid and solid water fluxes through the canopy
