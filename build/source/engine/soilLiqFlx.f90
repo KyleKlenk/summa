@@ -89,6 +89,9 @@ public :: soilLiqFlx
 ! constant parameters
 real(rkind),parameter     :: verySmall=1.e-12_rkind       ! a very small number (used to avoid divide by zero)
 real(rkind),parameter     :: dx=1.e-8_rkind               ! finite difference increment
+! surface runoff mechanisms -- SJT: will be transitioned into interface objects once implemented in this module
+real(rkind),public :: scalarSurfaceRunoff_IE ! infiltration excess
+real(rkind),public :: scalarSurfaceRunoff_SE ! saturation excess
 contains
 ! ***************************************************************************************************************
 ! public subroutine soilLiqFlx: compute liquid water fluxes and their derivatives
@@ -1076,6 +1079,9 @@ contains
    scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
    scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
   &)
+   scalarSurfaceRunoff_IE    = 0._rkind ! infiltration excess runoff 
+   scalarSurfaceRunoff_SE    = qsx      ! saturation excess runoff (assumed for FUSE)
+   
    scalarSurfaceRunoff       = qsx 
    scalarSurfaceInfiltration = infiltration
   end associate
@@ -1187,6 +1193,9 @@ contains
    scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
    scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
   &)
+   scalarSurfaceRunoff_IE    = 0._rkind ! infiltration excess runoff 
+   scalarSurfaceRunoff_SE    = qsx      ! saturation excess runoff (assumed for FUSE)
+
    scalarSurfaceRunoff       = qsx 
    scalarSurfaceInfiltration = infiltration
   end associate
@@ -1388,6 +1397,9 @@ contains
    scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
    scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
   &)
+   scalarSurfaceRunoff_IE    = 0._rkind ! infiltration excess runoff 
+   scalarSurfaceRunoff_SE    = qsx      ! saturation excess runoff (assumed for FUSE)
+
    scalarSurfaceRunoff       = qsx 
    scalarSurfaceInfiltration = infiltration
   end associate
@@ -1468,7 +1480,9 @@ contains
   &)
 
    ! surface runoff iz zero for the head condition
-   scalarSurfaceRunoff = 0._rkind
+   scalarSurfaceRunoff_IE = 0._rkind ! infiltration excess runoff 
+   scalarSurfaceRunoff_SE = 0._rkind ! saturation excess runoff 
+   scalarSurfaceRunoff    = 0._rkind 
 
    ! compute transmission and the capillary flux
    select case(ixRichards)  ! select form of Richards' equation
@@ -1842,7 +1856,9 @@ contains
    scalarSurfaceInfiltration = (1._rkind - scalarFrozenArea)*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
  
    ! compute surface runoff (m s-1)
-   scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
+   scalarSurfaceRunoff    = scalarRainPlusMelt - scalarSurfaceInfiltration
+   scalarSurfaceRunoff_IE = scalarSurfaceRunoff ! infiltration excess runoff 
+   scalarSurfaceRunoff_SE = 0._rkind            ! saturation excess runoff 
  
    ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
    surfaceHydCond = realMissing
