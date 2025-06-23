@@ -1528,7 +1528,8 @@ subroutine aeroResist(&
     ! First, calculate new coordinate system above snow - use these to scale wind profiles and resistances
     ! NOTE: the new coordinate system makes zeroPlaneDisplacement and z0Canopy consistent
     heightCanopyTopAboveSnow = heightCanopyTop - snowDepth
-    heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, 0.0_rkind)
+    ! Ensure that heightCanopyBottomAboveSnow >= z0Ground + xTolerance
+    heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, z0Ground + xTolerance)
     select case(ixVegTraits)
       ! Raupach (BLM 1994) "Simplified expressions..."
       case(Raupach_BLM1994)
@@ -1637,7 +1638,7 @@ subroutine aeroResist(&
 
     ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
     ! case 1: assume exponential profile extends from the snow depth plus surface roughness length to the displacement height plus vegetation roughness
-    if (ixWindProfile==exponential .or. heightCanopyBottomAboveSnow<z0Ground+xTolerance) then
+    if (ixWindProfile==exponential) then
       ! compute the neutral ground resistance
       tmp1 = exp(-windReductionFactor* z0Ground/heightCanopyTopAboveSnow)
       tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)

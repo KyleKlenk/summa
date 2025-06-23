@@ -97,6 +97,7 @@ contains
   case('snowUnload'      ); get_ixdecisions=iLookDECISIONS%snowUnload  ! choice of parameterization for snow unloading from canopy
   case('nrgConserv'      ); get_ixdecisions=iLookDECISIONS%nrgConserv  ! choice of variable in either energy backward Euler residual or IDA state variable
   case('aquiferIni'      ); get_ixdecisions=iLookDECISIONS%aquiferIni  ! choice of full or empty aquifer at start
+  case('infRateMax'      ); get_ixdecisions=iLookDECISIONS%infRateMax  ! choice of maximum infiltration rate method
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
