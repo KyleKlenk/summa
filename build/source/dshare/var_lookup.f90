@@ -334,6 +334,13 @@ MODULE var_lookup
   integer(i4b)    :: zmaxLayer2_upper      = integerMissing    ! maximum layer depth for the 2nd layer when > 2 layers (m)
   integer(i4b)    :: zmaxLayer3_upper      = integerMissing    ! maximum layer depth for the 3rd layer when > 3 layers (m)
   integer(i4b)    :: zmaxLayer4_upper      = integerMissing    ! maximum layer depth for the 4th layer when > 4 layers (m)
+  ! FUSE surface runoff
+  integer(i4b)    :: FUSE_Ac_max           = integerMissing    ! FUSE PRMS max saturated area
+  integer(i4b)    :: FUSE_phi_tens         = integerMissing    ! FUSE PRMS tension storage fraction
+  integer(i4b)    :: FUSE_b                = integerMissing    ! FUSE ARNO/VIC exponent
+  integer(i4b)    :: FUSE_lambda           = integerMissing    ! FUSE TOPMODEL gamma distribution lambda parameter
+  integer(i4b)    :: FUSE_chi              = integerMissing    ! FUSE TOPMODEL gamma distribution chi    parameter
+  integer(i4b)    :: FUSE_mu               = integerMissing    ! FUSE TOPMODEL gamma distribution mu     parameter
  endtype ilook_param
 
  ! ***********************************************************************************************************
@@ -924,7 +931,8 @@ MODULE var_lookup
                                                                         141,142,143,144,145,146,147,148,149,150,&
                                                                         151,152,153,154,155,156,157,158,159,160,&
                                                                         161,162,163,164,165,166,167,168,169,170,&
-                                                                        171,172,173,174,175,176,177,178,179,180)
+                                                                        171,172,173,174,175,176,177,178,179,180,&
+                                                                        181,182,183,184,185,186)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

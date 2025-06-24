@@ -89,6 +89,9 @@ integer(i4b),parameter,public :: liquidFlux           = 161    ! liquid water fl
 integer(i4b),parameter,public :: prescribedHead       = 162    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
 integer(i4b),parameter,public :: funcBottomHead       = 163    ! function of matric head in the lower-most layer
 integer(i4b),parameter,public :: freeDrainage         = 164    ! free drainage
+integer(i4b),parameter,public :: FUSEPRMS             = 165    ! FUSE PRMS surface runoff
+integer(i4b),parameter,public :: FUSEAVIC             = 166    ! FUSE ARNO/VIC surface runoff
+integer(i4b),parameter,public :: FUSETOPM             = 167    ! FUSE TOPMODEL surface runoff
 ! look-up values for the choice of parameterization for vegetation roughness length and displacement height
 integer(i4b),parameter,public :: Raupach_BLM1994      = 171    ! Raupach (BLM 1994) "Simplified expressions..."
 integer(i4b),parameter,public :: CM_QJRMS1988         = 172    ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
@@ -434,12 +437,13 @@ subroutine mDecisions(err,message)
   end select
 
   ! choice of choice of full or empty aquifer at start
-  ! conventionally, start with this full, since easier to spin up by draining than filling (filling we need to wait for precipitation)
+  ! default ('notPopulatedYet') start with this full, since easier to spin up by draining than filling (filling we need to wait for precipitation)
   ! but, if want to compare model method outputs, empty start leads to quicker equilibrium
   select case(trim(model_decisions(iLookDECISIONS%aquiferIni)%cDecision))
-    case('fullStart' ); model_decisions(iLookDECISIONS%aquiferIni)%iDecision = fullStart        ! start with full aquifer
+    case('fullStart','notPopulatedYet'); model_decisions(iLookDECISIONS%aquiferIni)%iDecision = fullStart        ! start with full aquifer
     case('emptyStart'); model_decisions(iLookDECISIONS%aquiferIni)%iDecision = emptyStart       ! start with empty aquifer
-    case default;       model_decisions(iLookDECISIONS%aquiferIni)%iDecision = fullStart        ! most users will want to start with full aquifer, make this decision on their behalf
+    case default
+      err=10; message=trim(message)//"unknown choice of full or empty aquifer at start [option="//trim(model_decisions(iLookDECISIONS%aquiferIni)%cDecision)//"]"; return
   end select
 
   ! identify the method used to calculate flux derivatives
@@ -513,6 +517,9 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision))
     case('presHead'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = prescribedHead      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
     case('liq_flux'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = liquidFlux          ! liquid water flux
+    case('FUSEPRMS'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = FUSEPRMS            ! FUSE PRMS surface runoff
+    case('FUSEAVIC'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = FUSEAVIC            ! FUSE ARNO/VIC surface runoff
+    case('FUSETOPM'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = FUSETOPM            ! FUSE TOPMODEL surface runoff
     case default
       err=10; message=trim(message)//"unknown upper boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision)//"]"; return
   end select
@@ -668,15 +675,18 @@ subroutine mDecisions(err,message)
   end select
 
   ! choice of maximum infiltration rate method
-  ! NOTE: use greenAmpt as the default, where infiltration method is undefined (not populated yet)
+  ! NOTE: use topmodel_GA as the default, where infiltration method is undefined (not populated yet)
   select case(trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision))
-    case('GreenAmpt','notPopulatedYet'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = GreenAmpt   ! Green-Ampt
-    case('topmodel_GA'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = topmodel_GA                 ! Green-Ampt with TOPMODEL conductivity rate
-    case('noInfExc'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = noInfiltrationExcess           ! no infiltration excess runoff (saturation excess may still occur)
+    case('GreenAmpt'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = GreenAmpt     ! Green-Ampt
+    case('topmodel_GA'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = topmodel_GA ! Green-Ampt with TOPMODEL conductivity rate
+    case('noInfExc'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = noInfiltrationExcess ! no infiltration excess runoff (saturation excess may still occur)
     case default
-      err=10; message=trim(message)//"unknown option for infiltration method [option="//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)//"]"; return
+      if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
+        model_decisions(iLookDECISIONS%infRateMax)%iDecision = topmodel_GA ! included for backwards compatibility
+      else
+        err=10; message=trim(message)//"unknown option for infiltration method [option="//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)//"]"; return
+      endif
   end select
-
 
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
   ! check for consistency among options
@@ -703,6 +713,14 @@ subroutine mDecisions(err,message)
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
     if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
       message=trim(message)//'groundwater parameterization must be bigBucket when using singleBasin for spatial_gw'
+      err=20; return
+    end if
+  end if
+
+  ! check bigBucket groundwater option is used when FUSE TOPMODEL surface runoff is selected
+  if(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision == FUSETOPM)then
+    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
+      message=trim(message)//'groundwater parameterization must be bigBucket when using FUSE TOPMODEL surface runoff'
       err=20; return
     end if
   end if
