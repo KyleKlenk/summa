@@ -1683,7 +1683,7 @@ contains
    select case(ixInfRateMax)  ! maximum infiltration rate parameterization
     case(topmodel_GA)
      ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
-     hydCondWettingFront =  surfaceSatHydCond * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 1._rkind) )
+     hydCondWettingFront = surfaceSatHydCond * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 1._rkind) )
      ! define the maximum infiltration rate (m s-1)
      xMaxInfilRate = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
      ! define the derivatives
@@ -1697,9 +1697,9 @@ contains
      dxMaxInfilRate_dTk(:)  = fPart1*dPart2(:) + fPart2*dPart1(:)
     case(GreenAmpt)
       ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
-      hydCondWettingFront =  surfaceSatHydCond ! Green-Ampt assumes homogeneous soil, therefore the whole soil column has the same hydraulic conductivity
+      hydCondWettingFront = surfaceSatHydCond ! Green-Ampt assumes homogeneous soil, therefore the whole soil column has the same hydraulic conductivity
       ! define the maximum infiltration rate (m s-1)
-      xMaxInfilRate = hydCondWettingFront * (1._rkind + (1._rkind - depthWettingFront/sum(mLayerDepth)) * wettingFrontSuction/depthWettingFront) ! Ks * (1 + (Md) * S/F)
+      xMaxInfilRate = hydCondWettingFront * (1._rkind + (1._rkind - depthWettingFront/total_soil_depth) * wettingFrontSuction/depthWettingFront) ! Ks * (1 + (Md) * S/F)
       ! define the derivatives
       dxMaxInfilRate_dWat(:) = -hydCondWettingFront*wettingFrontSuction*dDepthWettingFront_dWat(:)/depthWettingFront**2_i4b
       dxMaxInfilRate_dTk(:)  = -hydCondWettingFront*wettingFrontSuction*dDepthWettingFront_dTk(:)/depthWettingFront**2_i4b
@@ -1709,8 +1709,8 @@ contains
       ! define the maximum infiltration rate (m s-1)
       xMaxInfilRate = veryBig ! If maximum infiltration is very big we'll never have a rainfall rate that exceeds it, so no infiltration excess
       ! define the derivatives
-      dxMaxInfilRate_dWat(:) = 0
-      dxMaxInfilRate_dTk(:)  = 0
+      dxMaxInfilRate_dWat(:) = 0._rkind
+      dxMaxInfilRate_dTk(:)  = 0._rkind
    end select
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_wetting_front
