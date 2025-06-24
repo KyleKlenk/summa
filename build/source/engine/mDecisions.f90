@@ -679,7 +679,7 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision))
     case('GreenAmpt'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = GreenAmpt     ! Green-Ampt
     case('topmodel_GA'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = topmodel_GA ! Green-Ampt with TOPMODEL conductivity rate
-    case('noInfExc'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = noInfiltrationExcess             ! no infiltration excess runoff (saturation excess may still occur)
+    case('noInfExc'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = noInfiltrationExcess ! no infiltration excess runoff (saturation excess may still occur)
     case default
       if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
         model_decisions(iLookDECISIONS%infRateMax)%iDecision = topmodel_GA ! included for backwards compatibility
