@@ -1483,6 +1483,7 @@ subroutine aeroResist(&
   real(rkind),parameter            :: cd_CM = 0.2_rkind                    ! mean drag coefficient for individual leaves (-) from Choudhury and Monteith (QJRMS, 1988)
   real(rkind)                      :: funcLAI                              ! temporary variable to calculate zero plane displacement for the canopy
   real(rkind)                      :: fracCanopyHeight                     ! zero plane displacement expressed as a fraction of canopy height
+  real(rkind)                      :: zpdScaleCanopy                       ! scale for zero plane displacement for the canopy (m)
   real(rkind)                      :: approxDragCoef                       ! approximate drag coefficient used in the computation of canopy roughness length (-)
   ! local variables: resistance
   real(rkind)                      :: canopyExNeut                         ! surface-atmosphere exchange coefficient under neutral conditions (-)
@@ -1542,8 +1543,9 @@ subroutine aeroResist(&
         z0Canopy         = (1._rkind - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * (heightCanopyTopAboveSnow-heightCanopyBottomAboveSnow)
       ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
       case(CM_QJRMS1988)
-        funcLAI =  cd_CM*exposedVAI
-        zeroPlaneDisplacement = 1.1_rkind*heightCanopyTopAboveSnow*log(1._rkind + sqrt(sqrt(funcLAI)))
+        funcLAI        = cd_CM*exposedVAI
+        zpdScaleCanopy = 1.1_rkind*(heightCanopyTopAboveSnow - heightCanopyBottomAboveSnow)*log(1._rkind + sqrt(sqrt(funcLAI)))
+        zeroPlaneDisplacement = heightCanopyBottomAboveSnow + zpdScaleCanopy
         if (funcLAI < 0.2_rkind) then
           z0Canopy = z0Ground + 0.3_rkind*heightCanopyTopAboveSnow*sqrt(funcLAI)
         else

@@ -437,12 +437,13 @@ subroutine mDecisions(err,message)
   end select
 
   ! choice of choice of full or empty aquifer at start
-  ! conventionally, start with this full, since easier to spin up by draining than filling (filling we need to wait for precipitation)
+  ! default ('notPopulatedYet') start with this full, since easier to spin up by draining than filling (filling we need to wait for precipitation)
   ! but, if want to compare model method outputs, empty start leads to quicker equilibrium
   select case(trim(model_decisions(iLookDECISIONS%aquiferIni)%cDecision))
-    case('fullStart' ); model_decisions(iLookDECISIONS%aquiferIni)%iDecision = fullStart        ! start with full aquifer
+    case('fullStart','notPopulatedYet'); model_decisions(iLookDECISIONS%aquiferIni)%iDecision = fullStart        ! start with full aquifer
     case('emptyStart'); model_decisions(iLookDECISIONS%aquiferIni)%iDecision = emptyStart       ! start with empty aquifer
-    case default;       model_decisions(iLookDECISIONS%aquiferIni)%iDecision = fullStart        ! most users will want to start with full aquifer, make this decision on their behalf
+    case default
+      err=10; message=trim(message)//"unknown choice of full or empty aquifer at start [option="//trim(model_decisions(iLookDECISIONS%aquiferIni)%cDecision)//"]"; return
   end select
 
   ! identify the method used to calculate flux derivatives
@@ -674,15 +675,18 @@ subroutine mDecisions(err,message)
   end select
 
   ! choice of maximum infiltration rate method
-  ! NOTE: use greenAmpt as the default, where infiltration method is undefined (not populated yet)
+  ! NOTE: use topmodel_GA as the default, where infiltration method is undefined (not populated yet)
   select case(trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision))
-    case('GreenAmpt','notPopulatedYet'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = GreenAmpt   ! Green-Ampt
-    case('topmodel_GA'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = topmodel_GA                 ! Green-Ampt with TOPMODEL conductivity rate
-    case('noInfExc'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = noInfiltrationExcess           ! no infiltration excess runoff (saturation excess may still occur)
+    case('GreenAmpt'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = GreenAmpt     ! Green-Ampt
+    case('topmodel_GA'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = topmodel_GA ! Green-Ampt with TOPMODEL conductivity rate
+    case('noInfExc'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = noInfiltrationExcess ! no infiltration excess runoff (saturation excess may still occur)
     case default
-      err=10; message=trim(message)//"unknown option for infiltration method [option="//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)//"]"; return
+      if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
+        model_decisions(iLookDECISIONS%infRateMax)%iDecision = topmodel_GA ! included for backwards compatibility
+      else
+        err=10; message=trim(message)//"unknown option for infiltration method [option="//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)//"]"; return
+      endif
   end select
-
 
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
   ! check for consistency among options
