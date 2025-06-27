@@ -967,6 +967,20 @@ contains
    dq_dHydStateVec(:) = 0._rkind
    dq_dNrgStateVec(:) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
   end associate
+
+  ! initialize runoff and infiltration values
+  associate(&
+   scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceRunoff_IE    => out_surfaceFlx % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
+   scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
+  &)
+   scalarSurfaceRunoff       = 0._rkind 
+   scalarSurfaceRunoff_IE    = 0._rkind  
+   scalarSurfaceRunoff_SE    = 0._rkind  
+   scalarSurfaceInfiltration = 0._rkind 
+  end associate
+
  end subroutine initialize_surfaceFlx
 
  subroutine update_surfaceFlx
