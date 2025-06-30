@@ -26,7 +26,7 @@ USE data_types,only:var_i            ! x%var(:)       (i4b)
 USE data_types,only:var_dlength      ! x%var(:)%dat   (rkind)
 
 ! physical constants
-USE multiconst,only:Tfreeze          ! temperature at freezing              (K)
+USE multiconst,only:Tfreeze          ! temperature at freezing (K)
 
 ! named variables for structure elements
 USE var_lookup,only:iLookTYPE,iLookPROG,iLookDIAG,iLookFLUX
@@ -34,6 +34,8 @@ USE var_lookup,only:iLookTYPE,iLookPROG,iLookDIAG,iLookFLUX
 ! model decisions
 USE globalData,only:model_decisions  ! model decision structure
 USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
+USE globalData,only:nSpecBand        ! number of spectral bands
+USE globalData,only:verySmall        ! a very small number used as an additive constant to check if substantial difference among real numbers
 
 ! look-up values for the choice of canopy shortwave radiation method
 USE mDecisions_module,only:        &
@@ -58,10 +60,7 @@ integer(i4b),parameter        :: ice     = 0   ! Surface type:  ICE=0 => soil;  
 integer(i4b),parameter        :: iLoc    = 1   ! i-location
 integer(i4b),parameter        :: jLoc    = 1   ! j-location
 ! algorithmic parameters
-real(rkind),parameter            :: missingValue=-9999._rkind  ! missing value, used when diagnostic or state variables are undefined
-real(rkind),parameter            :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
-real(rkind),parameter            :: mpe=1.e-6_rkind         ! prevents overflow error if division by zero
-real(rkind),parameter            :: dx=1.e-6_rkind          ! finite difference increment
+real(rkind),parameter         :: mpe=1.e-6_rkind ! prevents overflow error if division by zero, from NOAH mpe value
 contains
 
 
