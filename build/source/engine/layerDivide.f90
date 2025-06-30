@@ -34,7 +34,7 @@ USE globalData,only:iname_soil        ! named variables for soil
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:realMissing     ! missing real number
 
 ! access metadata
 USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
@@ -343,7 +343,7 @@ contains
   end do
 
   ! check
-  if(abs(sum(mLayerDepth(1:nSnow)) - scalarSnowDepth) > nowDepthTol)then
+  if(abs(sum(mLayerDepth(1:nSnow)) - scalarSnowDepth) > snowDepthTol)then
    print*, 'nSnow = ', nSnow
    write(*,'(a,1x,f30.25,1x)') 'sum(mLayerDepth(1:nSnow)) = ', sum(mLayerDepth(1:nSnow))
    write(*,'(a,1x,f30.25,1x)') 'scalarSnowDepth           = ', scalarSnowDepth

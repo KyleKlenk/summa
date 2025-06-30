@@ -22,7 +22,7 @@ module qTimeDelay_module
 
 ! data types
 USE nrtype
-USE globalData,only:realMissing               ! missing double precision number
+USE globalData,only:realMissing               ! missing real number
 
 ! look-up values for the sub-grid routing method
 USE mDecisions_module,only:      &

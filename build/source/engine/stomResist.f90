@@ -22,6 +22,7 @@ module stomResist_module
 
 ! data types
 USE nrtype
+USE globalData,only:realMissing     ! missing real number
 
 ! physical constants
 USE multiconst, only: Rgas     ! universal gas constant (J mol-1 K-1)
@@ -41,7 +42,7 @@ USE var_lookup,only:iLookDIAG           ! named variables for structure elements
 USE var_lookup,only:iLookFLUX           ! named variables for structure elements
 USE var_lookup,only:iLookFORCE          ! named variables for structure elements
 USE var_lookup,only:iLookPARAM          ! named variables for structure elements
-USE var_lookup,only:iLookDECISIONS                           ! named variables for elements of the decision structure
+USE var_lookup,only:iLookDECISIONS      ! named variables for elements of the decision structure
 
 ! look-up values for the stomatal resistance formulation
 USE mDecisions_module,only:  &
@@ -205,8 +206,8 @@ contains
    scalarStomResistSunlit = minStomatalResistance/scalarTranspireLim
    scalarStomResistShaded = scalarStomResistSunlit
    ! set photosynthesis to missing (not computed)
-   scalarPhotosynthesisSunlit = missingValue
-   scalarPhotosynthesisShaded = missingValue
+   scalarPhotosynthesisSunlit = realMissing
+   scalarPhotosynthesisShaded = realMissing
 
   ! *******************************************************************************************************************************************
 

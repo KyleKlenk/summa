@@ -63,7 +63,7 @@ MODULE globalData
 
   ! define missing values
   real(rkind),parameter,public                :: quadMissing    = nr_quadMissing    ! (from nrtype) missing quadruple precision number
-  real(rkind),parameter,public                :: realMissing    = nr_realMissing    ! (from nrtype) missing double precision number
+  real(rkind),parameter,public                :: realMissing    = nr_realMissing    ! (from nrtype) missing real number
   integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nrtype) missing integer
   ! define run modes
   integer(i4b),parameter,public               :: iRunModeFull=1                     ! named variable defining running mode as full run (all GRUs)

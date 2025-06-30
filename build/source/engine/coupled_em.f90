@@ -64,7 +64,7 @@ USE globalData,only:averageFlux_meta       ! metadata on the timestep-average mo
 USE globalData,only:data_step              ! time step of forcing data (s)
 USE globalData,only:model_decisions        ! model decision structure
 USE globalData,only:globalPrintFlag        ! the global print flag
-USE globalData,only:realMissing            ! missing double precision number
+USE globalData,only:realMissing            ! missing real number
 
 
 ! look-up values for the maximum interception capacity

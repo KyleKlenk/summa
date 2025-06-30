@@ -517,10 +517,10 @@ subroutine vegNrgFlux(&
           ! compute ground net flux (W m-2)
           groundNetFlux = -diag_data%var(iLookDIAG%iLayerThermalC)%dat(0)*(groundTempTrial - upperBoundTemp)/(prog_data%var(iLookPROG%mLayerDepth)%dat(1)*0.5_rkind)
           ! compute derivative in net ground flux w.r.t. ground temperature (W m-2 K-1) inside soil and snow (ssd) energy flux routine
-          ! dGroundNetFlux_dGroundTemp = missingValue
+          ! dGroundNetFlux_dGroundTemp = realMissing
         elseif (ix_bcUpprTdyn == zeroFlux) then
           groundNetFlux              = 0._rkind
-          ! dGroundNetFlux_dGroundTemp = missingValue
+          ! dGroundNetFlux_dGroundTemp = realMissing
         else
           err=20; message=trim(message)//'unable to identify upper boundary condition for thermodynamics: expect the case to be prescribedTemp or zeroFlux'; return
         end if
@@ -1740,15 +1740,15 @@ subroutine aeroResist(&
     if (groundResistance < 0._rkind) then; err=20; message=trim(message)//'ground resistance < 0 [no vegetation]'; return; end if
 
     ! set all canopy variables to missing (no canopy!)
-    z0Canopy                   = missingValue   ! roughness length of the vegetation canopy (m)
-    RiBulkCanopy               = missingValue   ! bulk Richardson number for the canopy (-)
-    windReductionFactor        = missingValue   ! canopy wind reduction factor (-)
-    zeroPlaneDisplacement      = missingValue   ! zero plane displacement (m)
-    canopyStabilityCorrection  = missingValue   ! stability correction for the canopy (-)
-    eddyDiffusCanopyTop        = missingValue   ! eddy diffusivity for heat at the top of the canopy (m2 s-1)
-    frictionVelocity           = missingValue   ! friction velocity (m s-1)
-    windspdCanopyTop           = missingValue   ! windspeed at the top of the canopy (m s-1)
-    windspdCanopyBottom        = missingValue   ! windspeed at the height of the bottom of the canopy (m s-1)
+    z0Canopy                   = realMissing   ! roughness length of the vegetation canopy (m)
+    RiBulkCanopy               = realMissing   ! bulk Richardson number for the canopy (-)
+    windReductionFactor        = realMissing   ! canopy wind reduction factor (-)
+    zeroPlaneDisplacement      = realMissing   ! zero plane displacement (m)
+    canopyStabilityCorrection  = realMissing   ! stability correction for the canopy (-)
+    eddyDiffusCanopyTop        = realMissing   ! eddy diffusivity for heat at the top of the canopy (m2 s-1)
+    frictionVelocity           = realMissing   ! friction velocity (m s-1)
+    windspdCanopyTop           = realMissing   ! windspeed at the top of the canopy (m s-1)
+    windspdCanopyBottom        = realMissing   ! windspeed at the height of the bottom of the canopy (m s-1)
   end if  ! end if no canopy
   
   ! derivatives for the vegetation canopy
