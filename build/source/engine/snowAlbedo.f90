@@ -22,7 +22,7 @@ module snowAlbedo_module
 
 ! data types
 USE nrtype                          ! numerical recipes data types
-USE globalData,only:realMissing               ! missing double precision number
+USE globalData,only:realMissing     ! missing real number
 
 ! physical constants
 USE multiconst,only:Tfreeze         ! freezing point of pure water (K)
@@ -56,9 +56,6 @@ USE mDecisions_module,only:  &
 implicit none
 private
 public::snowAlbedo
-
-! dimensions
-integer(i4b),parameter        :: nBands=2      ! number of spectral bands for shortwave radiation
 contains
 
 
