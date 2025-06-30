@@ -1531,14 +1531,13 @@ subroutine aeroResist(&
     heightCanopyTopAboveSnow = heightCanopyTop - snowDepth
     ! Ensure that heightCanopyBottomAboveSnow >= z0Ground + xTolerance
     heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, z0Ground + xTolerance)
+    ! compute zero-plane displacement and roughness length of the vegetation canopy
     select case(ixVegTraits)
       ! Raupach (BLM 1994) "Simplified expressions..."
       case(Raupach_BLM1994)
-        ! compute zero-plane displacement
         funcLAI          = sqrt(c_d1*exposedVAI)
         fracCanopyHeight = -(1._rkind - exp(-funcLAI))/funcLAI + 1._rkind
         zeroPlaneDisplacement = fracCanopyHeight*(heightCanopyTopAboveSnow-heightCanopyBottomAboveSnow)+heightCanopyBottomAboveSnow
-        ! coupute roughness length of the veg canopy
         approxDragCoef   = min( sqrt(C_s + C_r*exposedVAI/2._rkind), approxDragCoef_max)
         z0Canopy         = (1._rkind - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * (heightCanopyTopAboveSnow-heightCanopyBottomAboveSnow)
       ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
@@ -1553,8 +1552,8 @@ subroutine aeroResist(&
         end if
       ! constant parameters dependent on the vegetation type
       case(vegTypeTable)
-        zeroPlaneDisplacement = zpdFraction*heightCanopyTopAboveSnow  ! zero-plane displacement (m)
-        z0Canopy = z0CanopyParam                                      ! roughness length of the veg canopy (m)
+        zeroPlaneDisplacement = zpdFraction*(heightCanopyTopAboveSnow-heightCanopyBottomAboveSnow)+heightCanopyBottomAboveSnow
+        z0Canopy = z0CanopyParam
       ! check
       case default
         err=10; message=trim(message)//"unknown parameterization for vegetation roughness length and displacement height"; return
