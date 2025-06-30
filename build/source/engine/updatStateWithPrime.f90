@@ -15,9 +15,6 @@ implicit none
 private
 public::updateSnowPrime
 public::updateSoilPrime
-
-real(rkind),parameter     :: verySmall=1e-14_rkind ! a very small number (used to avoid divide by zero)
-
 contains
 
 
