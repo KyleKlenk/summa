@@ -93,7 +93,9 @@ private
 public :: soilLiqFlx
 ! constant parameters
 real(rkind),parameter     :: verySmall=1.e-12_rkind       ! a very small number (used to avoid divide by zero)
-rcontains
+contains
+
+
 ! ***************************************************************************************************************
 ! public subroutine soilLiqFlx: compute liquid water fluxes and their derivatives
 ! ***************************************************************************************************************
