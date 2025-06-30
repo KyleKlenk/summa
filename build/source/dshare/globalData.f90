@@ -201,6 +201,7 @@ MODULE globalData
   type(hru2gru_map),allocatable,save,public      :: index_map(:)                      ! hru2gru map
   ! define variables used for the vegetation phenology
   real(rkind),dimension(12),save,public          :: greenVegFrac_monthly              ! fraction of green vegetation in each month (0-1)
+  real(rkind),save,public                        :: z0GroundTol                       ! roughness length of the ground (ground below the canopy or non-vegetated surface) (m)
   ! define the model output file
   character(len=256),save,public                 :: fileout=''                        ! output filename
   character(len=256),save,public                 :: output_fileSuffix=''              ! suffix for the output file
