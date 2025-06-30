@@ -728,6 +728,8 @@ contains
   case('scalarInfiltration'             ); get_ixFlux = iLookFLUX%scalarInfiltration               ! infiltration of water into the soil profile (m s-1)
   case('scalarExfiltration'             ); get_ixFlux = iLookFLUX%scalarExfiltration               ! exfiltration of water from the top of the soil profile (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixFlux = iLookFLUX%scalarSurfaceRunoff              ! surface runoff (m s-1)
+  case('scalarSurfaceRunoff_IE'         ); get_ixFlux = iLookFLUX%scalarSurfaceRunoff_IE           ! infiltration excess surface runoff (m s-1)
+  case('scalarSurfaceRunoff_SE'         ); get_ixFlux = iLookFLUX%scalarSurfaceRunoff_SE           ! saturation excess surface runoff (m s-1)
   case('mLayerSatHydCondMP'             ); get_ixFlux = iLookFLUX%mLayerSatHydCondMP               ! saturated hydraulic conductivity of macropores in each layer (m s-1)
   case('mLayerSatHydCond'               ); get_ixFlux = iLookFLUX%mLayerSatHydCond                 ! saturated hydraulic conductivity in each layer (m s-1)
   case('iLayerSatHydCond'               ); get_ixFlux = iLookFLUX%iLayerSatHydCond                 ! saturated hydraulic conductivity in each layer interface (m s-1)

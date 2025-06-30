@@ -967,6 +967,20 @@ contains
    dq_dHydStateVec(:) = 0._rkind
    dq_dNrgStateVec(:) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
   end associate
+
+  ! initialize runoff and infiltration values
+  associate(&
+   scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceRunoff_IE    => out_surfaceFlx % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
+   scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
+  &)
+   scalarSurfaceRunoff       = 0._rkind 
+   scalarSurfaceRunoff_IE    = 0._rkind  
+   scalarSurfaceRunoff_SE    = 0._rkind  
+   scalarSurfaceInfiltration = 0._rkind 
+  end associate
+
  end subroutine initialize_surfaceFlx
 
  subroutine update_surfaceFlx
@@ -1079,8 +1093,13 @@ contains
   associate(&
    ! output: runoff and infiltration
    scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceRunoff_IE    => out_surfaceFlx % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
    scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
   &)
+   scalarSurfaceRunoff_IE    = 0._rkind ! infiltration excess runoff 
+   scalarSurfaceRunoff_SE    = qsx      ! saturation excess runoff (assumed for FUSE)
+   
    scalarSurfaceRunoff       = qsx 
    scalarSurfaceInfiltration = infiltration
   end associate
@@ -1190,8 +1209,13 @@ contains
   associate(&
    ! output: runoff and infiltration
    scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceRunoff_IE    => out_surfaceFlx % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
    scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
   &)
+   scalarSurfaceRunoff_IE    = 0._rkind ! infiltration excess runoff 
+   scalarSurfaceRunoff_SE    = qsx      ! saturation excess runoff (assumed for FUSE)
+
    scalarSurfaceRunoff       = qsx 
    scalarSurfaceInfiltration = infiltration
   end associate
@@ -1391,8 +1415,13 @@ contains
   associate(&
    ! output: runoff and infiltration
    scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceRunoff_IE    => out_surfaceFlx % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
    scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
   &)
+   scalarSurfaceRunoff_IE    = 0._rkind ! infiltration excess runoff 
+   scalarSurfaceRunoff_SE    = qsx      ! saturation excess runoff (assumed for FUSE)
+
    scalarSurfaceRunoff       = qsx 
    scalarSurfaceInfiltration = infiltration
   end associate
@@ -1463,6 +1492,8 @@ contains
    surfaceDiffuse => io_surfaceFlx % surfaceDiffuse , & ! hydraulic diffusivity at the surface (m2 s-1)
    ! output: runoff and infiltration
    scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceRunoff_IE    => out_surfaceFlx % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
    scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration , & ! surface infiltration (m s-1)
    ! output: derivatives in surface infiltration w.r.t. ...
    dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
@@ -1473,7 +1504,9 @@ contains
   &)
 
    ! surface runoff iz zero for the head condition
-   scalarSurfaceRunoff = 0._rkind
+   scalarSurfaceRunoff_IE = 0._rkind ! infiltration excess runoff 
+   scalarSurfaceRunoff_SE = 0._rkind ! saturation excess runoff 
+   scalarSurfaceRunoff    = 0._rkind 
 
    ! compute transmission and the capillary flux
    select case(ixRichards)  ! select form of Richards' equation
@@ -1862,13 +1895,17 @@ contains
    scalarFrozenArea => io_surfaceFlx % scalarFrozenArea , & ! fraction of area that is considered impermeable due to soil ice (-)
    ! output: runoff and infiltration
    scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceRunoff_IE    => out_surfaceFlx % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
    scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
   &)
    ! compute infiltration (m s-1), if after first flux call in a splitting operation does not change
    scalarSurfaceInfiltration = (1._rkind - scalarFrozenArea)*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
  
    ! compute surface runoff (m s-1)
-   scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
+   scalarSurfaceRunoff    = scalarRainPlusMelt - scalarSurfaceInfiltration
+   scalarSurfaceRunoff_IE = scalarSurfaceRunoff ! infiltration excess runoff 
+   scalarSurfaceRunoff_SE = 0._rkind            ! saturation excess runoff 
  
    ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
    surfaceHydCond = realMissing
