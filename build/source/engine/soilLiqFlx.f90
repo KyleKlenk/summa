@@ -1833,6 +1833,8 @@ contains
      xLimg            = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
  
      !if we use this, we will have a derivative of scalarFrozenArea w.r.t. water and temperature in each layer (through mLayerVolFracIce)
+     ! Should fix to deal with frozen area in the root zone
+     !scalarFrozenArea = 1._rkind - gammp(alpha,xLimg)      ! fraction of frozen area
      scalarFrozenArea = 0._rkind
      dFrozenArea_dWat(1:nSoil) = 0._rkind
      dFrozenArea_dTk(1:nSoil)  = 0._rkind
@@ -1884,6 +1886,10 @@ contains
 
  subroutine update_surfaceFlx_liquidFlux_infiltration
   ! **** Update operations for surfaceFlx: flux condition -- final infiltration and runoff calculations ****
+  ! local variables
+  real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
+
+  ! compute infiltration and runoff
   associate(&
    ! input: flux at the upper boundary
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt , & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
@@ -1901,13 +1907,23 @@ contains
    scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
    scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
   &)
+   ! unfrozen infiltration area
+   scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
+
    ! compute infiltration (m s-1), if after first flux call in a splitting operation does not change
-   scalarSurfaceInfiltration = (1._rkind - scalarFrozenArea)*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+   scalarSurfaceInfiltration = scalarInfilArea_unfrozen*min(scalarRainPlusMelt,xMaxInfilRate)
  
    ! compute surface runoff (m s-1)
    scalarSurfaceRunoff    = scalarRainPlusMelt - scalarSurfaceInfiltration
-   scalarSurfaceRunoff_IE = scalarSurfaceRunoff ! infiltration excess runoff 
-   scalarSurfaceRunoff_SE = 0._rkind            ! saturation excess runoff 
+   if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess runoff occurs
+    ! saturation excess runoff
+    scalarSurfaceRunoff_SE = scalarRainPlusMelt * (1._rkind - scalarInfilArea_unfrozen) ! (rain plus melt) * (saturated area) 
+    ! remaining runoff is infiltration excess
+    scalarSurfaceRunoff_IE = scalarSurfaceRunoff - scalarSurfaceRunoff_SE ! infiltration excess runoff     
+   else ! infiltration excess runoff does not occur
+    scalarSurfaceRunoff_SE = scalarSurfaceRunoff ! saturation excess runoff 
+    scalarSurfaceRunoff_IE = 0._rkind            ! infiltration excess runoff 
+   end if
  
    ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
    surfaceHydCond = realMissing
