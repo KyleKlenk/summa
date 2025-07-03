@@ -1833,6 +1833,8 @@ contains
      xLimg            = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
  
      !if we use this, we will have a derivative of scalarFrozenArea w.r.t. water and temperature in each layer (through mLayerVolFracIce)
+     ! Should fix to deal with frozen area in the root zone
+     !scalarFrozenArea = 1._rkind - gammp(alpha,xLimg)      ! fraction of frozen area
      scalarFrozenArea = 0._rkind
      dFrozenArea_dWat(1:nSoil) = 0._rkind
      dFrozenArea_dTk(1:nSoil)  = 0._rkind
