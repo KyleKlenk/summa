@@ -1568,16 +1568,20 @@ subroutine aeroResist(&
     
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------------------------------------------------------------
-    ! * compute resistance for the case where the canopy is exposed
+    ! * compute resistance for the case where the canopy is exposed, keeping in mind that windspd from the canopy at the reference height is zero
+    referenceHeight   = z0Canopy+zeroPlaneDisplacement
+    ! windConvFactor_fv  = log((referenceHeight - zeroPlaneDisplacement)/z0Canopy)/log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy)  = 0/log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy)
+    ! windspdCanopyRef = windspd*windConvFactor_fv = 0
+
     ! compute the stability correction for resistance from canopy air space to air above the canopy (-)
     call aStability(&
                     ! input
                     ixStability,                                      & ! input:  choice of stability function
                     ! input: forcing data, diagnostic and state variables
-                    mHeight,                                          & ! input:  measurement height (m)
+                    mHeight - referenceHeight,                        & ! input:  height difference (m)
                     airTemp,                                          & ! input:  air temperature above the canopy (K)
                     canairTemp,                                       & ! input:  temperature of the canopy air space (K)
-                    windspd,                                          & ! input:  wind speed above the canopy (m s-1)
+                    windspd,                                          & ! input:  windspd - windspd from the canopy at the reference height (m s-1) 
                     ! input: stability parameters
                     critRichNumber,                                   & ! input:  critical value for the bulk Richardson number where turbulence ceases (-)
                     Louis79_bparam,                                   & ! input:  parameter in Louis (1979) stability function
@@ -1611,8 +1615,7 @@ subroutine aeroResist(&
     ! Refs: Norman et al. (Ag. Forest Met., 1995) -- citing Goudriaan (1977 manuscript "crop micrometeorology: a simulation study", Wageningen).
     windReductionFactor = windReductionParam * exposedVAI**twoThirds * (heightCanopyTopAboveSnow - heightCanopyBottomAboveSnow)**oneThird / leafDimension**oneThird
 
-    ! compute windspeed at the height z0Canopy+zeroPlaneDisplacement (m s-1)
-    referenceHeight   = z0Canopy+zeroPlaneDisplacement
+    ! compute windspeed at the referenceHeight
     windConvFactor    = exp(-windReductionFactor*(1._rkind - (referenceHeight/heightCanopyTopAboveSnow)))
     windspdRefHeight  = windspdCanopyTop*windConvFactor
     if(heightCanopyTopAboveSnow < referenceHeight)then; err=20; message=trim(message)//'canopy top height above snow < reference height'; return; end if 
