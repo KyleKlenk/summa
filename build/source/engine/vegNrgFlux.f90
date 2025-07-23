@@ -1594,9 +1594,9 @@ subroutine aeroResist(&
                     ixStability,                                      & ! input:  choice of stability function
                     ! input: forcing data, diagnostic and state variables
                     mHeight - referenceHeight,                        & ! input:  height difference from measurement height to canopy air space (m)
-                    airTemp,                                          & ! input:  air temperature above the canopy (K)
-                    canairTemp,                                       & ! input:  temperature of the canopy air space (K)
-                    windspd - windspdRefHeight,                       & ! input:  wind speed difference from measurement height to canopy air space (m s-1) 
+                    airTemp,                                          & ! input:  air temperature above the canopy (measurement height) (K)
+                    canairTemp,                                       & ! input:  temperature of the canopy air space (reference height) (K)
+                    windspd - windspdRefHeight,                       & ! input:  wind speed difference from measurement height to reference height (m s-1) 
                     ! input: stability parameters
                     critRichNumber,                                   & ! input:  critical value for the bulk Richardson number where turbulence ceases (-)
                     Louis79_bparam,                                   & ! input:  parameter in Louis (1979) stability function
@@ -1660,10 +1660,10 @@ subroutine aeroResist(&
                     ! input
                     ixStability,                                      & ! input:  choice of stability function
                     ! input: forcing data, diagnostic and state variables
-                    referenceHeight,                                  & ! input:  height difference from canopy air space to the ground (m)
+                    referenceHeight,                                  & ! input:  height difference from reference height to the ground (m)
                     canairTemp,                                       & ! input:  temperature of the canopy air space (reference temp) (K)
                     groundTemp,                                       & ! input:  temperature of the ground surface (K)
-                    max(0.1_rkind,windspdRefHeight),                  & ! input:  wind speed difference from canopy air space to ground (m s-1)
+                    max(0.1_rkind,windspdRefHeight),                  & ! input:  wind speed difference from reference height to ground (m s-1)
                     ! input: stability parameters
                     critRichNumber,                                   & ! input:  critical value for the bulk Richardson number where turbulence ceases (-)
                     Louis79_bparam,                                   & ! input:  parameter in Louis (1979) stability function
