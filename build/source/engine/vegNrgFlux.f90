@@ -2480,11 +2480,10 @@ subroutine aStability(&
                       dRiBulk_dSfcTemp,               & ! output: derivative in the bulk Richardson number w.r.t. surface temperature (K-1)
                       err,message)                      ! output: error control
 
+  ! compute surface-atmosphere exchange coefficient (-) and its derivatives
   ! ***** process unstable cases
   if (RiBulk<0._rkind) then
-    ! compute surface-atmosphere exchange coefficient (-)
     stabilityCorrection = (1._rkind - 16._rkind*RiBulk)**(0.75_rkind) ! use the bulk Richardson number to compute the stability correction
-    ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
     dStabilityCorrection_dRich    = -12._rkind*(1._rkind - 16._rkind*RiBulk)**(-0.25_rkind)
     dStabilityCorrection_dAirTemp = dRiBulk_dAirTemp * dStabilityCorrection_dRich
     dStabilityCorrection_dSfcTemp = dRiBulk_dSfcTemp * dStabilityCorrection_dRich
@@ -2495,29 +2494,34 @@ subroutine aStability(&
   select case(ixStability)
     ! "standard" stability correction, a la Anderson 1976
     case(standard)
-      ! compute surface-atmosphere exchange coefficient (-)
-      if (RiBulk <  critRichNumber) stabilityCorrection = (1._rkind - 5._rkind*RiBulk)**2_i4b
-      if (RiBulk >= critRichNumber) stabilityCorrection = stabilityTol
-      ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
-      if (RiBulk <  critRichNumber) dStabilityCorrection_dRich = -10._rkind*(1._rkind - 5._rkind*RiBulk)
-      if (RiBulk >= critRichNumber) dStabilityCorrection_dRich = stabilityTol
+      if(RiBulk < critRichNumber)then 
+        stabilityCorrection = (1._rkind - 5._rkind*RiBulk)**2_i4b
+        dStabilityCorrection_dRich = -10._rkind*(1._rkind - 5._rkind*RiBulk)
+      else
+        stabilityCorrection = stabilityTol
+        dStabilityCorrection_dRich = 0._rkind
+      end if
+
     ! Louis 1979
     case(louisInversePower)
-      ! scale the "b" parameter for stable conditions
-      bprime = Louis79_bparam/2._rkind
-      ! compute surface-atmosphere exchange coefficient (-)
+      bprime = Louis79_bparam/2._rkind ! scale the "b" parameter for stable conditions
       stabilityCorrection = 1._rkind / ( (1._rkind + bprime*RiBulk)**2_i4b )
-      if (stabilityCorrection < epsilon(stabilityCorrection)) stabilityCorrection = epsilon(stabilityCorrection)
-      ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
-      dStabilityCorrection_dRich = bprime * (-2._rkind)*(1._rkind + bprime*RiBulk)**(-3_i4b)
+      if(stabilityCorrection >= epsilon(stabilityCorrection))then
+        dStabilityCorrection_dRich = bprime * (-2._rkind)*(1._rkind + bprime*RiBulk)**(-3_i4b)
+      else
+        stabilityCorrection = epsilon(stabilityCorrection)
+        dStabilityCorrection_dRich = 0._rkind
+      end if
 
     ! (Mahrt 1987)
     case(mahrtExponential)
-      ! compute surface-atmosphere exchange coefficient (-)
       stabilityCorrection = exp(-Mahrt87_eScale * RiBulk)
-      if (stabilityCorrection < epsilon(stabilityCorrection)) stabilityCorrection = epsilon(stabilityCorrection)
-      ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
-      dStabilityCorrection_dRich = (-Mahrt87_eScale) * exp(-Mahrt87_eScale * RiBulk)
+      if(stabilityCorrection >= epsilon(stabilityCorrection))then
+        dStabilityCorrection_dRich = (-Mahrt87_eScale) * exp(-Mahrt87_eScale * RiBulk)
+      else
+        stabilityCorrection = epsilon(stabilityCorrection)
+        dStabilityCorrection_dRich = 0._rkind
+      end if
 
     ! return error if the stability correction method is not found
     case default
