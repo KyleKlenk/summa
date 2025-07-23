@@ -2423,10 +2423,10 @@ subroutine aStability(&
                       ! input: control
                       ixStability,                    & ! input:  choice of stability function
                       ! input: forcing data, diagnostic and state variables
-                      mHeight,                        & ! input:  measurement height (difference from surface) (m)
+                      hgt_diff,                       & ! input:  height difference from air to surface (m)
                       airTemp,                        & ! input:  air temperature (K)
                       sfcTemp,                        & ! input:  surface temperature (K)
-                      windspd,                        & ! input:  wind speed (difference from surface) (m s-1)
+                      windspd_diff,                   & ! input:  wind speed difference air to surface (m s-1)
                       ! input: stability parameters
                       critRichNumber,                 & ! input:  critical value for the bulk Richardson number where turbulence ceases (-)
                       Louis79_bparam,                 & ! input:  parameter in Louis (1979) stability function
@@ -2442,10 +2442,10 @@ subroutine aStability(&
   ! input: control
   integer(i4b),intent(in)          :: ixStability                   ! choice of stability function
   ! input: forcing data, diagnostic and state variables
-  real(rkind),intent(in)           :: mHeight                       ! measurement height (difference from surface) (m)
+  real(rkind),intent(in)           :: hgt_diff                      ! height difference from air to surface (m)
   real(rkind),intent(in)           :: airtemp                       ! air temperature (K)
   real(rkind),intent(in)           :: sfcTemp                       ! surface temperature (K)
-  real(rkind),intent(in)           :: windspd                       ! wind speed (difference from surface) (m s-1)
+  real(rkind),intent(in)           :: windspd_diff                  ! wind speed difference air to surface (m s-1)
   ! input: stability parameters
   real(rkind),intent(in)           :: critRichNumber                ! critical value for the bulk Richardson number where turbulence ceases (-)
   real(rkind),intent(in)           :: Louis79_bparam                ! parameter in Louis (1979) stability function
@@ -2472,8 +2472,8 @@ subroutine aStability(&
                       ! input
                       airTemp,                        & ! input: air temperature (K)
                       sfcTemp,                        & ! input: surface temperature (K)
-                      windspd,                        & ! input: wind speed (difference from surface) (m s-1)
-                      mHeight,                        & ! input: measurement height (difference from surface) (m)
+                      windspd_diff,                   & ! input: wind speed difference air to surface (m s-1)
+                      hgt_diff,                       & ! input: height difference from air to surface (m)
                       ! output
                       RiBulk,                         & ! output: bulk Richardson number (-)
                       dRiBulk_dAirTemp,               & ! output: derivative in the bulk Richardson number w.r.t. air temperature (K-1)
@@ -2538,8 +2538,8 @@ subroutine bulkRichardson(&
                           ! input
                           airTemp,                    & ! input:  air temperature (K)
                           sfcTemp,                    & ! input:  surface temperature (K)
-                          windspd,                    & ! input:  wind speed (difference from surface) (m s-1)
-                          mHeight,                    & ! input:  measurement height (difference from surface) (m)
+                          windspd_diff,               & ! input:  wind speed difference air to surface (m s-1)
+                          hgt_diff,                   & ! input:  height difference from air to surface (m)
                            ! output
                           RiBulk,                     & ! output: bulk Richardson number (-)
                           dRiBulk_dAirTemp,           & ! output: derivative in the bulk Richardson number w.r.t. air temperature (K-1)
@@ -2549,8 +2549,8 @@ implicit none
 ! input
 real(rkind),intent(in)        :: airtemp                ! air temperature (K)
 real(rkind),intent(in)        :: sfcTemp                ! surface temperature (K)
-real(rkind),intent(in)        :: windspd                ! wind speed (difference from surface) (m s-1)
-real(rkind),intent(in)        :: mHeight                ! measurement height (difference from surface) (m)
+real(rkind),intent(in)        :: windspd_diff           ! wind speed difference air to surface (m s-1)
+real(rkind),intent(in)        :: hgt_diff               ! height difference from air to surface (m)
 ! output
 real(rkind),intent(inout)     :: RiBulk                 ! bulk Richardson number (-)
 real(rkind),intent(out)       :: dRiBulk_dAirTemp       ! derivative in the bulk Richardson number w.r.t. air temperature (K-1)
@@ -2570,12 +2570,12 @@ real(rkind)                   :: RiMult                 ! dimensionless scaling 
     T_grad = airtemp
     T_mean = 0.5_rkind*airtemp
   endif
-  RiMult = (gravity*mHeight)/(windspd*windspd)
+  RiMult = gravity*hgt_diff / windspd_diff**2_i4b
   ! compute the Richardson number
   RiBulk = (T_grad/T_mean) * RiMult
   ! compute the derivative in the Richardson number
-  dRiBulk_dAirTemp =  RiMult/T_mean - RiMult*T_grad/(0.5_rkind*((airtemp + sfcTemp)**2_i4b))
-  dRiBulk_dSfcTemp = -RiMult/T_mean - RiMult*T_grad/(0.5_rkind*((airtemp + sfcTemp)**2_i4b))
+  dRiBulk_dAirTemp =  RiMult/T_mean - RiMult*T_grad / (0.5_rkind*((airtemp + sfcTemp)**2_i4b))
+  dRiBulk_dSfcTemp = -RiMult/T_mean - RiMult*T_grad / (0.5_rkind*((airtemp + sfcTemp)**2_i4b))
   ! cap function to prevent blowing up
   if (sfcTemp < 0._rkind) then
     dRiBulk_dAirTemp = 0._rkind
