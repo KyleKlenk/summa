@@ -1656,7 +1656,6 @@ subroutine aeroResist(&
     endif  ! switch between exponential profile and log-below-canopy
 
     ! compute the stability correction for resistance from the ground to the canopy air space (-)
-    ! NOTE: here we are interested in the windspeed at the reference height
     call aStability(&
                     ! input
                     ixStability,                                      & ! input:  choice of stability function
