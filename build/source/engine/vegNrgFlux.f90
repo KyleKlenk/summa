@@ -2505,19 +2505,19 @@ subroutine aStability(&
     ! Louis 1979
     case(louisInversePower)
       bprime = Louis79_bparam/2._rkind ! scale the "b" parameter for stable conditions
-      stabilityCorrection = 1._rkind / ( (1._rkind + bprime*RiBulk)**2_i4b )
+      stabilityCorrection = (1._rkind + bprime*RiBulk)**(-2_i4b)
       if(stabilityCorrection >= epsilon(stabilityCorrection))then
-        dStabilityCorrection_dRich = bprime * (-2._rkind)*(1._rkind + bprime*RiBulk)**(-3_i4b)
+        dStabilityCorrection_dRich = -2._rkind*bprime*(1._rkind + bprime*RiBulk)**(-3_i4b)
       else
         stabilityCorrection = epsilon(stabilityCorrection)
         dStabilityCorrection_dRich = 0._rkind
       end if
 
-    ! (Mahrt 1987)
+    ! Mahrt 1987
     case(mahrtExponential)
-      stabilityCorrection = exp(-Mahrt87_eScale * RiBulk)
+      stabilityCorrection = exp(-Mahrt87_eScale*RiBulk)
       if(stabilityCorrection >= epsilon(stabilityCorrection))then
-        dStabilityCorrection_dRich = (-Mahrt87_eScale) * exp(-Mahrt87_eScale * RiBulk)
+        dStabilityCorrection_dRich = -Mahrt87_eScale * exp(-Mahrt87_eScale*RiBulk)
       else
         stabilityCorrection = epsilon(stabilityCorrection)
         dStabilityCorrection_dRich = 0._rkind
