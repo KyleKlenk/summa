@@ -1108,7 +1108,6 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
   real(rkind),intent(in)     :: canopyMax                   ! liquid water content (kg m-2)
   real(rkind),intent(in)     :: canopyWettingFactor         ! maximum wetted fraction of the canopy (-)
   real(rkind),intent(in)     :: canopyWettingExp            ! exponent in canopy wetting function (-)
-
   real(rkind),intent(out)    :: canopyWetFraction           ! canopy wetted fraction (-)
   real(rkind),intent(out)    :: canopyWetFractionDeriv      ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
   ! local variables
