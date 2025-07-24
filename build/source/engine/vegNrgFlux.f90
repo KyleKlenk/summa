@@ -2523,13 +2523,9 @@ subroutine aStability(&
         dStabilityCorrection_dRich = 0._rkind
       end if
 
-    ! return error if the stability correction method is not found
     case default
       err=10; message=trim(message)//"optionNotFound[stability correction]"; return
   end select
-
-  ! get the stability correction with respect to air temperature and surface temperature
-  ! NOTE: air temperature is used for canopy air temperature, which is a model state variable
   dStabilityCorrection_dAirTemp = dRiBulk_dAirTemp * dStabilityCorrection_dRich
   dStabilityCorrection_dSfcTemp = dRiBulk_dSfcTemp * dStabilityCorrection_dRich
 
