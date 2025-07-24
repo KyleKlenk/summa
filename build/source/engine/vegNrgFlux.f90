@@ -2480,10 +2480,10 @@ subroutine aStability(&
                       dRiBulk_dSfcTemp,               & ! output: derivative in the bulk Richardson number w.r.t. surface temperature (K-1)
                       err,message)                      ! output: error control
 
-  ! compute surface-atmosphere exchange coefficient (-) and its derivatives
-  ! ***** process unstable cases
+  ! compute surface-atmosphere exchange coefficient (-) and its derivatives 
+  ! ***** process unstable cases, Anderson 1976 and Oke 1978
   if (RiBulk<0._rkind) then
-    stabilityCorrection = (1._rkind - 16._rkind*RiBulk)**(0.75_rkind) ! use the bulk Richardson number to compute the stability correction
+    stabilityCorrection = (1._rkind - 16._rkind*RiBulk)**(0.75_rkind)
     dStabilityCorrection_dRich    = -12._rkind*(1._rkind - 16._rkind*RiBulk)**(-0.25_rkind)
     dStabilityCorrection_dAirTemp = dRiBulk_dAirTemp * dStabilityCorrection_dRich
     dStabilityCorrection_dSfcTemp = dRiBulk_dSfcTemp * dStabilityCorrection_dRich
@@ -2492,7 +2492,7 @@ subroutine aStability(&
 
   ! ***** process stable cases
   select case(ixStability)
-    ! "standard" stability correction, a la Anderson 1976
+    ! "standard" stability correction, Anderson 1976 and Oke 1978
     case(standard)
       if(RiBulk < critRichNumber)then 
         stabilityCorrection = (1._rkind - 5._rkind*RiBulk)**2_i4b
