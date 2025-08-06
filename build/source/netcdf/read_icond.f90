@@ -331,22 +331,7 @@ contains
       progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) = verySmaller*10._rkind
       print*, 'WARNING: Canopy water is zero ... setting canopy liquid water to a tiny value.'
      endif
-   endif ! (if last variable in the loop)
-
-    ! store the data in basin variables
-    if(prog_meta(iVar)%varType==iLookVarType%scalarv)then
-     bvarData%gru(iGRU)%var(iVar)%dat(1) = progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1)
-     if(abs(bvarData%gru(iGRU)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData))then; err=20; endif
-    else if(prog_meta(iVar)%varType==iLookVarType%midSoil)then
-     bvarData%gru(iGRU)%var(iVar)%dat(1:nSoil) = progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil)
-     if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nSoil) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
-    else if(prog_meta(iVar)%varType==iLookVarType%midToto)then
-     bvarData%gru(iGRU)%var(iVar)%dat(1:nToto) = progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto)
-     if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
-    else if(prog_meta(iVar)%varType==iLookVarType%ifcToto)then
-     bvarData%gru(iGRU)%var(iVar)%dat(0:nToto) = progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto)
-     if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(0:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
-    endif
+    endif ! (if last variable in the loop)
 
    end do ! iHRU
   end do ! iGRU
