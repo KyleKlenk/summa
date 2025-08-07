@@ -327,9 +327,10 @@ contains
      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nSpecBand) = progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
 
      ! make sure canopy ice + liq is positive, otherwise add liquid water to canopy and make total water consistent later
-     if( (progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyIce)%dat(1)) < verySmaller*10._rkind)then
-      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) = verySmaller*10._rkind
-      print*, 'WARNING: Canopy water is zero ... setting canopy liquid water to a tiny value.'
+    ! NOTE: ideally we would not do this, but the non-smoothness of the canopy wetting function seems to make this necessary, may want to adjust value in the future
+     if( (progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyIce)%dat(1)) < verySmaller*1.e4_rkind)then
+      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) = verySmaller*1.e4_rkind
+      print*, 'WARNING: canopy water is zero ... setting canopy liquid water to 1e-8 to avoid convergence issues'
      endif
     endif ! (if last variable in the loop)
 
