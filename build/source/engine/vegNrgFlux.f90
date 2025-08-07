@@ -318,8 +318,6 @@ subroutine vegNrgFlux(&
     critSoilTranspire               => mpar_data%var(iLookPARAM%critSoilTranspire)%dat(1),             & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
     critAquiferTranspire            => mpar_data%var(iLookPARAM%critAquiferTranspire)%dat(1),          & ! intent(in): [dp] critical aquifer storage value when transpiration is limited (m)
     minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance)%dat(1),         & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
-    ! snow parameters
-    snowfrz_scale                   => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),                 & ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
     ! input: forcing at the upper boundary
     mHeight                         => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1),            & ! intent(in): [dp] measurement height, adjusted to be above vegetation canopy and snow (m)
     airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at adjusted measurement height (K)
@@ -596,7 +594,7 @@ subroutine vegNrgFlux(&
           ! compute the fraction of liquid water in the canopy (-)
           totalCanopyWater = canopyLiqTrial + canopyIceTrial
           if (totalCanopyWater > tiny(1.0_rkind)) then
-            fracLiquidCanopy = canopyLiqTrial / (canopyLiqTrial + canopyIceTrial)
+            fracLiquidCanopy = canopyLiqTrial / totalCanopyWater
           else
             fracLiquidCanopy = 0._rkind
           end if
@@ -693,10 +691,6 @@ subroutine vegNrgFlux(&
         !         (2) derivative calculations are rather complex (iterations within the Ball-Berry routine); and
         !         (3) stomatal resistance does not change rapidly
         if (firstFluxCall) then
-          ! compute the saturation vapor pressure for vegetation temperature
-          TV_celcius = canopyTempTrial - Tfreeze
-          call satVapPress(TV_celcius, scalarSatVP_CanopyTemp, dSVPCanopy_dCanopyTemp)
-
           ! compute soil moisture factor controlling stomatal resistance
           call soilResist(&
                           ! input (model decisions)
@@ -721,7 +715,10 @@ subroutine vegNrgFlux(&
                           scalarTranspireLimAqfr,            & ! intent(out): transpiration limiting factor for the aquifer (-)
                           err,cmessage                       ) ! intent(out): error control
           if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
+          
+          ! compute the saturation vapor pressure for vegetation temperature
+          TV_celcius = canopyTempTrial - Tfreeze
+          call satVapPress(TV_celcius, scalarSatVP_CanopyTemp, dSVPCanopy_dCanopyTemp)
           ! compute stomatal resistance
           call stomResist(&
                           ! input (state and diagnostic variables)
