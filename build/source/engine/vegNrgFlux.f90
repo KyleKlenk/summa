@@ -187,10 +187,9 @@ subroutine vegNrgFlux(&
   real(rkind)                        :: scaleLAI                        ! scaled LAI (computing diffuse transmissivity)
   real(rkind)                        :: diffuseTrans                    ! diffuse transmissivity (-)
   real(rkind)                        :: groundEmissivity                ! emissivity of the ground surface (-)
-  real(rkind),parameter              :: vegEmissivity=0.98_rkind        ! emissivity of vegetation (0.9665 in JULES) (-)
-  real(rkind),parameter              :: soilEmissivity=0.98_rkind       ! emmisivity of the soil (0.9665 in JULES) (-)
-  real(rkind),parameter              :: snowEmissivity=0.99_rkind       ! emissivity of snow (-)
-  real(rkind)                        :: dLWNetCanopy_dTCanopy           ! derivative in net canopy radiation w.r.t. canopy temperature (W m-2 K-1)
+  real(rkind),parameter              :: vegEmissivity=0.97_rkind        ! emissivity of vegetation (-) as in Jin 2006
+  real(rkind),parameter              :: soilEmissivity=0.96_rkind       ! emisivity of the soil (-) as in  Jin 2006
+  real(rkind),parameter              :: snowEmissivity=0.98_rkind       ! emissivity of snow (-) as in Hori 2006, Jin 2006  real(rkind)                        :: dLWNetCanopy_dTCanopy           ! derivative in net canopy radiation w.r.t. canopy temperature (W m-2 K-1)
   real(rkind)                        :: dLWNetGround_dTGround           ! derivative in net ground radiation w.r.t. ground temperature (W m-2 K-1)
   real(rkind)                        :: dLWNetCanopy_dTGround           ! derivative in net canopy radiation w.r.t. ground temperature (W m-2 K-1)
   real(rkind)                        :: dLWNetGround_dTCanopy           ! derivative in net ground radiation w.r.t. canopy temperature (W m-2 K-1)
