@@ -157,7 +157,7 @@ subroutine soilLiqFlx(&
   ! compute surface flux
   integer(i4b)                                    :: nRoots                  ! number of soil layers with roots
   integer(i4b)                                    :: ixIce                   ! index of the lowest soil layer that contains ice
-  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHeight            ! height of the layer interfaces (m)
+  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHeight            ! height of the layer interfaces for soil Layers only (m)
   ! error control
   logical(lgt)                                    :: return_flag             ! flag for return statements
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -183,7 +183,7 @@ contains
   ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + 1
   iend = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
 
-  ! get a copy of iLayerHeight
+  ! get a copy of iLayerHeight (for soil layers only)
   ! NOTE: performance hit, though cannot define the shape (0:) with the associate construct
   iLayerHeight(0:nSoil) = prog_data%var(iLookPROG%iLayerHeight)%dat(ibeg-1:iend)  ! height of the layer interfaces (m)
 
@@ -1059,7 +1059,7 @@ contains
   associate(&
    nSoil              => in_surfaceFlx % nSoil,              & ! number of soil layers
    scalarTotalSoilLiq => in_surfaceFlx % scalarTotalSoilLiq, & ! total liquid water in the soil column (kg m-2)
-   iLayerHeight       => in_surfaceFlx % iLayerHeight,       & ! height at the interface of each layer (m)
+   iLayerHeight       => in_surfaceFlx % iLayerHeight,       & ! height at the interface of each layer for soil layers only (m)
    theta_sat          => in_surfaceFlx % theta_sat           & ! soil porosity (-)
   &)
    S1=scalarTotalSoilLiq/iden_water       ! total water content in upper FUSE layer (m)
@@ -1179,7 +1179,7 @@ contains
   associate(&
    nSoil              => in_surfaceFlx % nSoil,              & ! number of soil layers
    scalarTotalSoilLiq => in_surfaceFlx % scalarTotalSoilLiq, & ! total liquid water in the soil column (kg m-2)
-   iLayerHeight       => in_surfaceFlx % iLayerHeight,       & ! height at the interface of each layer (m)
+   iLayerHeight       => in_surfaceFlx % iLayerHeight,       & ! height at the interface of each layer for soil layers only (m)
    theta_sat          => in_surfaceFlx % theta_sat           & ! soil porosity (-)
   &)
    S1=scalarTotalSoilLiq/iden_water       ! total water content in upper FUSE layer (m)
@@ -1610,7 +1610,7 @@ contains
    mLayerdPsi_dTheta      => in_surfaceFlx % mLayerdPsi_dTheta      , & ! ... the soil water characteristic w.r.t. theta (m)
    ! input: depth of upper-most soil layer (m)
    mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of upper-most soil layer (m)
-   iLayerHeight => in_surfaceFlx % iLayerHeight , & ! height at the interface of each layer (m)
+   iLayerHeight => in_surfaceFlx % iLayerHeight , & ! height at the interface of each layer for soil layers only (m)
    ! input: soil parameters
    rootingDepth        => in_surfaceFlx % rootingDepth & ! rooting depth (m)
   &)
