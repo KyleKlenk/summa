@@ -80,6 +80,10 @@ USE mDecisions_module,only:   &
   freeDrainage,               & ! free drainage
   liquidFlux,                 & ! liquid water flux
   zeroFlux,                   & ! zero flux
+  zero_IE,                    & ! zero infiltration excess surface runoff parameterization 
+  zero_SE,                    & ! zero saturation excess surface runoff parameterization 
+  homegrown_IE,               & ! homegrown infiltration excess surface runoff parameterization 
+  homegrown_SE,               & ! homegrown saturation excess surface runoff parameterization 
   FUSEPRMS,                   & ! FUSE PRMS     surface runoff parameterization 
   FUSEAVIC,                   & ! FUSE ARNO/VIC surface runoff parameterization
   FUSETOPM,                   & ! FUSE TOPMODEL surface runoff parameterization 
@@ -990,7 +994,9 @@ contains
 
   associate(&
    ! input: model control
-   bc_upper => in_surfaceFlx % bc_upper, & ! index defining the type of boundary conditions
+   bc_upper   => in_surfaceFlx % bc_upper,   & ! index defining the type of boundary conditions
+   surfRun_IE => in_surfaceFlx % surfRun_IE, & ! index defining the infiltration excess surface runoff method
+   surfRun_SE => in_surfaceFlx % surfRun_SE, & ! index defining the saturation excess surface runoff method
    ! output: error control
    err      => out_surfaceFlx % err    , & ! error code
    message  => out_surfaceFlx % message  & ! error message
@@ -1003,16 +1009,38 @@ contains
        call update_surfaceFlx_prescribedHead; if (return_flag) return 
  
      case(liquidFlux)     ! flux condition
-       call update_surfaceFlx_liquidFlux;     if (return_flag) return 
+
+       select case(surfRun_IE) ! infiltration excess surface runoff
+         case(zero_IE)         ! zero infiltration excess surface runoff
+
+         case(homegrown_IE)    ! homegrown infiltration excess surface runoff
+           call update_surfaceFlx_liquidFlux;     if (return_flag) return 
+
+         case default
+           err=20; message=trim(message)//'unknown infiltration excess surface runoff method';
+           return_flag=.true.; return
+       end select
+
+       select case(surfRun_SE) ! saturation excess surface runoff
+         case(zero_SE)         ! zero saturation excess surface runoff
+
+         case(homegrown_SE)    ! homegrown saturation excess surface runoff
+           call update_surfaceFlx_liquidFlux;     if (return_flag) return 
+
+         case(FUSEPRMS)        ! FUSE PRMS surface runoff
+           call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return 
+
+         case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff
+           call update_surfaceFlx_FUSE_ARNO_VIC;  if (return_flag) return
+
+         case(FUSETOPM)        ! FUSE TOPMODEL surface runoff
+           call update_surfaceFlx_FUSE_TOPMODEL;  if (return_flag) return
+         case default
+           err=20; message=trim(message)//'unknown saturation excess surface runoff method';
+           return_flag=.true.; return
+       end select
+
  
-     case(FUSEPRMS)       ! FUSE PRMS surface runoff
-       call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return 
-
-     case(FUSEAVIC)       ! FUSE ARNO/VIC surface runoff
-       call update_surfaceFlx_FUSE_ARNO_VIC;  if (return_flag) return
-
-     case(FUSETOPM)       ! FUSE TOPMODEL surface runoff
-       call update_surfaceFlx_FUSE_TOPMODEL;  if (return_flag) return
 
      case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
  
