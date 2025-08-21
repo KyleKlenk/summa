@@ -693,32 +693,24 @@ subroutine mDecisions(err,message)
   end select
 
   ! choice of method for infiltration excess surface runoff
-  ! NOTE: use homegrown surface runoff procedure as the default, where infiltration excess surface runoff method is undefined (not populated yet)
+  ! NOTE: use homegrown surface runoff procedure as the default
   select case(trim(model_decisions(iLookDECISIONS%surfRun_IE)%cDecision))
     case('zero_IE'); model_decisions(iLookDECISIONS%surfRun_IE)%iDecision = zero_IE           ! infiltration excess surface runoff is zero
-    case('homegrown_IE'); model_decisions(iLookDECISIONS%surfRun_IE)%iDecision = homegrown_IE ! use SUMMA's homegrown surface runoff procedure for infiltration excess runoff
+    case('homegrown_IE','notPopulatedYet'); model_decisions(iLookDECISIONS%surfRun_IE)%iDecision = homegrown_IE ! use SUMMA's homegrown surface runoff procedure for infiltration excess runoff
     case default
-      if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive') then
-        model_decisions(iLookDECISIONS%surfRun_IE)%iDecision = homegrown_IE ! included for backwards compatibility
-      else
-        err=10; message=trim(message)//"unknown option for infiltration excess surface runoff method [option="//trim(model_decisions(iLookDECISIONS%surfRun_IE)%cDecision)//"]"; return
-      end if
+      err=10; message=trim(message)//"unknown option for infiltration excess surface runoff method [option="//trim(model_decisions(iLookDECISIONS%surfRun_IE)%cDecision)//"]"; return
   end select
 
   ! choice of method for saturation excess surface runoff
-  ! NOTE: use homegrown surface runoff procedure as the default, where saturation excess surface runoff method is undefined (not populated yet)
+  ! NOTE: use homegrown surface runoff procedure as the default
   select case(trim(model_decisions(iLookDECISIONS%surfRun_SE)%cDecision))
     case('zero_SE'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = zero_SE           ! saturation excess surface runoff is zero
-    case('homegrown_SE'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = homegrown_SE ! use SUMMA's homegrown surface runoff procedure for saturation excess runoff
+    case('homegrown_SE','notPopulatedYet'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = homegrown_SE ! use SUMMA's homegrown surface runoff procedure for saturation excess runoff
     case('FUSEPRMS'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = FUSEPRMS ! use FUSE PRMS for saturation excess surface runoff
     case('FUSEAVIC'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = FUSEAVIC ! use FUSE ARNO/VIC for saturation excess surface runoff
     case('FUSETOPM'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = FUSETOPM ! use FUSE TOPMODEL for saturation excess surface runoff
     case default
-      if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive') then
-        model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = homegrown_SE ! included for backwards compatibility
-      else
-        err=10; message=trim(message)//"unknown option for saturation excess surface runoff method [option="//trim(model_decisions(iLookDECISIONS%surfRun_SE)%cDecision)//"]"; return
-      end if
+      err=10; message=trim(message)//"unknown option for saturation excess surface runoff method [option="//trim(model_decisions(iLookDECISIONS%surfRun_SE)%cDecision)//"]"; return
   end select
 
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
