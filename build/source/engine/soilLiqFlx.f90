@@ -1079,14 +1079,17 @@ contains
    ! note: all of these would need to be recomputed if wanted a numerical derivative
    above_soilLiqFluxDeriv => in_surfaceFlx % above_soilLiqFluxDeriv , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. liquid water
    above_soildLiq_dTk     => in_surfaceFlx % above_soildLiq_dTk     , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. temperature
-   above_soilFracLiq      => in_surfaceFlx % above_soilFracLiq        & ! ... liquid water layer above soil (canopy or snow) (-)
+   above_soilFracLiq      => in_surfaceFlx % above_soilFracLiq        & ! fraction of liquid water layer above soil (canopy or snow) (-)
   &)
    ! derivatives of rain plus melt ...
+   ! for the layer above soil (does not depend on form of Richards' equation)
    dRPM_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq  ! ... w.r.t hydrology state variables
    dRPM_dTk(0)  = above_soilLiqFluxDeriv*above_soildLiq_dTk ! ... w.r.t energy state variables
+   ! for soil layers (zero for moisture and mixed forms of Richards' equation)
    dRPM_dWat(1:nSoil) = 0._rkind ! ... w.r.t hydrology state variables
    dRPM_dTk(1:nSoil)  = 0._rkind ! ... w.r.t energy state variables
   end associate
+
  end subroutine update_rain_plus_melt_derivatives
 
  subroutine update_gather_runoff_components
@@ -1230,6 +1233,9 @@ contains
   &)
    ! * compute the derivatives for surface infiltration *
    ! compute the hydrology derivative at the surface
+   ! Infil = p - p*Ac
+   ! note: derivative of left-hand p value included externally
+   ! note: rain plus melt derivatives are zero in soil layers
    select case(ixRichards)  ! select form of Richards' equation
      case(moisture) ! w.r.t water content
       if (S1<S1_T_max) then
@@ -1240,7 +1246,7 @@ contains
      case(mixdform) ! w.r.t pressure head
       if (S1<S1_T_max) then
        ! evaluate using the chain rule (tranforms dq_dTheta into dq_dPsi)
-       dq_dHydStateVec_SE(1) = -p*Ac_max/S1_T_max &
+       dq_dHydStateVec_SE(1) = ( -p*Ac_max/S1_T_max ) &
                              & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
       else
        dq_dHydStateVec_SE(1) = 0._rkind
@@ -1313,9 +1319,12 @@ contains
   &)
    ! * compute the derivatives for surface infiltration *
    ! compute the hydrology derivative at the surface
+   ! Infil = p - p*Ac
+   ! note: derivative of left-hand p value included externally
+   ! note: rain plus melt derivatives are zero in soil layers
    select case(ixRichards)  ! select form of Richards' equation
      case(moisture); dq_dHydStateVec_SE(1) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) ! w.r.t. moisture content 
-     case(mixdform); dq_dHydStateVec_SE(1) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) &
+     case(mixdform); dq_dHydStateVec_SE(1) = ( (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) ) &
                                            & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! w.r.t. pressure head
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
    end select
@@ -1478,6 +1487,7 @@ contains
    ! * compute the derivatives for surface infiltration *
    ! compute the hydrology derivative at the surface
    ! note: infiltration depends on water content in the aquifer, which is presumed to not explicitly depend on hydrology state variables
+   ! note: rain plus melt derivatives are zero in soil layers
    select case(ixRichards)  ! select form of Richards' equation
      case(moisture); dq_dHydStateVec_SE(1) = 0._rkind 
      case(mixdform); dq_dHydStateVec_SE(1) = 0._rkind 
@@ -1843,7 +1853,7 @@ contains
    ! note: all of these would need to be recomputed if wanted a numerical derivative
    above_soilLiqFluxDeriv => in_surfaceFlx % above_soilLiqFluxDeriv , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. liquid water
    above_soildLiq_dTk     => in_surfaceFlx % above_soildLiq_dTk     , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. temperature
-   above_soilFracLiq      => in_surfaceFlx % above_soilFracLiq      , & ! ... liquid water layer above soil (canopy or snow) (-)
+   above_soilFracLiq      => in_surfaceFlx % above_soilFracLiq      , & ! fraction of liquid water layer above soil (canopy or snow) (-)
    ! input: flux at the upper boundary
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt , & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
    ! input: soil parameters
@@ -1878,7 +1888,7 @@ contains
      dInfilRate_dWat(1:nSoil) = dxMaxInfilRate_dWat(:)
      dInfilRate_dTk(1:nSoil)  = dxMaxInfilRate_dTk(:)
    else ! = dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp
-     dInfilRate_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq
+     dInfilRate_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq 
      dInfilRate_dTk(0)  = above_soilLiqFluxDeriv*above_soildLiq_dTk
      dInfilRate_dWat(1:nSoil) = 0._rkind
      dInfilRate_dTk(1:nSoil)  = 0._rkind
