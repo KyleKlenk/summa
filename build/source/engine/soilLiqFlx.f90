@@ -1151,6 +1151,7 @@ contains
 
  subroutine update_surfaceFlx_FUSE_PRMS
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- PRMS ****
+  use soil_utils_module,only:LogSumExp ! smooth max/min
   ! input
   real(rkind) :: Ac_max   ! maximum saturated area (-)
   real(rkind) :: phi_tens ! fraction of total storage as tension storage (m)
@@ -1163,6 +1164,8 @@ contains
   real(rkind) :: S1_T     ! tension water content in upper soil layer (m)
   real(rkind) :: S1_T_max ! maximum tension water content in upper soil layer (m)
   real(rkind) :: qsx             ! surface runoff (m s-1)
+  real(rkind),parameter :: alpha_LSE=50._rkind ! smoothness parameter for LSE smoother function
+  integer(i4b):: err_LSE ! LSE error code -- SJT: take out
 
   ! validation of parameters
   associate(&
@@ -1194,8 +1197,18 @@ contains
   end associate
 
   ! compute tension water content
-  S1_T_max=phi_tens*S1_max
-  S1_T=min(S1,S1_T_max) ! ------------------------- SJT: do we need to update this (and derivatives below) to not use the min function?
+  associate(&
+   ! output: error control
+   err     => out_surfaceFlx % err    , & ! error code
+   message => out_surfaceFlx % message  & ! error message
+  &)
+   S1_T_max=phi_tens*S1_max
+   !S1_T=min(S1,S1_T_max) 
+   S1_T=LogSumExp(-alpha_LSE,[S1,S1_T_max],err) ! smooth approximation to S1_T=min(S1,S1_T_max)
+   if (err /= 0) then
+    err=10; message=trim(message)//"FUSE PRMS surface runoff: error in LogSumExp"; return_flag=.true.; return
+   end if
+  end associate
 
   ! compute saturated area
   Ac = (S1_T/S1_T_max)*Ac_max
