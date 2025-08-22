@@ -50,6 +50,7 @@ public::dTheta_dTk
 public::crit_soilT
 public::liquidHead
 public::gammp,gammp_complex
+public::LogSumExp
 
 ! constant parameters
 real(rkind),parameter     :: dx=-1.e-12_rkind             ! finite difference increment
@@ -810,5 +811,35 @@ function gser_complex(a,x,gln)
    gser_complex=summ*exp(-x-log_gamma(a))*cmplx(x,0._rkind,rkind)**a ! allows x<0
   end if
 end function gser_complex
+
+! ******************************************************************************************************************************
+! public function LogSumExp: LSE (or RealSoftMax) function used for smooth approximations of max or min functions
+! ******************************************************************************************************************************
+function LogSumExp(alpha,x,err) result(LSE)
+  use, intrinsic :: ieee_arithmetic,only:ieee_value,ieee_quiet_nan
+  implicit none
+  ! input
+  real(rkind),intent(in) :: alpha ! smoothness parameter (LSE --> max as alpha --> +Inf, LSE --> min as alpha --> -Inf)
+  real(rkind),intent(in) :: x(:)  ! vector of input values
+  ! output
+  real(rkind)              :: LSE ! LogSumExp value 
+  integer(i4b),intent(out) :: err ! error code
+  ! local variables
+  real(rkind) :: x_star ! shift value for numerical stability
+
+  err = 0_i4b ! initialize error code
+
+  ! validation of input parameters
+  if (alpha == 0._rkind) then
+   err = 20_i4b ! positive error code to indicate failure
+   LSE = ieee_value(0._rkind,ieee_quiet_nan) ! assign NaN return value
+   return
+  end if
+
+  ! shift value to improve numerical stability
+  x_star = maxval(abs(x))
+
+  LSE=( alpha*x_star + log(sum(exp(alpha*(x-x_star)))) )/alpha
+end function LogSumExp
 
 end module soil_utils_module
