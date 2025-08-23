@@ -1151,7 +1151,8 @@ contains
 
  subroutine update_surfaceFlx_FUSE_PRMS
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- PRMS ****
-  use soil_utils_module,only:LogSumExp ! smooth max/min
+  use soil_utils_module,only:LogSumExp  ! smooth max/min
+  use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
   ! input
   real(rkind) :: Ac_max   ! maximum saturated area (-)
   real(rkind) :: phi_tens ! fraction of total storage as tension storage (m)
@@ -1163,9 +1164,14 @@ contains
   real(rkind) :: S1_max   ! Maximum storage in the upper layer (m)
   real(rkind) :: S1_T     ! tension water content in upper soil layer (m)
   real(rkind) :: S1_T_max ! maximum tension water content in upper soil layer (m)
-  real(rkind) :: qsx             ! surface runoff (m s-1)
+  real(rkind) :: qsx      ! surface runoff (m s-1)
   real(rkind),parameter :: alpha_LSE=50._rkind ! smoothness parameter for LSE smoother function
-  integer(i4b):: err_LSE ! LSE error code -- SJT: take out
+  real(rkind) :: dWat_dz  ! approximate derivative of water content w.r.t vertical position
+  real(rkind) :: dS1_dWat ! derivative of S1 w.r.t. water content
+  real(rkind),allocatable :: S1_T_derivatives(:) ! array of derivatives for S1
+  real(rkind) :: dS1_T_dS1  ! derivative of S1_T w.r.t S1
+  real(rkind) :: dS1_T_dWat ! derivative of S1_T w.r.t water content
+  real(rkind) :: dAc_dWat   ! derivative of Ac w.r.t water content 
 
   ! validation of parameters
   associate(&
@@ -1203,7 +1209,6 @@ contains
    message => out_surfaceFlx % message  & ! error message
   &)
    S1_T_max=phi_tens*S1_max
-   !S1_T=min(S1,S1_T_max) 
    S1_T=LogSumExp(-alpha_LSE,[S1,S1_T_max],err) ! smooth approximation to S1_T=min(S1,S1_T_max)
    if (err /= 0) then
     err=10; message=trim(message)//"FUSE PRMS surface runoff: error in LogSumExp"; return_flag=.true.; return
@@ -1230,9 +1235,13 @@ contains
   ! compute flux derivatives
   associate(&
    ! input: model control
-   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   nSoil          => in_surfaceFlx % nSoil,      & ! number of soil layers
+   ixRichards     => in_surfaceFlx % ixRichards, & ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
+   iLayerHeight     => in_surfaceFlx % iLayerHeight , & ! height at the interface of each layer for soil layers only (m)
+   mLayerDepth      => in_surfaceFlx % mLayerDepth,      & ! depth of upper-most soil layer (m)
    scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
+   mLayerVolFracLiq => in_surfaceFlx % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
    ! input: soil parameters
    vGn_alpha           => in_surfaceFlx % vGn_alpha           , & ! van Genuchten "alpha" parameter (m-1)
    vGn_n               => in_surfaceFlx % vGn_n               , & ! van Genuchten "n" parameter (-)
@@ -1243,6 +1252,14 @@ contains
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
+   ! compute surface derivatives needed for surface infiltration derivative
+   dWat_dz  = (mLayerVolFracLiq(2) - mLayerVolFracLiq(1)) / mLayerDepth(1) ! approximate derivative of water content w.r.t vertical position
+   dS1_dWat = 1._rkind !scalarVolFracLiq / dWat_dz                                   ! derivative of S1 w.r.t. water content (note: dS1 = Wat(z)*dz) 
+   S1_T_derivatives = SoftArgMax(-alpha_LSE,[S1,S1_T_max])                 ! compute vector of derivatives for S1_T
+   dS1_T_dS1  = S1_T_derivatives(1)                                        ! extract S1_T derivative w.r.t S1
+   dS1_T_dWat = dS1_T_dS1 * dS1_dWat                                       ! derivative of S1_T w.r.t water content
+   dAc_dWat   = (dS1_T_dWat/S1_T_max)*Ac_max                               ! derivative of Ac w.r.t water content 
+
    ! * compute the derivatives for surface infiltration *
    ! compute the hydrology derivative at the surface
    ! Infil = p - p*Ac
@@ -1250,19 +1267,11 @@ contains
    ! note: rain plus melt derivatives are zero in soil layers
    select case(ixRichards)  ! select form of Richards' equation
      case(moisture) ! w.r.t water content
-      if (S1<S1_T_max) then
-       dq_dHydStateVec_SE(1) = -p*Ac_max/S1_T_max
-      else  
-       dq_dHydStateVec_SE(1) = 0._rkind
-      end if 
+      dq_dHydStateVec_SE(1) = -p*dAc_dWat
      case(mixdform) ! w.r.t pressure head
-      if (S1<S1_T_max) then
-       ! evaluate using the chain rule (tranforms dq_dTheta into dq_dPsi)
-       dq_dHydStateVec_SE(1) = ( -p*Ac_max/S1_T_max ) &
+      ! evaluate using the chain rule (tranforms dq_dTheta into dq_dPsi)
+      dq_dHydStateVec_SE(1) = ( -p*dAc_dWat ) &
                              & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-      else
-       dq_dHydStateVec_SE(1) = 0._rkind
-      end if 
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
    end select
    ! compute the energy derivative at the surface
