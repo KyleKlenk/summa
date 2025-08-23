@@ -51,6 +51,7 @@ public::crit_soilT
 public::liquidHead
 public::gammp,gammp_complex
 public::LogSumExp
+public::SoftArgMax
 
 ! constant parameters
 real(rkind),parameter     :: dx=-1.e-12_rkind             ! finite difference increment
@@ -841,5 +842,26 @@ function LogSumExp(alpha,x,err) result(LSE)
 
   LSE=( alpha*x_star + log(sum(exp(alpha*(x-x_star)))) )/alpha
 end function LogSumExp
+
+! ******************************************************************************************************************************
+! public function SoftArgMax: SoftArgMax (aliases: softmax, normalized exponential) function for smooth approximations to argument max or min
+! ******************************************************************************************************************************
+! Note: Can be used to evaluate the derivatives of LogSumExp
+! dLogSumExp(alpha,x)_dx(i) = SoftArgMax(alpha,x)
+function SoftArgMax(alpha,x) result(SAM)
+  implicit none
+  ! input
+  real(rkind),intent(in) :: alpha ! smoothness parameter (SAM --> arg max as alpha --> +Inf, SAM --> arg min as alpha --> -Inf)
+  real(rkind),intent(in) :: x(:) ! vector of input values
+  ! output
+  real(rkind),allocatable  :: SAM(:) ! SoftArgMax value 
+  ! local variables
+  real(rkind) :: x_star ! shift value for numerical stability
+
+  ! shift value to improve numerical stability
+  x_star = maxval(abs(x))
+
+  SAM = exp(alpha*(x-x_star)) / sum(exp(alpha*(x-x_star)))
+end function
 
 end module soil_utils_module
