@@ -1086,44 +1086,55 @@ contains
   ! compute flux derivatives
   associate(&
    ! input: model control
-   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ixRichards          => in_surfaceFlx % ixRichards          , & ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
-   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
-   ! input: soil parameters
-   vGn_alpha           => in_surfaceFlx % vGn_alpha           , & ! van Genuchten "alpha" parameter (m-1)
-   vGn_n               => in_surfaceFlx % vGn_n               , & ! van Genuchten "n" parameter (-)
-   vGn_m               => in_surfaceFlx % vGn_m               , & ! van Genuchten "m" parameter (-)
-   theta_sat           => in_surfaceFlx % theta_sat           , & ! soil porosity (-)
-   theta_res           => in_surfaceFlx % theta_res           , & ! soil residual volumetric water content (-)
+   nSoil               => in_surfaceFlx % nSoil               , & ! number of soil layers
+   mLayerTemp          => in_surfaceFlx % mLayerTemp          , & ! temperature (K)
+   mLayerMatricHead    => in_surfaceFlx % mLayerMatricHead    , & ! matric head in each soil layer (m)
+   mLayerVolFracLiq    => in_surfaceFlx % mLayerVolFracLiq    , & ! volumetric liquid water content in each soil layer (-)
+   ! input: pre-computed derivatives in ...
+   dTheta_dTk          => in_surfaceFlx % dTheta_dTk          , & ! ... volumetric liquid water content w.r.t. temperature (K-1)
+   dTheta_dPsi         => in_surfaceFlx % dTheta_dPsi         , & ! ... the soil water characteristic w.r.t. psi (m-1)
+   above_soilLiqFluxDeriv => in_surfaceFlx % above_soilLiqFluxDeriv , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+   above_soildLiq_dTk     => in_surfaceFlx % above_soildLiq_dTk     , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. temperature
+   above_soilFracLiq      => in_surfaceFlx % above_soilFracLiq      , & ! ... liquid water layer above soil (canopy or snow) (-)
+   ! input: depth of soil layers (m)
+   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of upper-most soil layer (m)
+   
    ! output: derivatives in surface infiltration w.r.t. ...
    dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
-   ! output: error control
-   err     => out_surfaceFlx % err    , & ! error code
-   message => out_surfaceFlx % message  & ! error message
+   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
   &)
    ! * compute the derivatives for surface infiltration *
-   ! compute the hydrology derivative at the surface
-   select case(ixRichards)  ! select form of Richards' equation
-     case(moisture) ! w.r.t water content
-      if (S1<S1_T_max) then
-       dq_dHydStateVec(1) = -p*Ac_max/S1_T_max
-      else  
-       dq_dHydStateVec(1) = 0._rkind
-      end if 
-     case(mixdform) ! w.r.t matric head
-      if (S1<S1_T_max) then
-       ! evaluate using the chain rule (tranforms dq_dTheta into dq_dPsi)
-       dq_dHydStateVec(1) = -p*Ac_max/S1_T_max &
-                          & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-      else
-       dq_dHydStateVec(1) = 0._rkind
-      end if 
-     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-   end select
-   ! compute the energy derivative at the surface
-   ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-   dq_dNrgStateVec(1) = 0._rkind
+   ! process liquid  derivatives
+   dVolFracLiq_dWat(:) = 0._rkind
+   dVolFracLiq_dTk(:)  = 0._rkind
+   select case(ixRichards)  ! form of Richards' equation
+    case(moisture)
+      dVolFracLiq_dWat(:) = 1._rkind
+    case(mixdform)
+      do iLayer=1,nSoil
+        Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
+        if (mLayerTemp(iLayer) < Tcrit) then
+          dVolFracLiq_dWat(iLayer) = 0._rkind
+        else
+          dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
+        end if
+      end do
+   end select 
+   dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
+
+   ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob module
+   if (S1<S1_T_max) then
+    dq_dHydStateVec(1:nSoil) = -p*Ac_max/S1_T_max * dVolFracLiq_dWat(:)*mLayerDepth(:)
+   else  
+    dq_dHydStateVec(1:nSoil) = 0._rkind
+   end if 
+   ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   dq_dNrgStateVec(1:nSoil) = -p*Ac_max/S1_T_max * dVolFracLiq_dTk(:)*mLayerDepth(:)
+   ! * dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp
+   dq_dHydStateVec(0) = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soilFracLiq
+   dq_dNrgStateVec(0)  = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soildLiq_dTk
   end associate
 
   ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
@@ -1203,33 +1214,51 @@ contains
   ! compute flux derivatives
   associate(&
    ! input: model control
-   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: model control
+   ixRichards          => in_surfaceFlx % ixRichards          , & ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
-   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
-   ! input: soil parameters
-   vGn_alpha           => in_surfaceFlx % vGn_alpha           , & ! van Genuchten "alpha" parameter (m-1)
-   vGn_n               => in_surfaceFlx % vGn_n               , & ! van Genuchten "n" parameter (-)
-   vGn_m               => in_surfaceFlx % vGn_m               , & ! van Genuchten "m" parameter (-)
-   theta_sat           => in_surfaceFlx % theta_sat           , & ! soil porosity (-)
-   theta_res           => in_surfaceFlx % theta_res           , & ! soil residual volumetric water content (-)
+   nSoil               => in_surfaceFlx % nSoil               , & ! number of soil layers
+   mLayerTemp          => in_surfaceFlx % mLayerTemp          , & ! temperature (K)
+   mLayerMatricHead    => in_surfaceFlx % mLayerMatricHead    , & ! matric head in each soil layer (m)
+   mLayerVolFracLiq    => in_surfaceFlx % mLayerVolFracLiq    , & ! volumetric liquid water content in each soil layer (-)
+   ! input: pre-computed derivatives in ...
+   dTheta_dTk          => in_surfaceFlx % dTheta_dTk          , & ! ... volumetric liquid water content w.r.t. temperature (K-1)
+   dTheta_dPsi         => in_surfaceFlx % dTheta_dPsi         , & ! ... the soil water characteristic w.r.t. psi (m-1)
+   above_soilLiqFluxDeriv => in_surfaceFlx % above_soilLiqFluxDeriv , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+   above_soildLiq_dTk     => in_surfaceFlx % above_soildLiq_dTk     , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. temperature
+   above_soilFracLiq      => in_surfaceFlx % above_soilFracLiq      , & ! ... liquid water layer above soil (canopy or snow) (-)
+   ! input: depth of soil layers (m)
+   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of upper-most soil layer (m)
    ! output: derivatives in surface infiltration w.r.t. ...
    dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
-   ! output: error control
-   err     => out_surfaceFlx % err    , & ! error code
-   message => out_surfaceFlx % message  & ! error message
+   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
   &)
    ! * compute the derivatives for surface infiltration *
-   ! compute the hydrology derivative at the surface
-   select case(ixRichards)  ! select form of Richards' equation
-     case(moisture); dq_dHydStateVec(1) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) ! w.r.t. moisture content 
-     case(mixdform); dq_dHydStateVec(1) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) &
-                                        & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! w.r.t. matric head
-     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-   end select
-   ! compute the energy derivative at the surface
-   ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-   dq_dNrgStateVec(1) = 0._rkind
+   ! process liquid  derivatives
+   dVolFracLiq_dWat(:) = 0._rkind
+   dVolFracLiq_dTk(:)  = 0._rkind
+   select case(ixRichards)  ! form of Richards' equation
+    case(moisture)
+      dVolFracLiq_dWat(:) = 1._rkind
+    case(mixdform)
+      do iLayer=1,nSoil
+        Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
+        if (mLayerTemp(iLayer) < Tcrit) then
+          dVolFracLiq_dWat(iLayer) = 0._rkind
+        else
+          dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
+        end if
+      end do
+   end select 
+   dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
+
+   ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob module
+   dq_dHydStateVec(1:nSoil) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) * dVolFracLiq_dWat(:)*mLayerDepth(:)
+   ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   dq_dNrgStateVec(1:nSoil) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) * dVolFracLiq_dTk(:)*mLayerDepth(:)
+   ! * dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp
+   dq_dHydStateVec(0) = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soilFracLiq
+   dq_dNrgStateVec(0)  = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soildLiq_dTk
   end associate
 
   ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
@@ -1248,31 +1277,26 @@ contains
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
 
   ! * local variables *
-
   ! runoff and infiltration variables
   real(rkind) :: p            ! precipitation (m s-1)
   real(rkind) :: Ac           ! saturated area (-)
   real(rkind) :: qsx          ! surface runoff (m s-1)
   real(rkind) :: infiltration ! surface infiltration (m s-1)
-
   ! FUSE parameters and variables
   real(rkind) :: lambda ! mean
   real(rkind) :: chi    ! scale
   real(rkind) :: mu     ! offset
   real(rkind) :: phi    ! shape (computed from other parameters)
-  
   ! Gamma distribution parameters and variables
   real(rkind) :: alpha  ! shape
   real(rkind) :: theta  ! scale
   real(rkind) :: x_crit ! critical x (random variable) value
-
   ! topographic index variables
   real(rkind),parameter :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
   real(rkind) :: zeta_crit_n ! critical topographic index value (power-transfomred)
   real(rkind) :: zeta_crit   ! critical topographic index value (log space)
   complex(rkind) :: F1,F2    ! temporary storage for regularized incomplete gamma function values
   complex(rkind) :: lambda_n ! mean of the power-transformed topographic index
-
   ! lower FUSE layer variables
   real(rkind) :: S2_max ! max storage in lower layer (m)
   real(rkind) :: S2     ! total water content in lower layer (m)
@@ -1417,8 +1441,9 @@ contains
   &)
    ! * compute the derivatives for surface infiltration *
    ! note: infiltration depends on water content in the aquifer, which is presumed to not explicitly depend on hydrology state variables
-   dq_dHydStateVec(1) = 0._rkind 
-   dq_dNrgStateVec(1) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   ! BUT THEN ISN'T THERE A DERIVATIVE w.r.t. the aquifer storage???? need to add that
+   dq_dHydStateVec(:) = 0._rkind 
+   dq_dNrgStateVec(:) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
   end associate
 
   ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
@@ -1564,11 +1589,10 @@ contains
    mLayerVolFracLiq    => in_surfaceFlx % mLayerVolFracLiq    , & ! volumetric liquid water content in each soil layer (-)
    mLayerVolFracIce    => in_surfaceFlx % mLayerVolFracIce    , & ! volumetric ice content in each soil layer (-)
    ! input: pre-computed derivatives in ...
-   ! note: all of these would need to be recomputed if wanted a numerical derivative
    dTheta_dTk             => in_surfaceFlx % dTheta_dTk             , & ! ... volumetric liquid water content w.r.t. temperature (K-1)
    dTheta_dPsi            => in_surfaceFlx % dTheta_dPsi            , & ! ... the soil water characteristic w.r.t. psi (m-1)
    mLayerdPsi_dTheta      => in_surfaceFlx % mLayerdPsi_dTheta      , & ! ... the soil water characteristic w.r.t. theta (m)
-   ! input: depth of upper-most soil layer (m)
+   ! input: depth of soil layers (m)
    mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of upper-most soil layer (m)
    iLayerHeight => in_surfaceFlx % iLayerHeight , & ! height at the interface of each layer (m)
    ! input: soil parameters
@@ -1776,7 +1800,6 @@ contains
    ! input: model control
    nSoil          => in_surfaceFlx % nSoil , & ! number of soil layers
    ! input: pre-computed derivatives in ...
-   ! note: all of these would need to be recomputed if wanted a numerical derivative
    above_soilLiqFluxDeriv => in_surfaceFlx % above_soilLiqFluxDeriv , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. liquid water
    above_soildLiq_dTk     => in_surfaceFlx % above_soildLiq_dTk     , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. temperature
    above_soilFracLiq      => in_surfaceFlx % above_soilFracLiq      , & ! ... liquid water layer above soil (canopy or snow) (-)
