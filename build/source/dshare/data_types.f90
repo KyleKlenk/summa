@@ -456,7 +456,6 @@ MODULE data_types
    integer(i4b)             :: nSoil                             ! intent(in):    number of soil layers
    logical(lgt)             :: firstSplitOper                    ! intent(in):    flag indicating first flux call in a splitting operation
    logical(lgt)             :: scalarSolution                    ! intent(in):    flag to indicate the scalar solution
-   logical(lgt)             :: deriv_desired                     ! intent(in):    flag indicating if derivatives are desired
    real(rkind)              :: scalarAquiferStorageTrial         ! intent(in):    trial value of aquifer storage (m)
    real(rkind), allocatable :: mLayerTempTrial(:)                ! intent(in):    trial temperature at the current iteration (K)
    real(rkind), allocatable :: mLayerMatricHeadTrial(:)          ! intent(in):    matric potential (m)
@@ -589,7 +588,6 @@ MODULE data_types
  ! ** diagv_node
  type, public :: in_type_diagv_node ! intent(in) data
    ! input: model control
-   logical(lgt)           :: deriv_desired             ! flag indicating if derivatives are desired
    integer(i4b)           :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
    real(rkind)            :: scalarMatricHeadLiqTrial  ! liquid matric head in each layer (m)
@@ -639,7 +637,6 @@ MODULE data_types
  type, public :: in_type_surfaceFlx ! intent(in) data
    ! input: model control
    logical(lgt) :: firstSplitOper   ! flag indicating if desire to compute infiltration
-   logical(lgt) :: deriv_desired    ! flag to indicate if derivatives are desired
    integer(i4b) :: ixRichards       ! index defining the option for Richards' equation (moisture or mixdform)
    integer(i4b) :: ixInfRateMax     ! index defining the maximum infiltration rate method (GreenAmpt or topmodel_GA)
    integer(i4b) :: bc_upper         ! index defining the type of boundary conditions
@@ -734,7 +731,6 @@ MODULE data_types
  ! ** iLayerFlux
  type, public :: in_type_iLayerFlux ! intent(in) data
    ! input: model control
-   logical(lgt) :: deriv_desired ! flag indicating if derivatives are desired
    integer(i4b) :: ixRichards    ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state variables
    real(rkind),allocatable :: nodeMatricHeadLiqTrial(:) ! liquid matric head at the soil nodes (m)
@@ -778,7 +774,6 @@ MODULE data_types
  ! ** qDrainFlux
  type, public :: in_type_qDrainFlux ! intent(in) data
    ! input: model control
-   logical(lgt) :: deriv_desired             ! flag to indicate if derivatives are desired
    integer(i4b) :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
    integer(i4b) :: bc_lower                  ! index defining the type of boundary conditions
    ! input: state and diagnostic variables
@@ -1296,7 +1291,6 @@ contains
   in_soilLiqFlx % nSoil         =nSoil                                         ! intent(in): number of soil layers
   in_soilLiqFlx % firstSplitOper=firstSplitOper                                ! intent(in): flag indicating first flux call in a splitting operation
   in_soilLiqFlx % scalarSolution=(scalarSolution .and. .not.firstFluxCall)     ! intent(in): flag to indicate the scalar solution
-  in_soilLiqFlx % deriv_desired =.true.                                        ! intent(in): flag indicating if derivatives are desired
 
   ! intent(in) arguments: aquifer variables needed for FUSE parameterizations
   in_soilLiqFlx % scalarAquiferStorageTrial = scalarAquiferStorageTrial        ! intent(in): trial value of aquifer storage (m)
@@ -1641,7 +1635,6 @@ contains
 
   associate(&
    ! intent(in): model control
-   deriv_desired => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
    ixRichards    => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
    ! intent(in): state variables
    mLayerMatricHeadLiqTrial => in_soilLiqFlx % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
@@ -1662,7 +1655,6 @@ contains
    mLayerSatHydCondMP => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat & ! saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
   &)
    ! input: model control
-   in_diagv_node % deriv_desired = deriv_desired ! flag indicating if derivatives are desired
    in_diagv_node % ixRichards    = ixRichards    ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state variables
    in_diagv_node % scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(isoil) ! liquid matric head in each layer (m)
@@ -1746,14 +1738,12 @@ contains
   associate(&
    ! model control
    firstSplitOper         => in_soilLiqFlx % firstSplitOper,                      & ! flag to compute infiltration
-   deriv_desired          => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
    ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
    ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,& ! index defining the type of boundary conditions
    ixInfRateMax           => model_decisions(iLookDECISIONS%infRateMax)%iDecision & ! index of the maximum infiltration rate parameterization
   &)
    ! intent(in): model control
    in_surfaceFlx % firstSplitOper = firstSplitOper          ! flag indicating if desire to compute infiltration
-   in_surfaceFlx % deriv_desired  = deriv_desired           ! flag indicating if derivatives are desired
    in_surfaceFlx % ixRichards     = ixRichards              ! index defining the form of Richards' equation (moisture or mixdform)
    in_surfaceFlx % bc_upper       = ixBcUpperSoilHydrology  ! index defining the type of boundary conditions (Neumann or Dirichlet)
    in_surfaceFlx % ixInfRateMax   = ixInfRateMax            ! index defining the maximum infiltration rate parameterization (GreenAmpt or topmodel_GA)
@@ -1987,7 +1977,6 @@ contains
 
   associate(&
    ! intent(in): model control
-   deriv_desired => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
    ixRichards    => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
    ! intent(in): state variables (adjacent layers)
    mLayerMatricHeadLiqTrial => in_soilLiqFlx % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
@@ -2002,7 +1991,6 @@ contains
    dHydCond_dMatric => io_soilLiqFlx % dHydCond_dMatric & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
   &)
    ! intent(in): model control
-   in_iLayerFlux % deriv_desired = deriv_desired ! flag indicating if derivatives are desired
    in_iLayerFlux % ixRichards    = ixRichards    ! index defining the form of Richards' equation (moisture or mixdform)
    ! intent(in): state variables (adjacent layers)
    in_iLayerFlux % nodeMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(iLayer:iLayer+1) ! liquid matric head at the soil nodes (m)
@@ -2077,7 +2065,6 @@ contains
 
   associate(&
    ! intent(in): model control
-   deriv_desired          => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
    ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
    ixBcLowerSoilHydrology => model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision,& ! index of the lower boundary conditions for soil hydrology
    ! intent(in): state variables
@@ -2106,7 +2093,6 @@ contains
    zScale_TOPMODEL => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1) & ! TOPMODEL scaling factor (m)
   &)
    ! intent(in): model control
-   in_qDrainFlux % deriv_desired = deriv_desired          ! flag indicating if derivatives are desired
    in_qDrainFlux % ixRichards    = ixRichards             ! index defining the form of Richards' equation (moisture or mixdform)
    in_qDrainFlux % bc_lower      = ixBcLowerSoilHydrology ! index defining the type of boundary conditions
    ! intent(in): state variables
