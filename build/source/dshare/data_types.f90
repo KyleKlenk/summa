@@ -595,7 +595,7 @@ MODULE data_types
    real(rkind)            :: scalarMatricHeadLiqTrial  ! liquid matric head in each layer (m)
    real(rkind)            :: scalarVolFracLiqTrial     ! volumetric fraction of liquid water in a given layer (-)
    real(rkind)            :: scalarVolFracIceTrial     ! volumetric fraction of ice in a given layer (-)
-   ! input: pre-computed deriavatives
+   ! input: pre-computed derivatives
    real(rkind)            :: dTheta_dTk                ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
    real(rkind)            :: dPsiLiq_dTemp             ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input: soil parameters
@@ -1782,7 +1782,7 @@ contains
   end associate
 
   associate(&
-   ! pre-computed deriavatives
+   ! pre-computed derivatives
    mLayerdTheta_dTk       => in_soilLiqFlx % mLayerdTheta_dTk,      & ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
    mLayerdTheta_dPsi      => io_soilLiqFlx % mLayerdTheta_dPsi,     & ! derivative in the soil water characteristic w.r.t. psi (m-1)
    mLayerdPsi_dTheta      => io_soilLiqFlx % mLayerdPsi_dTheta,     & ! derivative in the soil water characteristic w.r.t. theta (m)
@@ -1790,7 +1790,7 @@ contains
    above_soildLiq_dTk     => in_soilLiqFlx % above_soildLiq_dTk,    & ! derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
    above_soilFracLiq      => in_soilLiqFlx % above_soilFracLiq      & ! fraction of liquid water layer above soil (canopy or snow) (-)
   &)
-   ! intent(in): pre-computed deriavatives
+   ! intent(in): pre-computed derivatives
    in_surfaceFlx % dTheta_dTk             = mLayerdTheta_dTk       ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
    in_surfaceFlx % dTheta_dPsi            = mLayerdTheta_dPsi      ! derivative in the soil water characteristic w.r.t. psi (m-1)
    in_surfaceFlx % mLayerdPsi_dTheta      = mLayerdPsi_dTheta      ! derivative in the soil water characteristic w.r.t. theta (m)
@@ -1951,7 +1951,7 @@ contains
    scalarSurfaceRunoff_IE    => io_soilLiqFlx % scalarSurfaceRunoff_IE, & ! infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE    => io_soilLiqFlx % scalarSurfaceRunoff_SE, & ! saturation excess surface runoff (m s-1)
    scalarSurfaceInfiltration => io_soilLiqFlx % scalarInfiltration,     & ! surface infiltration rate (m s-1)
-   ! intent(inout): deriavtives in surface infiltration in the upper-most soil layer w.r.t ... 
+   ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t ... 
    dq_dHydStateLayerSurfVec => io_soilLiqFlx % dq_dHydStateLayerSurfVec, & ! ... hydrology state above soil snow or canopy and every soil layer (m s-1 or s-1)
    dq_dNrgStateLayerSurfVec => io_soilLiqFlx % dq_dNrgStateLayerSurfVec  & ! ... temperature above soil snow or canopy and every soil layer (m s-1 or s-1)
   &)
@@ -1960,7 +1960,7 @@ contains
    scalarSurfaceRunoff_IE    = out_surfaceFlx % scalarSurfaceRunoff_IE    ! infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE    = out_surfaceFlx % scalarSurfaceRunoff_SE    ! saturation excess surface runoff (m s-1)
    scalarSurfaceInfiltration = out_surfaceFlx % scalarSurfaceInfiltration ! surface infiltration (m s-1)
-   ! intent(inout): deriavtives in surface infiltration in the upper-most soil layer w.r.t. ...
+   ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t. ...
    dq_dHydStateLayerSurfVec  = out_surfaceFlx % dq_dHydStateVec ! ... hydrology state in above soil snow or canopy and every soil layer  (m s-1 or s-1)
    dq_dNrgStateLayerSurfVec  = out_surfaceFlx % dq_dNrgStateVec ! ... energy state in above soil snow or canopy and every soil layer (m s-1 K-1)
   end associate
@@ -2125,7 +2125,7 @@ contains
    in_qDrainFlux % bottomSatHydCond  = iLayerSatHydCond(nSoil) ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
    in_qDrainFlux % nodeHydCond       = mLayerHydCond(nSoil)    ! hydraulic conductivity at the node itself (m s-1)
    in_qDrainFlux % iceImpedeFac      = iceImpedeFac(nSoil)     ! ice impedence factor in the lower-most soil layer (-)
-   ! intent(in): derivitaives in hydraulic conductivity w.r.t. ...
+   ! intent(in): derivatives in hydraulic conductivity w.r.t. ...
    in_qDrainFlux % dHydCond_dVolLiq = dHydCond_dVolLiq(nSoil) ! ... volumetric liquid water content (m s-1)
    in_qDrainFlux % dHydCond_dMatric = dHydCond_dMatric(nSoil) ! ... matric head (s-1)
    in_qDrainFlux % dHydCond_dTemp   = dHydCond_dTemp(nSoil)   ! ... temperature (m s-1 K-1)
