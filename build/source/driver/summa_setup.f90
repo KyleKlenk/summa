@@ -90,6 +90,7 @@ contains
  USE globalData,only:basinParFallback                        ! basin-average default parameters
  USE globalData,only:model_decisions                         ! model decision structure
  USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
+ USE globalData,only:minExpLogHgt                            ! minimum height of transition from the exponential to the logarithmic wind profile (m)
  ! run time options
  USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
  USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
@@ -258,7 +259,7 @@ contains
  do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
 
-   ! set parmameters to their default value
+   ! set parameters to their default value
    dparStruct%gru(iGRU)%hru(iHRU)%var(:) = localParFallback(:)%default_val         ! x%hru(:)%var(:)
 
    ! overwrite default model parameters with information from the Noah-MP tables
@@ -334,6 +335,9 @@ contains
                           err,cmessage)                              ! intent(out):   error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  
    endif
+
+   ! set the minimum height of transition from the exponential to the logarithmic wind profile (m)
+   minExpLogHgt = 0.02_rkind*sqrt(mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1))
 
    ! overwrite the vegetation height
    HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)
