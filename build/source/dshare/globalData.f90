@@ -203,7 +203,7 @@ MODULE globalData
   type(hru2gru_map),allocatable,save,public      :: index_map(:)                      ! hru2gru map
   ! define variables used for the vegetation phenology
   real(rkind),dimension(12),save,public          :: greenVegFrac_monthly              ! fraction of green vegetation in each month (0-1)
-  real(rkind),save,public                        :: minExpLogHgt                      ! minimum height of transition from the exponential to the logarithmic wind profile (m)
+  real(rkind),save,public                        :: minExpLogHgtFac=0.02_rkind        ! factor for minimum height of transition from the exponential to the logarithmic wind profile
   ! define the model output file
   character(len=256),save,public                 :: fileout=''                        ! output filename
   character(len=256),save,public                 :: output_fileSuffix=''              ! suffix for the output file
