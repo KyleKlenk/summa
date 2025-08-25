@@ -112,6 +112,7 @@ subroutine summa_initialize(summa1_struc, err, message)
   integer(i4b)                          :: iStruct,iGRU       ! looping variables
   integer(i4b)                          :: fileGRU            ! [used for filenames] number of GRUs in the input file
   integer(i4b)                          :: fileHRU            ! [used for filenames] number of HRUs in the input file
+  integer(i4b)                          :: hruCount           ! number of local hydrologic response units
   ! ---------------------------------------------------------------------------------------
   ! associate to elements in the data structure
   summaVars: associate(&
