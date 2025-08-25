@@ -230,7 +230,6 @@ MODULE globalData
   real(rkind),save,public                        :: dJulianFinsh                      ! julian day of end time of simulation
   integer(i4b),save,public                       :: nHRUfile                          ! number of HRUs in the file
   integer(i4b),save,public                       :: urbanVegCategory                  ! vegetation category for urban areas
-  logical(lgt),save,public                       :: doJacobian=.false.                ! flag to compute the Jacobian
   logical(lgt),save,public                       :: globalPrintFlag=.false.           ! flag to compute the Jacobian
   integer(i4b),save,public                       :: chunksize=1024                    ! chunk size for the netcdf read/write
   integer(i4b),save,public                       :: outputPrecision=nf90_double       ! variable type

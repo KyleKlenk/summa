@@ -93,9 +93,6 @@ type, public :: summa1_type_dec
     type(gru_d)                      :: upArea                     ! area upslope of each HRU
 
     ! define miscellaneous variables
-    integer(i4b)                     :: summa1open                 ! flag to define if the summa file is open??
-    integer(i4b)                     :: numout                     ! number of output variables??
-    real(rkind)                         :: ts                         ! model time step ??
     integer(i4b)                     :: nGRU                       ! number of grouped response units
     integer(i4b)                     :: nHRU                       ! number of global hydrologic response units
     integer(i4b)                     :: hruCount                   ! number of local hydrologic response units

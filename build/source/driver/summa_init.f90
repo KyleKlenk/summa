@@ -152,13 +152,9 @@ subroutine summa_initialize(summa1_struc, err, message)
     upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
 
     ! miscellaneous variables
-    summa1open           => summa1_struc%summa1open          , & ! flag to define if the summa file is open??
-    numout               => summa1_struc%numout              , & ! number of output variables??
-    ts                   => summa1_struc%ts                  , & ! model time step ??
     nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
     nHRU                 => summa1_struc%nHRU                , & ! number of global hydrologic response units
     hruCount             => summa1_struc%hruCount            , & ! number of local hydrologic response units
-    greenVegFrac_monthly => summa1_struc%greenVegFrac_monthly, & ! fraction of green vegetation in each month (0-1)
     summaFileManagerFile => summa1_struc%summaFileManagerFile  & ! path/name of file defining directories and files
 
     ) ! assignment to variables in the data structures
