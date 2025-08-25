@@ -95,7 +95,6 @@ type, public :: summa1_type_dec
     ! define miscellaneous variables
     integer(i4b)                     :: nGRU                       ! number of grouped response units
     integer(i4b)                     :: nHRU                       ! number of global hydrologic response units
-    integer(i4b)                     :: hruCount                   ! number of local hydrologic response units
     character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
 
 end type summa1_type_dec

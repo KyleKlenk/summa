@@ -154,7 +154,6 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! miscellaneous variables
     nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
     nHRU                 => summa1_struc%nHRU                , & ! number of global hydrologic response units
-    hruCount             => summa1_struc%hruCount            , & ! number of local hydrologic response units
     summaFileManagerFile => summa1_struc%summaFileManagerFile  & ! path/name of file defining directories and files
 
     ) ! assignment to variables in the data structures
