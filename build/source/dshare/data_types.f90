@@ -1951,7 +1951,7 @@ contains
    scalarSurfaceRunoff_IE    => io_soilLiqFlx % scalarSurfaceRunoff_IE, & ! infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE    => io_soilLiqFlx % scalarSurfaceRunoff_SE, & ! saturation excess surface runoff (m s-1)
    scalarSurfaceInfiltration => io_soilLiqFlx % scalarInfiltration,     & ! surface infiltration rate (m s-1)
-   ! intent(inout): deriavtives in surface infiltration in the upper-most soil layer w.r.t ... 
+   ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t ... 
    dq_dHydStateLayerSurfVec => io_soilLiqFlx % dq_dHydStateLayerSurfVec, & ! ... hydrology state above soil snow or canopy and every soil layer (m s-1 or s-1)
    dq_dNrgStateLayerSurfVec => io_soilLiqFlx % dq_dNrgStateLayerSurfVec  & ! ... temperature above soil snow or canopy and every soil layer (m s-1 or s-1)
   &)
@@ -1960,7 +1960,7 @@ contains
    scalarSurfaceRunoff_IE    = out_surfaceFlx % scalarSurfaceRunoff_IE    ! infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE    = out_surfaceFlx % scalarSurfaceRunoff_SE    ! saturation excess surface runoff (m s-1)
    scalarSurfaceInfiltration = out_surfaceFlx % scalarSurfaceInfiltration ! surface infiltration (m s-1)
-   ! intent(inout): deriavtives in surface infiltration in the upper-most soil layer w.r.t. ...
+   ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t. ...
    dq_dHydStateLayerSurfVec  = out_surfaceFlx % dq_dHydStateVec ! ... hydrology state in above soil snow or canopy and every soil layer  (m s-1 or s-1)
    dq_dNrgStateLayerSurfVec  = out_surfaceFlx % dq_dNrgStateVec ! ... energy state in above soil snow or canopy and every soil layer (m s-1 K-1)
   end associate
