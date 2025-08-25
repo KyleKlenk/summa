@@ -710,8 +710,6 @@ contains
 
   ! computation
   associate(&
-   ! input: model control
-   deriv_desired => in_diagv_node % deriv_desired, & ! flag indicating if derivatives are desired
    ! input: state and diagnostic variables
    scalarVolFracLiqTrial    => in_diagv_node % scalarVolFracLiqTrial   , & ! volumetric fraction of liquid water in a given layer (-)
    scalarVolFracIceTrial    => in_diagv_node % scalarVolFracIceTrial   , & ! volumetric fraction of ice in a given layer (-)
@@ -740,17 +738,15 @@ contains
    scalarHydCond = hydCond_noIce*iceImpedeFac
    scalarDiffuse = scalardPsi_dTheta * scalarHydCond
    ! compute derivative in hydraulic conductivity (m s-1) and hydraulic diffusivity (m2 s-1)
-   if (deriv_desired) then
-     if (scalarVolFracIceTrial > epsilon(iceImpedeFac)) then
-       dK_dLiq__noIce   = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m,.true.)  ! [.true. = analytical]
-       dHydCond_dVolLiq = hydCond_noIce*dIceImpede_dLiq + dK_dLiq__noIce*iceImpedeFac
-     else
-       dHydCond_dVolLiq = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m,.true.)
-     end if
-       dPsi_dTheta2a    = dPsi_dTheta2(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m,.true.)   ! [.true. = analytical] compute derivative in dPsi_dTheta (m)
-       dDiffuse_dVolLiq = dHydCond_dVolLiq*scalardPsi_dTheta + scalarHydCond*dPsi_dTheta2a
-       dHydCond_dMatric = realMissing ! not used, so cause problems
+   if (scalarVolFracIceTrial > epsilon(iceImpedeFac)) then
+     dK_dLiq__noIce   = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m,.true.)  ! [.true. = analytical]
+     dHydCond_dVolLiq = hydCond_noIce*dIceImpede_dLiq + dK_dLiq__noIce*iceImpedeFac
+   else
+     dHydCond_dVolLiq = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m,.true.)
    end if
+   dPsi_dTheta2a    = dPsi_dTheta2(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m,.true.)   ! [.true. = analytical] compute derivative in dPsi_dTheta (m)
+   dDiffuse_dVolLiq = dHydCond_dVolLiq*scalardPsi_dTheta + scalarHydCond*dPsi_dTheta2a
+   dHydCond_dMatric = realMissing ! not used, so cause problems
 
   end associate
  end subroutine update_diagv_node_hydraulic_conductivity_moisture_form
@@ -758,8 +754,6 @@ contains
  subroutine update_diagv_node_hydraulic_conductivity_mixed_form 
   ! **** Update operations for diagv_node: compute hydraulic conductivity and derivatives for mixed form of Richards' equation ****
   associate(&
-   ! input: model control
-   deriv_desired => in_diagv_node % deriv_desired, & ! flag indicating if derivatives are desired
    ! input: state and diagnostic variables
    scalarMatricHeadLiqTrial => in_diagv_node % scalarMatricHeadLiqTrial, & ! liquid matric head in each layer (m)
    scalarVolFracIceTrial    => in_diagv_node % scalarVolFracIceTrial   , & ! volumetric fraction of ice in a given layer (-)
@@ -800,59 +794,42 @@ contains
    scalarHydCond   = hydCond_noIce*iceImpedeFac + scalarHydCondMP
 
    ! compute derivative in hydraulic conductivity (m s-1)
-   if (deriv_desired) then 
-     ! compute derivative for macropores
-     if (localVolFracLiq > theta_mp) then
-       relSatMP              = (localVolFracLiq - theta_mp)/(theta_sat - theta_mp)
-       dHydCondMacro_dVolLiq = ((scalarSatHydCondMP - scalarSatHydCond)/(theta_sat - theta_mp))*mpExp*(relSatMP**(mpExp - 1._rkind))
-       dHydCondMacro_dMatric = scalardTheta_dPsi*dHydCondMacro_dVolLiq
-     else
-       dHydCondMacro_dVolLiq = 0._rkind
-       dHydCondMacro_dMatric = 0._rkind
-     end if
-     ! compute derivatives for micropores
-     if (scalarVolFracIceTrial > verySmaller) then
-       dK_dPsi__noIce        = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)  ! analytical
-       dHydCondMicro_dTemp   = dPsiLiq_dTemp*dK_dPsi__noIce  ! m s-1 K-1
-       dHydCondMicro_dMatric = hydCond_noIce*dIceImpede_dLiq*scalardTheta_dPsi + dK_dPsi__noIce*iceImpedeFac
-     else
-       dHydCondMicro_dTemp   = 0._rkind
-       dHydCondMicro_dMatric = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)
-     end if
-     ! combine derivatives
-     dHydCond_dMatric = dHydCondMicro_dMatric + dHydCondMacro_dMatric
-
-     ! compute analytical derivative for change in ice impedance factor w.r.t. temperature
-     call dIceImpede_dTemp(scalarVolFracIceTrial, & ! intent(in):  trial value of volumetric ice content (-)
-                           dTheta_dTk,            & ! intent(in):  derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                           f_impede,              & ! intent(in):  ice impedance parameter (-)
-                           dIceImpede_dT          ) ! intent(out): derivative in ice impedance factor w.r.t. temperature (K-1)
-     ! compute derivative in hydraulic conductivity w.r.t. temperature
-     dHydCond_dTemp = hydCond_noIce*dIceImpede_dT + dHydCondMicro_dTemp*iceImpedeFac
-     ! set values that are not used to missing
-     dHydCond_dVolLiq = realMissing ! not used, so cause problems
-     dDiffuse_dVolLiq = realMissing ! not used, so cause problems
+   ! compute derivative for macropores
+   if (localVolFracLiq > theta_mp) then
+     relSatMP              = (localVolFracLiq - theta_mp)/(theta_sat - theta_mp)
+     dHydCondMacro_dVolLiq = ((scalarSatHydCondMP - scalarSatHydCond)/(theta_sat - theta_mp))*mpExp*(relSatMP**(mpExp - 1._rkind))
+     dHydCondMacro_dMatric = scalardTheta_dPsi*dHydCondMacro_dVolLiq
+   else
+     dHydCondMacro_dVolLiq = 0._rkind
+     dHydCondMacro_dMatric = 0._rkind
    end if
+   ! compute derivatives for micropores
+   if (scalarVolFracIceTrial > verySmaller) then
+     dK_dPsi__noIce        = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)  ! analytical
+     dHydCondMicro_dTemp   = dPsiLiq_dTemp*dK_dPsi__noIce  ! m s-1 K-1
+     dHydCondMicro_dMatric = hydCond_noIce*dIceImpede_dLiq*scalardTheta_dPsi + dK_dPsi__noIce*iceImpedeFac
+   else
+     dHydCondMicro_dTemp   = 0._rkind
+     dHydCondMicro_dMatric = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)
+   end if
+   ! combine derivatives
+   dHydCond_dMatric = dHydCondMicro_dMatric + dHydCondMacro_dMatric
+
+   ! compute analytical derivative for change in ice impedance factor w.r.t. temperature
+   call dIceImpede_dTemp(scalarVolFracIceTrial, & ! intent(in):  trial value of volumetric ice content (-)
+                         dTheta_dTk,            & ! intent(in):  derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                         f_impede,              & ! intent(in):  ice impedance parameter (-)
+                         dIceImpede_dT          ) ! intent(out): derivative in ice impedance factor w.r.t. temperature (K-1)
+   ! compute derivative in hydraulic conductivity w.r.t. temperature
+   dHydCond_dTemp = hydCond_noIce*dIceImpede_dT + dHydCondMicro_dTemp*iceImpedeFac
+   ! set values that are not used to missing
+   dHydCond_dVolLiq = realMissing ! not used, so cause problems
+   dDiffuse_dVolLiq = realMissing ! not used, so cause problems
 
   end associate
  end subroutine update_diagv_node_hydraulic_conductivity_mixed_form
 
  subroutine finalize_diagv_node
-  ! **** Finalize operations for diagv_node ****
-  associate(&
-   deriv_desired => in_diagv_node % deriv_desired,        & ! flag indicating if derivatives are desired
-   dHydCond_dVolLiq => out_diagv_node % dHydCond_dVolLiq, & ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-   dDiffuse_dVolLiq => out_diagv_node % dDiffuse_dVolLiq, & ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-   dHydCond_dMatric => out_diagv_node % dHydCond_dMatric  & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
-  &)
-   ! if derivatives are not desired, then set values to missing
-   if (.not.deriv_desired) then
-     dHydCond_dVolLiq   = realMissing ! not used, so cause problems
-     dDiffuse_dVolLiq   = realMissing ! not used, so cause problems
-     dHydCond_dMatric   = realMissing ! not used, so cause problems
-   end if
-  end associate
-
   associate(&
    err     => out_diagv_node % err    , & ! error code
    message => out_diagv_node % message  & ! error message
@@ -1166,7 +1143,6 @@ contains
   real(rkind) :: S1_T_max ! maximum tension water content in upper soil layer (m)
   real(rkind) :: qsx      ! surface runoff (m s-1)
   real(rkind),parameter :: alpha_LSE=50._rkind ! smoothness parameter for LSE smoother function
-  real(rkind) :: dWat_dz  ! approximate derivative of water content w.r.t vertical position
   real(rkind) :: dS1_dWat ! derivative of S1 w.r.t. water content
   real(rkind),allocatable :: S1_T_derivatives(:) ! array of derivatives for S1
   real(rkind) :: dS1_T_dS1  ! derivative of S1_T w.r.t S1
@@ -1232,51 +1208,65 @@ contains
   ! saturation excess surface runoff component
   SR_SE = qsx
 
-  ! compute flux derivatives
+  ! * compute the derivatives for infiltration *
   associate(&
    ! input: model control
-   nSoil          => in_surfaceFlx % nSoil,      & ! number of soil layers
-   ixRichards     => in_surfaceFlx % ixRichards, & ! index defining the option for Richards' equation (moisture or mixdform)
+   ixRichards          => in_surfaceFlx % ixRichards          , & ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
-   iLayerHeight     => in_surfaceFlx % iLayerHeight , & ! height at the interface of each layer for soil layers only (m)
-   mLayerDepth      => in_surfaceFlx % mLayerDepth,      & ! depth of upper-most soil layer (m)
-   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
-   mLayerVolFracLiq => in_surfaceFlx % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
-   ! input: soil parameters
-   vGn_alpha           => in_surfaceFlx % vGn_alpha           , & ! van Genuchten "alpha" parameter (m-1)
-   vGn_n               => in_surfaceFlx % vGn_n               , & ! van Genuchten "n" parameter (-)
-   vGn_m               => in_surfaceFlx % vGn_m               , & ! van Genuchten "m" parameter (-)
-   theta_sat           => in_surfaceFlx % theta_sat           , & ! soil porosity (-)
-   theta_res           => in_surfaceFlx % theta_res           , & ! soil residual volumetric water content (-)
+   nSoil               => in_surfaceFlx % nSoil               , & ! number of soil layers
+   mLayerTemp          => in_surfaceFlx % mLayerTemp          , & ! temperature (K)
+   mLayerMatricHead    => in_surfaceFlx % mLayerMatricHead    , & ! matric head in each soil layer (m)
+   mLayerVolFracLiq    => in_surfaceFlx % mLayerVolFracLiq    , & ! volumetric liquid water content in each soil layer (-)
+   ! input: pre-computed derivatives in ...
+   dTheta_dTk          => in_surfaceFlx % dTheta_dTk          , & ! ... volumetric liquid water content w.r.t. temperature (K-1)
+   dTheta_dPsi         => in_surfaceFlx % dTheta_dPsi         , & ! ... the soil water characteristic w.r.t. psi (m-1)
+   above_soilLiqFluxDeriv => in_surfaceFlx % above_soilLiqFluxDeriv , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+   above_soildLiq_dTk     => in_surfaceFlx % above_soildLiq_dTk     , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. temperature
+   above_soilFracLiq      => in_surfaceFlx % above_soilFracLiq      , & ! ... liquid water layer above soil (canopy or snow) (-)
+   ! input: depth of soil layers (m)
+   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of upper-most soil layer (m)
    ! output: error control
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   ! compute surface derivatives needed for surface infiltration derivative
-   dWat_dz  = (mLayerVolFracLiq(2) - mLayerVolFracLiq(1)) / mLayerDepth(1) ! approximate derivative of water content w.r.t vertical position
-   dS1_dWat = 1._rkind !scalarVolFracLiq / dWat_dz                                   ! derivative of S1 w.r.t. water content (note: dS1 = Wat(z)*dz) 
+   ! compute derivatives needed for infiltration derivative
+   dS1_dWat = 1._rkind                                                     ! derivative of S1 w.r.t. water content 
    S1_T_derivatives = SoftArgMax(-alpha_LSE,[S1,S1_T_max])                 ! compute vector of derivatives for S1_T
    dS1_T_dS1  = S1_T_derivatives(1)                                        ! extract S1_T derivative w.r.t S1
    dS1_T_dWat = dS1_T_dS1 * dS1_dWat                                       ! derivative of S1_T w.r.t water content
    dAc_dWat   = (dS1_T_dWat/S1_T_max)*Ac_max                               ! derivative of Ac w.r.t water content 
 
-   ! * compute the derivatives for surface infiltration *
-   ! compute the hydrology derivative at the surface
+   ! process liquid  derivatives
+   dVolFracLiq_dWat(:) = 0._rkind ! w.r.t hydrology state variable (depends on form of Richards' equation)
+   dVolFracLiq_dTk(:)  = 0._rkind ! w.r.t to energy (temperature) state variable
+   select case(ixRichards)  ! form of Richards' equation
+    case(moisture) ! water content state variable
+      dVolFracLiq_dWat(:) = 1._rkind
+    case(mixdform) ! pressure head state variable (also take freezing into account)
+      do iLayer=1,nSoil
+        Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
+        if (mLayerTemp(iLayer) < Tcrit) then ! water is frozen in the soil layer
+          dVolFracLiq_dWat(iLayer) = 0._rkind
+        else                                 ! water is unfrozen -- use water retention curve
+          dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
+        end if
+      end do
+    case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select 
+   dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
+
+   ! * compute the hydrology derivatives *
    ! Infil = p - p*Ac
    ! note: derivative of left-hand p value included externally
    ! note: rain plus melt derivatives are zero in soil layers
-   select case(ixRichards)  ! select form of Richards' equation
-     case(moisture) ! w.r.t water content
-      dq_dHydStateVec_SE(1) = -p*dAc_dWat
-     case(mixdform) ! w.r.t pressure head
-      ! evaluate using the chain rule (tranforms dq_dTheta into dq_dPsi)
-      dq_dHydStateVec_SE(1) = ( -p*dAc_dWat ) &
-                             & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-   end select
-   ! compute the energy derivative at the surface
-   ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-   dq_dNrgStateVec_SE(1) = 0._rkind
+   dq_dHydStateVec_SE(1:nSoil) = -p*dAc_dWat * dVolFracLiq_dWat(1:nSoil)*mLayerDepth(1:nSoil) ! SJT: ---- confirm mLayerDepth factor ----
+
+   ! * compute the energy derivatives *
+   ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   dq_dNrgStateVec_SE(1:nSoil) = -p*dAc_dWat * dVolFracLiq_dTk(1:nSoil) *mLayerDepth(1:nSoil) ! SJT: ---- confirm mLayerDepth factor ----
+!*   ! * dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp ! SJT: ---- included extrenally, except factor of (1-Ac) --- RPM derivative has to agree between IE and SE methods ?
+!*   dq_dHydStateVec(0) = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soilFracLiq
+!*   dq_dNrgStateVec(0)  = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soildLiq_dTk
   end associate
 
  end subroutine update_surfaceFlx_FUSE_PRMS
@@ -1322,36 +1312,59 @@ contains
   ! saturation excess surface runoff component
   SR_SE = qsx
 
-  ! compute flux derivatives
+  ! ** compute the derivatives for infiltration **
   associate(&
    ! input: model control
-   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ixRichards          => in_surfaceFlx % ixRichards          , & ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
-   scalarVolFracLiq => in_surfaceFlx % scalarVolFracLiq, & ! volumetric liquid water content in the upper-most soil layer (-)
-   ! input: soil parameters
-   vGn_alpha           => in_surfaceFlx % vGn_alpha           , & ! van Genuchten "alpha" parameter (m-1)
-   vGn_n               => in_surfaceFlx % vGn_n               , & ! van Genuchten "n" parameter (-)
-   vGn_m               => in_surfaceFlx % vGn_m               , & ! van Genuchten "m" parameter (-)
-   theta_sat           => in_surfaceFlx % theta_sat           , & ! soil porosity (-)
-   theta_res           => in_surfaceFlx % theta_res           , & ! soil residual volumetric water content (-)
+   nSoil               => in_surfaceFlx % nSoil               , & ! number of soil layers
+   mLayerTemp          => in_surfaceFlx % mLayerTemp          , & ! temperature (K)
+   mLayerMatricHead    => in_surfaceFlx % mLayerMatricHead    , & ! matric head in each soil layer (m)
+   mLayerVolFracLiq    => in_surfaceFlx % mLayerVolFracLiq    , & ! volumetric liquid water content in each soil layer (-)
+   ! input: pre-computed derivatives in ...
+   dTheta_dTk          => in_surfaceFlx % dTheta_dTk          , & ! ... volumetric liquid water content w.r.t. temperature (K-1)
+   dTheta_dPsi         => in_surfaceFlx % dTheta_dPsi         , & ! ... the soil water characteristic w.r.t. psi (m-1)
+   above_soilLiqFluxDeriv => in_surfaceFlx % above_soilLiqFluxDeriv , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+   above_soildLiq_dTk     => in_surfaceFlx % above_soildLiq_dTk     , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. temperature
+   above_soilFracLiq      => in_surfaceFlx % above_soilFracLiq      , & ! ... liquid water layer above soil (canopy or snow) (-)
+   ! input: depth of soil layers (m)
+   mLayerDepth  => in_surfaceFlx % mLayerDepth , & ! depth of upper-most soil layer (m)
    ! output: error control
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   ! * compute the derivatives for surface infiltration *
-   ! compute the hydrology derivative at the surface
+
+   ! process liquid  derivatives
+   dVolFracLiq_dWat(:) = 0._rkind
+   dVolFracLiq_dTk(:)  = 0._rkind
+   select case(ixRichards)  ! form of Richards' equation
+    case(moisture) ! state variable is water content
+      dVolFracLiq_dWat(:) = 1._rkind
+    case(mixdform) ! state variable is pressure head
+      do iLayer=1,nSoil
+        Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
+        if (mLayerTemp(iLayer) < Tcrit) then ! frozen layer
+          dVolFracLiq_dWat(iLayer) = 0._rkind
+        else                                 ! unfrozen layer
+          dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
+        end if
+      end do
+    case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select 
+   dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
+
+   ! * compute the hydrology derivatives *
    ! Infil = p - p*Ac
    ! note: derivative of left-hand p value included externally
    ! note: rain plus melt derivatives are zero in soil layers
-   select case(ixRichards)  ! select form of Richards' equation
-     case(moisture); dq_dHydStateVec_SE(1) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) ! w.r.t. moisture content 
-     case(mixdform); dq_dHydStateVec_SE(1) = ( (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) ) &
-                                           & / dPsi_dTheta(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! w.r.t. pressure head
-     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-   end select
-   ! compute the energy derivative at the surface
+   dq_dHydStateVec_SE(1:nSoil) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) * dVolFracLiq_dWat(1:nSoil)*mLayerDepth(1:nSoil) ! SJT: check factor of mLayerDepth
+
+   ! * compute the energy derivatives *
    ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-   dq_dNrgStateVec_SE(1) = 0._rkind
+   dq_dNrgStateVec_SE(1:nSoil) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) * dVolFracLiq_dTk(1:nSoil)*mLayerDepth(1:nSoil) ! SJT: check mLayerDepth factor
+!*   ! * dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp --- SJT: included externally without the factor of (1-Ac)
+!*   dq_dHydStateVec(0) = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soilFracLiq
+!*   dq_dNrgStateVec(0)  = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soildLiq_dTk
   end associate
 
  end subroutine update_surfaceFlx_FUSE_ARNO_VIC
@@ -1360,30 +1373,25 @@ contains
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
 
   ! * local variables *
-
   ! runoff and infiltration variables
   real(rkind) :: p            ! precipitation (m s-1)
   real(rkind) :: Ac           ! saturated area (-)
   real(rkind) :: qsx          ! surface runoff (m s-1)
-
   ! FUSE parameters and variables
   real(rkind) :: lambda ! mean
   real(rkind) :: chi    ! scale
   real(rkind) :: mu     ! offset
   real(rkind) :: phi    ! shape (computed from other parameters)
-  
   ! Gamma distribution parameters and variables
   real(rkind) :: alpha  ! shape
   real(rkind) :: theta  ! scale
   real(rkind) :: x_crit ! critical x (random variable) value
-
   ! topographic index variables
   real(rkind),parameter :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
   real(rkind) :: zeta_crit_n ! critical topographic index value (power-transfomred)
   real(rkind) :: zeta_crit   ! critical topographic index value (log space)
   complex(rkind) :: F1,F2    ! temporary storage for regularized lower incomplete gamma function values
   complex(rkind) :: lambda_n ! mean of the power-transformed topographic index
-
   ! lower FUSE layer variables
   real(rkind) :: S2_max ! max storage in lower layer (m)
   real(rkind) :: S2     ! total water content in lower layer (m)
@@ -1497,26 +1505,30 @@ contains
   ! saturation excess surface runoff component
   SR_SE = qsx
 
-  ! compute flux derivatives
+  ! ** compute the derivatives for infiltration **
   associate(&
    ! input: model control
-   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ixRichards => in_surfaceFlx % ixRichards, & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: state and diagnostic variables
+   nSoil => in_surfaceFlx % nSoil, & ! number of soil layers
    ! output: error control
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   ! * compute the derivatives for surface infiltration *
-   ! compute the hydrology derivative at the surface
+
+   ! * compute the hydrology derivatives *
    ! note: infiltration depends on water content in the aquifer, which is presumed to not explicitly depend on hydrology state variables
    ! note: rain plus melt derivatives are zero in soil layers
    select case(ixRichards)  ! select form of Richards' equation
-     case(moisture); dq_dHydStateVec_SE(1) = 0._rkind 
-     case(mixdform); dq_dHydStateVec_SE(1) = 0._rkind 
+     case(moisture); dq_dHydStateVec_SE(1:nSoil) = 0._rkind 
+     case(mixdform); dq_dHydStateVec_SE(1:nSoil) = 0._rkind 
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
    end select
+
+   ! * compute the energy derivatives *
    ! compute the energy derivative at the surface
    ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-   dq_dNrgStateVec_SE(1) = 0._rkind
+   dq_dNrgStateVec_SE(1:nSoil) = 0._rkind
   end associate
 
  end subroutine update_surfaceFlx_FUSE_TOPMODEL
@@ -1525,7 +1537,6 @@ contains
   ! **** Update operations for surfaceFlx: prescribed pressure head condition ****
   associate(&
    ! input: model control
-   deriv_desired  => in_surfaceFlx % deriv_desired  , & ! flag to indicate if derivatives are desired
    ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
    scalarMatricHeadLiq => in_surfaceFlx % scalarMatricHeadLiq , & ! liquid matric head in the upper-most soil layer (m)
@@ -1587,20 +1598,15 @@ contains
    ! compute the total flux
    scalarSurfaceInfiltration = cflux + surfaceHydCond
 
-   ! compute the derivative
-   if (deriv_desired) then
-     ! compute the hydrology derivative at the surface
-     select case(ixRichards)  ! select form of Richards' equation
-       case(moisture); dq_dHydStateVec(1) = -surfaceDiffuse/(mLayerDepth(1)/2._rkind)
-       case(mixdform); dq_dHydStateVec(1) = -surfaceHydCond/(mLayerDepth(1)/2._rkind)
-       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-     end select
-     ! compute the energy derivative at the surface
-     ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-     dq_dNrgStateVec(1) = -(dHydCond_dTemp/2._rkind)*(scalarMatricHeadLiq - upperBoundHead)/(mLayerDepth(1)*0.5_rkind) + dHydCond_dTemp/2._rkind
-   else
-     dNum = 0._rkind
-   end if
+   ! compute the hydrology derivative at the surface
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture); dq_dHydStateVec(1) = -surfaceDiffuse/(mLayerDepth(1)/2._rkind)
+     case(mixdform); dq_dHydStateVec(1) = -surfaceHydCond/(mLayerDepth(1)/2._rkind)
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select
+   ! compute the energy derivative at the surface
+   ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   dq_dNrgStateVec(1) = -(dHydCond_dTemp/2._rkind)*(scalarMatricHeadLiq - upperBoundHead)/(mLayerDepth(1)*0.5_rkind) + dHydCond_dTemp/2._rkind
 
   end associate
  end subroutine update_surfaceFlx_prescribedHead
@@ -1650,7 +1656,6 @@ contains
   ! **** Update operations for surfaceFlx: flux condition -- main computations (root layers) ****
   associate(&
    ! input: model control
-   deriv_desired  => in_surfaceFlx % deriv_desired  , & ! flag to indicate if derivatives are desired
    ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
    nRoots         => in_surfaceFlx % nRoots         , & ! number of layers that contain roots
    ! input: state and diagnostic variables
@@ -1659,11 +1664,10 @@ contains
    mLayerVolFracLiq    => in_surfaceFlx % mLayerVolFracLiq    , & ! volumetric liquid water content in each soil layer (-)
    mLayerVolFracIce    => in_surfaceFlx % mLayerVolFracIce    , & ! volumetric ice content in each soil layer (-)
    ! input: pre-computed derivatives in ...
-   ! note: all of these would need to be recomputed if wanted a numerical derivative
    dTheta_dTk             => in_surfaceFlx % dTheta_dTk             , & ! ... volumetric liquid water content w.r.t. temperature (K-1)
    dTheta_dPsi            => in_surfaceFlx % dTheta_dPsi            , & ! ... the soil water characteristic w.r.t. psi (m-1)
    mLayerdPsi_dTheta      => in_surfaceFlx % mLayerdPsi_dTheta      , & ! ... the soil water characteristic w.r.t. theta (m)
-   ! input: depth of upper-most soil layer (m)
+   ! input: depth of soil layers (m)
    mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of upper-most soil layer (m)
    iLayerHeight => in_surfaceFlx % iLayerHeight , & ! height at the interface of each layer for soil layers only (m)
    ! input: soil parameters
@@ -1675,7 +1679,7 @@ contains
    dVolFracIce_dWat(:) = 0._rkind
    dVolFracLiq_dTk(:)  = 0._rkind
    dVolFracIce_dTk(:)  = 0._rkind
-   if (deriv_desired .and. nRoots > 0) then
+   if (nRoots > 0) then
      select case(ixRichards)  ! form of Richards' equation
        case(moisture)
          dVolFracLiq_dWat(:) = 1._rkind
@@ -1871,7 +1875,6 @@ contains
    ! input: model control
    nSoil          => in_surfaceFlx % nSoil , & ! number of soil layers
    ! input: pre-computed derivatives in ...
-   ! note: all of these would need to be recomputed if wanted a numerical derivative
    above_soilLiqFluxDeriv => in_surfaceFlx % above_soilLiqFluxDeriv , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. liquid water
    above_soildLiq_dTk     => in_surfaceFlx % above_soildLiq_dTk     , & ! ... layer above soil (canopy or snow) liquid flux w.r.t. temperature
    above_soilFracLiq      => in_surfaceFlx % above_soilFracLiq      , & ! fraction of liquid water layer above soil (canopy or snow) (-)
@@ -2136,13 +2139,8 @@ contains
   call update_iLayerFlux_fluxes; if (return_flag) return
 
   ! ** compute the derivatives
-  if (in_iLayerFlux % deriv_desired) then
-    call update_iLayerFlux_derivatives; if (return_flag) return
-  else
-   ! output: derivatives in fluxes w.r.t. ...  
-   out_iLayerFlux % dq_dHydStateAbove = realMissing ! ... matric head or volumetric lquid water in the layer above (m s-1 or s-1)
-   out_iLayerFlux % dq_dHydStateBelow = realMissing ! ... matric head or volumetric lquid water in the layer below (m s-1 or s-1)
-  end if
+  call update_iLayerFlux_derivatives; if (return_flag) return
+
  end subroutine update_iLayerFlux
  
  subroutine update_iLayerFlux_fluxes
@@ -2362,7 +2360,6 @@ contains
   ! ** Update operations for qDrainFlux: prescribed pressure head value at bottom boundary **
   associate(&
    ! input: model control
-   deriv_desired => in_qDrainFlux % deriv_desired, &          ! flag to indicate if derivatives are desired
    ixRichards    => in_qDrainFlux % ixRichards   , &          ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
    nodeMatricHeadLiq => in_qDrainFlux % nodeMatricHeadLiq, &  ! liquid matric head in the lowest unsaturated node (m)
@@ -2414,20 +2411,15 @@ contains
    end select 
    scalarDrainage = cflux + bottomHydCond
 
-   if (deriv_desired) then ! compute derivatives
-     ! hydrology derivatives
-     select case(ixRichards)  ! select form of Richards' equation
-       case(moisture); dq_dHydStateUnsat = bottomDiffuse/(nodeDepth/2._rkind)
-       case(mixdform); dq_dHydStateUnsat = bottomHydCond/(nodeDepth/2._rkind)
-       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-     end select
-     ! energy derivatives
-     dq_dNrgStateUnsat = -(dHydCond_dTemp/2._rkind)*(lowerBoundHead  - nodeMatricHeadLiq)/(nodeDepth*0.5_rkind)&
-                       & + dHydCond_dTemp/2._rkind
-   else     ! do not desire derivatives
-     dq_dHydStateUnsat = realMissing
-     dq_dNrgStateUnsat = realMissing
-   end if
+   ! hydrology derivatives
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture); dq_dHydStateUnsat = bottomDiffuse/(nodeDepth/2._rkind)
+     case(mixdform); dq_dHydStateUnsat = bottomHydCond/(nodeDepth/2._rkind)
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select
+   ! energy derivatives
+   dq_dNrgStateUnsat = -(dHydCond_dTemp/2._rkind)*(lowerBoundHead  - nodeMatricHeadLiq)/(nodeDepth*0.5_rkind)&
+                     & + dHydCond_dTemp/2._rkind
  
   end associate
  end subroutine update_qDrainFlux_prescribedHead
@@ -2436,7 +2428,6 @@ contains
   ! ** Update operations for qDrainFlux: prescribed pressure head function at bottom boundary **
   associate(&
    ! input: model control
-   deriv_desired => in_qDrainFlux % deriv_desired, &          ! flag to indicate if derivatives are desired
    ixRichards    => in_qDrainFlux % ixRichards   , &          ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
    nodeMatricHeadLiq => in_qDrainFlux % nodeMatricHeadLiq, &  ! liquid matric head in the lowest unsaturated node (m)
@@ -2473,19 +2464,15 @@ contains
    zWater = nodeHeight - nodePsi
    scalarDrainage = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)
 
-   if (deriv_desired) then ! compute derivatives
-     ! hydrology derivatives
-     select case(ixRichards)  ! select form of Richards' equation
-       case(moisture); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * node_dPsi_dTheta*exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
-       case(mixdform); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
-       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-     end select
-     ! energy derivatives
-     err=20; message=trim(message)//"not yet implemented energy derivatives"; return_flag=.true.; return
-   else     ! do not desire derivatives
-     dq_dHydStateUnsat = realMissing
-     dq_dNrgStateUnsat = realMissing
-   end if
+   ! hydrology derivatives
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * node_dPsi_dTheta*exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
+     case(mixdform); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select
+   ! energy derivatives
+   err=20; message=trim(message)//"not yet implemented energy derivatives"; return_flag=.true.; return
+   !dq_dNrgStateUnsat = ?? FIX
 
   end associate
  end subroutine update_qDrainFlux_funcBottomHead
@@ -2494,7 +2481,6 @@ contains
   ! ** Update operations for qDrainFlux: free drainage at bottom boundary **
   associate(&
    ! input: model control
-   deriv_desired => in_qDrainFlux % deriv_desired, &          ! flag to indicate if derivatives are desired
    ixRichards    => in_qDrainFlux % ixRichards   , &          ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: transmittance
    nodeHydCond       => in_qDrainFlux % nodeHydCond    , &    ! hydraulic conductivity at the node itself (m s-1)
@@ -2516,19 +2502,14 @@ contains
   
    scalarDrainage = nodeHydCond*kAnisotropic ! compute flux
 
-   if (deriv_desired) then ! compute derivatives
-     ! hydrology derivatives
-     select case(ixRichards)  ! select form of Richards' equation
-       case(moisture); dq_dHydStateUnsat = dHydCond_dVolLiq*kAnisotropic
-       case(mixdform); dq_dHydStateUnsat = dHydCond_dMatric*kAnisotropic
-       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-     end select
-     ! energy derivatives
-     dq_dNrgStateUnsat = dHydCond_dTemp*kAnisotropic
-   else     ! do not desire derivatives
-     dq_dHydStateUnsat = realMissing
-     dq_dNrgStateUnsat = realMissing
-   end if
+   ! hydrology derivatives
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture); dq_dHydStateUnsat = dHydCond_dVolLiq*kAnisotropic
+     case(mixdform); dq_dHydStateUnsat = dHydCond_dMatric*kAnisotropic
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select
+   ! energy derivatives
+   dq_dNrgStateUnsat = dHydCond_dTemp*kAnisotropic
 
   end associate
  end subroutine update_qDrainFlux_freeDrainage
@@ -2536,8 +2517,6 @@ contains
  subroutine update_qDrainFlux_zeroFlux
   ! ** Update operations for qDrainFlux: zero flux condition at bottom boundary **
   associate(&
-   ! input: model control
-   deriv_desired => in_qDrainFlux % deriv_desired, &          ! flag to indicate if derivatives are desired
    ! output: drainage flux from the bottom of the soil profile
    scalarDrainage => out_qDrainFlux % scalarDrainage, &       ! drainage flux from the bottom of the soil profile (m s-1)
    ! output: derivatives in drainage flux w.r.t. ...
@@ -2546,13 +2525,8 @@ contains
   &)
 
    scalarDrainage = 0._rkind
-   if (deriv_desired) then
-     dq_dHydStateUnsat = 0._rkind
-     dq_dNrgStateUnsat = 0._rkind
-   else
-     dq_dHydStateUnsat = realMissing
-     dq_dNrgStateUnsat = realMissing
-   end if
+   dq_dHydStateUnsat = 0._rkind
+   dq_dNrgStateUnsat = 0._rkind
 
   end associate
  end subroutine update_qDrainFlux_zeroFlux
