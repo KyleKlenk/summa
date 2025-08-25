@@ -198,9 +198,6 @@ contains
   ! determine if need to include vegetation in the energy flux routines
   computeVegFlux = (exposedVAI > 0.05_rkind .and. heightAboveSnow > z0Ground + minExpLogHgt)
 
-  ! if no vegetation ever, should not have initialized scalarCanopyLiq to 0.0001 in read_icond.f90
-  if((scalarLAI + scalarSAI) == 0.0_rkind) scalarCanopyLiq = 0.0_rkind
-
  end if  ! (check if the snow-soil column is isolated)
 
  ! end association to variables in the data structure
