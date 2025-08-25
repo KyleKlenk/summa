@@ -335,9 +335,6 @@ contains
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  
    endif
 
-   ! set the minimum height of transition from the exponential to the logarithmic wind profile (m)
-   minExpLogHgt = 0.02_rkind*sqrt(mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1))
-
    ! overwrite the vegetation height
    HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)
    HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)%dat(1)
