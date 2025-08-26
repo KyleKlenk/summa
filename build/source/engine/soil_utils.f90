@@ -818,6 +818,7 @@ end function gser_complex
 ! ******************************************************************************************************************************
 function LogSumExp(alpha,x,err) result(LSE)
   use, intrinsic :: ieee_arithmetic,only:ieee_value,ieee_quiet_nan
+  use, intrinsic :: iso_fortran_env,only:real128
   implicit none
   ! input
   real(rkind),intent(in) :: alpha ! smoothness parameter (LSE --> max as alpha --> +Inf, LSE --> min as alpha --> -Inf)
@@ -826,7 +827,10 @@ function LogSumExp(alpha,x,err) result(LSE)
   real(rkind)              :: LSE ! LogSumExp value 
   integer(i4b),intent(out) :: err ! error code
   ! local variables
-  real(rkind) :: x_star ! shift value for numerical stability
+  real(real128),allocatable :: x_qp(:) ! quadruple precision x vector
+  real(real128) :: x_star   ! quadruple precision shift value for numerical stability
+  real(real128) :: alpha_qp ! quadruple precision alpha
+  real(real128) :: LSE_qp   ! quadruple precision LSE value 
 
   err = 0_i4b ! initialize error code
 
@@ -837,10 +841,15 @@ function LogSumExp(alpha,x,err) result(LSE)
    return
   end if
 
-  ! shift value to improve numerical stability
-  x_star = maxval(abs(x))
+  ! use quadruple precision variables to prevent over/underflow
+  alpha_qp = real(alpha,real128)
+  x_qp     = real(x,real128)
 
-  LSE=( alpha*x_star + log(sum(exp(alpha*(x-x_star)))) )/alpha
+  ! shift value to improve numerical stability
+  x_star = maxval(abs(x_qp))
+
+  LSE_qp= x_star + log(sum(exp(alpha_qp*(x_qp-x_star))))/alpha_qp
+  LSE=real(LSE_qp,rkind)
 end function LogSumExp
 
 ! ******************************************************************************************************************************
@@ -849,6 +858,7 @@ end function LogSumExp
 ! Note: Can be used to evaluate the derivatives of LogSumExp
 ! dLogSumExp(alpha,x)_dx(i) = SoftArgMax(alpha,x)
 function SoftArgMax(alpha,x) result(SAM)
+  use, intrinsic :: iso_fortran_env,only:real128
   implicit none
   ! input
   real(rkind),intent(in) :: alpha ! smoothness parameter (SAM --> arg max as alpha --> +Inf, SAM --> arg min as alpha --> -Inf)
@@ -856,12 +866,20 @@ function SoftArgMax(alpha,x) result(SAM)
   ! output
   real(rkind),allocatable  :: SAM(:) ! SoftArgMax value 
   ! local variables
-  real(rkind) :: x_star ! shift value for numerical stability
+  real(real128) :: alpha_qp ! quadruple precision alpha
+  real(real128) :: x_star   ! quadruple precision shift value for numerical stability
+  real(real128),allocatable :: x_qp(:)   ! quadruple precision x vector
+  real(real128),allocatable :: SAM_qp(:) ! quadruple precision SAM value 
+
+  ! use quadruple precision variables to prevent over/underflow
+  alpha_qp = real(alpha,real128)
+  x_qp     = real(x,real128)
 
   ! shift value to improve numerical stability
-  x_star = maxval(abs(x))
+  x_star = maxval(abs(x_qp))
 
-  SAM = exp(alpha*(x-x_star)) / sum(exp(alpha*(x-x_star)))
+  SAM_qp = exp(alpha_qp*(x_qp-x_star)) / sum(exp(alpha_qp*(x_qp-x_star)))
+  SAM = real(SAM_qp,rkind)
 end function
 
 end module soil_utils_module
