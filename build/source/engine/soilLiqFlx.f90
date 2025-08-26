@@ -2335,7 +2335,6 @@ contains
    end select
    ! energy derivatives
    dq_dNrgStateUnsat = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)*node_dPsiLiq_dTemp/zScale_TOPMODEL
-   ! FIX: IS THIS CORRECT???? seems to easy to have been missing originally
 
   end associate
  end subroutine update_qDrainFlux_funcBottomHead
