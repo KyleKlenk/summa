@@ -92,7 +92,10 @@ USE mDecisions_module,only:   &
 ! -----------------------------------------------------------------------------------------------------------
 implicit none
 private
-public :: soilLiqFlx
+public::soilLiqFlx
+
+! flag to denote if updating infiltration during iterations for testing purposes
+logical(lgt),parameter :: updateInfil=.true. 
 contains
 
 
@@ -144,21 +147,21 @@ subroutine soilLiqFlx(&
   integer(i4b)                        :: ixTop                         ! top layer in subroutine call
   integer(i4b)                        :: ixBot                         ! bottom layer in subroutine call
   ! transpiration sink term
-  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: mLayerTranspireFrac     ! fraction of transpiration allocated to each soil layer (-)
+  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: mLayerTranspireFrac ! fraction of transpiration allocated to each soil layer (-)
   ! diagnostic variables
-  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: iceImpedeFac            ! ice impedence factor at layer mid-points (-)
-  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: mLayerDiffuse           ! diffusivity at layer mid-point (m2 s-1)
-  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: dHydCond_dVolLiq        ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: dDiffuse_dVolLiq        ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: dHydCond_dTemp          ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHydCond           ! hydraulic conductivity at layer interface (m s-1)
-  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerDiffuse           ! diffusivity at layer interface (m2 s-1)
+  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: iceImpedeFac        ! ice impedence factor at layer mid-points (-)
+  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: mLayerDiffuse       ! diffusivity at layer mid-point (m2 s-1)
+  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: dHydCond_dVolLiq    ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: dDiffuse_dVolLiq    ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: dHydCond_dTemp      ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHydCond       ! hydraulic conductivity at layer interface (m s-1)
+  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerDiffuse       ! diffusivity at layer interface (m2 s-1)
   ! compute surface flux
-  integer(i4b)                                    :: nRoots                  ! number of soil layers with roots
-  integer(i4b)                                    :: ixIce                   ! index of the lowest soil layer that contains ice
-  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHeight            ! height of the layer interfaces (m)
-  ! error control
-  logical(lgt)                                    :: return_flag             ! flag for return statements
+  integer(i4b)                                    :: nRoots              ! number of soil layers with roots
+  integer(i4b)                                    :: ixIce               ! index of the lowest soil layer that contains ice
+  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHeight        ! height of the layer interfaces (m)
+   ! error control
+  logical(lgt)                                    :: return_flag         ! flag for return statements
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
   ! ** Initialize indices, error control, and get layer information ** 
@@ -966,34 +969,36 @@ contains
 
   associate(&
    ! input: model control
-   bc_upper => in_surfaceFlx % bc_upper, & ! index defining the type of boundary conditions
+   firstSplitOper => in_surfaceFlx % firstSplitOper , & ! flag indicating if desire to compute infiltration
+   bc_upper => in_surfaceFlx % bc_upper             , & ! index defining the type of boundary conditions
+   ! output: derivatives in surface infiltration w.r.t. ...
+   dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
    ! output: error control
    err      => out_surfaceFlx % err    , & ! error code
    message  => out_surfaceFlx % message  & ! error message
   &)
 
    ! compute the surface flux and its derivative
-   select case(bc_upper)
+   if (firstSplitOper .or. updateInfil) then
+     select case(bc_upper)
+       case(prescribedHead) ! head condition
+         call update_surfaceFlx_prescribedHead; if (return_flag) return 
+       case(liquidFlux)     ! flux condition
+         call update_surfaceFlx_liquidFlux;     if (return_flag) return 
+       case(FUSEPRMS)       ! FUSE PRMS surface runoff
+         call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return 
+       case(FUSEAVIC)       ! FUSE ARNO/VIC surface runoff
+         call update_surfaceFlx_FUSE_ARNO_VIC;  if (return_flag) return
+       case(FUSETOPM)       ! FUSE TOPMODEL surface runoff
+         call update_surfaceFlx_FUSE_TOPMODEL;  if (return_flag) return
+       case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
+      end select
+   else ! do not compute infiltration after first flux call in a splitting operation
+     dq_dHydStateVec(:) = 0._rkind
+     dq_dNrgStateVec(:) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   end if 
  
-     case(prescribedHead) ! head condition
-       call update_surfaceFlx_prescribedHead; if (return_flag) return 
- 
-     case(liquidFlux)     ! flux condition
-       call update_surfaceFlx_liquidFlux;     if (return_flag) return 
- 
-     case(FUSEPRMS)       ! FUSE PRMS surface runoff
-       call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return 
-
-     case(FUSEAVIC)       ! FUSE ARNO/VIC surface runoff
-       call update_surfaceFlx_FUSE_ARNO_VIC;  if (return_flag) return
-
-     case(FUSETOPM)       ! FUSE TOPMODEL surface runoff
-       call update_surfaceFlx_FUSE_TOPMODEL;  if (return_flag) return
-
-     case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
- 
-   end select 
-
   end associate
  end subroutine update_surfaceFlx
 
@@ -1100,41 +1105,48 @@ contains
    above_soilFracLiq      => in_surfaceFlx % above_soilFracLiq      , & ! ... liquid water layer above soil (canopy or snow) (-)
    ! input: depth of soil layers (m)
    mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of upper-most soil layer (m)
-   
+
    ! output: derivatives in surface infiltration w.r.t. ...
    dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
    dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
   &)
-   ! * compute the derivatives for surface infiltration *
-   ! process liquid  derivatives
-   dVolFracLiq_dWat(:) = 0._rkind
-   dVolFracLiq_dTk(:)  = 0._rkind
-   select case(ixRichards)  ! form of Richards' equation
-    case(moisture)
-      dVolFracLiq_dWat(:) = 1._rkind
-    case(mixdform)
-      do iLayer=1,nSoil
-        Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
-        if (mLayerTemp(iLayer) < Tcrit) then
-          dVolFracLiq_dWat(iLayer) = 0._rkind
-        else
-          dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
-        end if
-      end do
-   end select 
-   dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
+  if(updateInfil)then
+     ! * compute the derivatives for surface infiltration *
+     ! process liquid  derivatives
+     dVolFracLiq_dWat(:) = 0._rkind
+     dVolFracLiq_dTk(:)  = 0._rkind
+     select case(ixRichards)  ! form of Richards' equation
+      case(moisture)
+        dVolFracLiq_dWat(:) = 1._rkind
+      case(mixdform)
+        do iLayer=1,nSoil
+          Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
+          if (mLayerTemp(iLayer) < Tcrit) then
+            dVolFracLiq_dWat(iLayer) = 0._rkind
+          else
+            dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
+          end if
+        end do
+     end select 
+     dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
 
-   ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob module
-   if (S1<S1_T_max) then
-    dq_dHydStateVec(1:nSoil) = -p*Ac_max/S1_T_max * dVolFracLiq_dWat(:)*mLayerDepth(:)
-   else  
-    dq_dHydStateVec(1:nSoil) = 0._rkind
-   end if 
-   ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-   dq_dNrgStateVec(1:nSoil) = -p*Ac_max/S1_T_max * dVolFracLiq_dTk(:)*mLayerDepth(:)
-   ! * dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp
-   dq_dHydStateVec(0) = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soilFracLiq
-   dq_dNrgStateVec(0)  = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soildLiq_dTk
+     ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob module
+     if (S1<S1_T_max) then
+      dq_dHydStateVec(1:nSoil) = -p*Ac_max/S1_T_max * dVolFracLiq_dWat(:)*mLayerDepth(:)
+     else  
+      dq_dHydStateVec(1:nSoil) = 0._rkind
+     end if 
+     ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+     dq_dNrgStateVec(1:nSoil) = -p*Ac_max/S1_T_max * dVolFracLiq_dTk(:)*mLayerDepth(:)
+     ! * dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp
+     dq_dHydStateVec(0) = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soilFracLiq
+     dq_dNrgStateVec(0)  = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soildLiq_dTk
+   else
+     dq_dHydStateVec(:) = 0._rkind
+     dq_dNrgStateVec(:) = 0._rkind
+     dq_dHydStateVec(0) = 0._rkind
+     dq_dNrgStateVec(0) = 0._rkind
+   end if
   end associate
 
   ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
@@ -1233,32 +1245,39 @@ contains
    dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
    dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
   &)
-   ! * compute the derivatives for surface infiltration *
-   ! process liquid  derivatives
-   dVolFracLiq_dWat(:) = 0._rkind
-   dVolFracLiq_dTk(:)  = 0._rkind
-   select case(ixRichards)  ! form of Richards' equation
-    case(moisture)
-      dVolFracLiq_dWat(:) = 1._rkind
-    case(mixdform)
-      do iLayer=1,nSoil
-        Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
-        if (mLayerTemp(iLayer) < Tcrit) then
-          dVolFracLiq_dWat(iLayer) = 0._rkind
-        else
-          dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
-        end if
-      end do
-   end select 
-   dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
+   if(updateInfil)then
+    ! * compute the derivatives for surface infiltration *
+    ! process liquid  derivatives
+    dVolFracLiq_dWat(:) = 0._rkind
+    dVolFracLiq_dTk(:)  = 0._rkind
+    select case(ixRichards)  ! form of Richards' equation
+     case(moisture)
+       dVolFracLiq_dWat(:) = 1._rkind
+     case(mixdform)
+       do iLayer=1,nSoil
+         Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
+         if (mLayerTemp(iLayer) < Tcrit) then
+           dVolFracLiq_dWat(iLayer) = 0._rkind
+         else
+           dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
+         end if
+       end do
+    end select 
+    dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
 
-   ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob module
-   dq_dHydStateVec(1:nSoil) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) * dVolFracLiq_dWat(:)*mLayerDepth(:)
-   ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-   dq_dNrgStateVec(1:nSoil) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) * dVolFracLiq_dTk(:)*mLayerDepth(:)
-   ! * dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp
-   dq_dHydStateVec(0) = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soilFracLiq
-   dq_dNrgStateVec(0)  = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soildLiq_dTk
+    ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob module
+    dq_dHydStateVec(1:nSoil) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) * dVolFracLiq_dWat(:)*mLayerDepth(:)
+    ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+    dq_dNrgStateVec(1:nSoil) = (-p*b/S1_max)*(1._rkind-S1/S1_max)**(b-1._rkind) * dVolFracLiq_dTk(:)*mLayerDepth(:)
+    ! * dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp
+    dq_dHydStateVec(0) = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soilFracLiq
+    dq_dNrgStateVec(0)  = (1._rkind - Ac) * above_soilLiqFluxDeriv*above_soildLiq_dTk
+  else
+    dq_dHydStateVec(:) = 0._rkind
+    dq_dNrgStateVec(:) = 0._rkind
+    dq_dHydStateVec(0) = 0._rkind
+    dq_dNrgStateVec(0) = 0._rkind
+   end if
   end associate
 
   ! * additional assignment statements for surfaceFlx input-output object based on FUSE values *
@@ -1275,7 +1294,7 @@ contains
 
  subroutine update_surfaceFlx_FUSE_TOPMODEL
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
-
+  ! BEING CHANGED TO BE ON SOIL COLUMN RATHER THAN AQUIFER SO DERIVATIVES AREN'T CORRECTED HERE YET, FIX
   ! * local variables *
   ! runoff and infiltration variables
   real(rkind) :: p            ! precipitation (m s-1)
@@ -1523,44 +1542,28 @@ contains
    ! compute the total flux
    scalarSurfaceInfiltration = cflux + surfaceHydCond
 
-   ! compute the hydrology derivative at the surface
-   select case(ixRichards)  ! select form of Richards' equation
-     case(moisture); dq_dHydStateVec(1) = -surfaceDiffuse/(mLayerDepth(1)/2._rkind)
-     case(mixdform); dq_dHydStateVec(1) = -surfaceHydCond/(mLayerDepth(1)/2._rkind)
-     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-   end select
-   ! compute the energy derivative at the surface
-   ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-   dq_dNrgStateVec(1) = -(dHydCond_dTemp/2._rkind)*(scalarMatricHeadLiq - upperBoundHead)/(mLayerDepth(1)*0.5_rkind) + dHydCond_dTemp/2._rkind
+   ! compute the derivatives at the surface, only has a non-zero value for the upper-most soil layer
+   dq_dHydStateVec(:) = 0._rkind
+   dq_dNrgStateVec(:) = 0._rkind
+   if(updateInfil)then
+     select case(ixRichards)  ! select form of Richards' equation
+       case(moisture); dq_dHydStateVec(1) = -surfaceDiffuse/(mLayerDepth(1)/2._rkind)
+       case(mixdform); dq_dHydStateVec(1) = -surfaceHydCond/(mLayerDepth(1)/2._rkind)
+       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+     end select
+     ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+     dq_dNrgStateVec(1) = -(dHydCond_dTemp/2._rkind)*(scalarMatricHeadLiq - upperBoundHead)/(mLayerDepth(1)*0.5_rkind) + dHydCond_dTemp/2._rkind
+    else
+     dq_dHydStateVec(1) = 0._rkind
+     dq_dNrgStateVec(1) = 0._rkind
+   end if
 
   end associate
  end subroutine update_surfaceFlx_prescribedHead
 
  subroutine update_surfaceFlx_liquidFlux 
-  ! **** Update operations for surfaceFlx: flux condition ****
-
-  ! force infiltration to be constant over the iterations
-  associate(&
-   ! input: model control
-   firstSplitOper => in_surfaceFlx % firstSplitOper , & ! flag indicating if desire to compute infiltration
-   ! output: derivatives in surface infiltration w.r.t. ...
-   dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
-  &)
-   if (firstSplitOper) then
-     call update_surfaceFlx_liquidFlux_computation; if (return_flag) return 
-   else ! do not compute infiltration after first flux call in a splitting operation
-     dq_dHydStateVec(:) = 0._rkind
-     dq_dNrgStateVec(:) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-   end if 
-  end associate
-
-  call update_surfaceFlx_liquidFlux_infiltration ! final computations for infiltration and runoff
- end subroutine update_surfaceFlx_liquidFlux
-
- subroutine update_surfaceFlx_liquidFlux_computation 
   ! **** Update operations for surfaceFlx: flux condition -- main computations ****
-
+  ! THIS WOULD BE A LOT CLEANER IF IT WAS ALL IN ONE SUBROUTINE JUST LIKE THE OTHERS, FIX
    call update_surfaceFlx_liquidFlux_computation_root_layers 
 
    call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return 
@@ -1575,7 +1578,7 @@ contains
 
    call update_surfaceFlx_liquidFlux_computation_flux_derivatives
 
- end subroutine update_surfaceFlx_liquidFlux_computation 
+ end subroutine update_surfaceFlx_liquidFlux
 
  subroutine update_surfaceFlx_liquidFlux_computation_root_layers 
   ! **** Update operations for surfaceFlx: flux condition -- main computations (root layers) ****
@@ -1599,33 +1602,35 @@ contains
    rootingDepth        => in_surfaceFlx % rootingDepth & ! rooting depth (m)
   &)
 
-   ! process root layers only liquid and ice derivatives
+   ! process root layers only liquid and ice derivatives, first initialize
    dVolFracLiq_dWat(:) = 0._rkind
    dVolFracIce_dWat(:) = 0._rkind
    dVolFracLiq_dTk(:)  = 0._rkind
    dVolFracIce_dTk(:)  = 0._rkind
-   if (nRoots > 0) then
-     select case(ixRichards)  ! form of Richards' equation
-       case(moisture)
-         dVolFracLiq_dWat(:) = 1._rkind
-         dVolFracIce_dWat(:) = mLayerdPsi_dTheta(:) - 1._rkind
-       case(mixdform)
-         do iLayer=1,nRoots
-           Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
-           if (mLayerTemp(iLayer) < Tcrit) then
-             dVolFracLiq_dWat(iLayer) = 0._rkind
-             dVolFracIce_dWat(iLayer) = dTheta_dPsi(iLayer)
-           else
-             dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
-             dVolFracIce_dWat(iLayer) = 0._rkind
-           end if
-         end do
-     end select 
-     dVolFracLiq_dTk(:) = dTheta_dTk(:) !already zeroed out if not below critical temperature
-     dVolFracIce_dTk(:) = -dVolFracLiq_dTk(:) !often can and will simplify one of these terms out
-   end if
+   if(updateInfil)then
+     if (nRoots > 0) then
+       select case(ixRichards)  ! form of Richards' equation
+         case(moisture)
+           dVolFracLiq_dWat(:) = 1._rkind
+           dVolFracIce_dWat(:) = mLayerdPsi_dTheta(:) - 1._rkind
+         case(mixdform)
+           do iLayer=1,nRoots
+             Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
+             if (mLayerTemp(iLayer) < Tcrit) then
+               dVolFracLiq_dWat(iLayer) = 0._rkind
+               dVolFracIce_dWat(iLayer) = dTheta_dPsi(iLayer)
+             else
+               dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
+               dVolFracIce_dWat(iLayer) = 0._rkind
+             end if
+           end do
+       end select 
+       dVolFracLiq_dTk(:) = dTheta_dTk(:) !already zeroed out if not below critical temperature
+       dVolFracIce_dTk(:) = -dVolFracLiq_dTk(:) !often can and will simplify one of these terms out
+     end if
+   endif
  
-   ! define the storage in the root zone (m) and derivatives
+   ! define the storage in the root zone (m) and derivatives, first initialize
    rootZoneLiq = 0._rkind
    rootZoneIce = 0._rkind
    dRootZoneLiq_dWat(:) = 0._rkind
@@ -1638,19 +1643,23 @@ contains
      do iLayer=1,nRoots-1
        rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(iLayer)*mLayerDepth(iLayer)
        rootZoneIce = rootZoneIce + mLayerVolFracIce(iLayer)*mLayerDepth(iLayer)
-       dRootZoneLiq_dWat(iLayer) = dVolFracLiq_dWat(iLayer)*mLayerDepth(iLayer)
-       dRootZoneIce_dWat(iLayer) = dVolFracIce_dWat(iLayer)*mLayerDepth(iLayer)
-       dRootZoneLiq_dTk(iLayer)  = dVolFracLiq_dTk(iLayer) *mLayerDepth(iLayer)
-       dRootZoneIce_dTk(iLayer)  = dVolFracIce_dTk(iLayer) *mLayerDepth(iLayer)
+       if(updateInfil)then
+         dRootZoneLiq_dWat(iLayer) = dVolFracLiq_dWat(iLayer)*mLayerDepth(iLayer)
+         dRootZoneIce_dWat(iLayer) = dVolFracIce_dWat(iLayer)*mLayerDepth(iLayer)
+         dRootZoneLiq_dTk(iLayer)  = dVolFracLiq_dTk(iLayer) *mLayerDepth(iLayer)
+         dRootZoneIce_dTk(iLayer)  = dVolFracIce_dTk(iLayer) *mLayerDepth(iLayer)
+       end if
      end do
    end if
    ! process layers where the roots end in the current layer
    rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
    rootZoneIce = rootZoneIce + mLayerVolFracIce(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
-   dRootZoneLiq_dWat(nRoots) = dVolFracLiq_dWat(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
-   dRootZoneIce_dWat(nRoots) = dVolFracIce_dWat(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
-   dRootZoneLiq_dTk(nRoots)  = dVolFracLiq_dTk(nRoots)* (rootingDepth - iLayerHeight(nRoots-1))
-   dRootZoneIce_dTk(nRoots)  = dVolFracIce_dTk(nRoots)* (rootingDepth - iLayerHeight(nRoots-1))
+   if(updateInfil)then
+     dRootZoneLiq_dWat(nRoots) = dVolFracLiq_dWat(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
+     dRootZoneIce_dWat(nRoots) = dVolFracIce_dWat(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
+     dRootZoneLiq_dTk(nRoots)  = dVolFracLiq_dTk(nRoots)* (rootingDepth - iLayerHeight(nRoots-1))
+     dRootZoneIce_dTk(nRoots)  = dVolFracIce_dTk(nRoots)* (rootingDepth - iLayerHeight(nRoots-1))
+   endif
 
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_root_layers 
@@ -1697,8 +1706,10 @@ contains
    ! define the depth to the wetting front (m) and derivatives
    total_soil_depth = sum(mLayerDepth)
    depthWettingFront = (rootZoneLiq/availCapacity)*min(rootingDepth, total_soil_depth)
-   dDepthWettingFront_dWat(:)=( dRootZoneLiq_dWat(:)*min(rootingDepth, total_soil_depth) + dRootZoneIce_dWat(:)*depthWettingFront )/availCapacity
-   dDepthWettingFront_dTk(:) =( dRootZoneLiq_dTk(:) *min(rootingDepth, total_soil_depth) + dRootZoneIce_dTk(:)*depthWettingFront  )/availCapacity
+   if(updateInfil)then
+     dDepthWettingFront_dWat(:)=( dRootZoneLiq_dWat(:)*min(rootingDepth, total_soil_depth) + dRootZoneIce_dWat(:)*depthWettingFront )/availCapacity
+     dDepthWettingFront_dTk(:) =( dRootZoneLiq_dTk(:) *min(rootingDepth, total_soil_depth) + dRootZoneIce_dTk(:)*depthWettingFront  )/availCapacity
+    end if
 
    ! process hydraulic conductivity-controlled infiltration rate
    select case(ixInfRateMax)  ! maximum infiltration rate parameterization
@@ -1707,31 +1718,35 @@ contains
      hydCondWettingFront = surfaceSatHydCond * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 1._rkind) )
      ! define the maximum infiltration rate (m s-1)
      xMaxInfilRate = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
+     ! initialize the derivatives
+     dxMaxInfilRate_dWat(:) = 0._rkind
+     dxMaxInfilRate_dTk(:)  = 0._rkind
      ! define the derivatives
-     fPart1    = hydCondWettingFront
-     fPart2    = (wettingFrontSuction + depthWettingFront)/depthWettingFront
-     dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dWat(:))/total_soil_depth
-     dPart2(:) = -dDepthWettingFront_dWat(:)*wettingFrontSuction / (depthWettingFront**2_i4b)
-     dxMaxInfilRate_dWat(:) = fPart1*dPart2(:) + fPart2*dPart1(:)
-     dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dTk(:))/total_soil_depth
-     dPart2(:) = -dDepthWettingFront_dTk(:)*wettingFrontSuction / (depthWettingFront**2_i4b)
-     dxMaxInfilRate_dTk(:)  = fPart1*dPart2(:) + fPart2*dPart1(:)
+     if(updateInfil)then
+       fPart1    = hydCondWettingFront
+       fPart2    = (wettingFrontSuction + depthWettingFront)/depthWettingFront
+       dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dWat(:))/total_soil_depth
+       dPart2(:) = -dDepthWettingFront_dWat(:)*wettingFrontSuction / (depthWettingFront**2_i4b)
+       dxMaxInfilRate_dWat(:) = fPart1*dPart2(:) + fPart2*dPart1(:)
+       dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dTk(:))/total_soil_depth
+       dPart2(:) = -dDepthWettingFront_dTk(:)*wettingFrontSuction / (depthWettingFront**2_i4b)
+       dxMaxInfilRate_dTk(:)  = fPart1*dPart2(:) + fPart2*dPart1(:)
+     endif
     case(GreenAmpt)
       ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
       hydCondWettingFront = surfaceSatHydCond ! Green-Ampt assumes homogeneous soil, therefore the whole soil column has the same hydraulic conductivity
       ! define the maximum infiltration rate (m s-1)
       xMaxInfilRate = hydCondWettingFront * (1._rkind + (1._rkind - depthWettingFront/total_soil_depth) * wettingFrontSuction/depthWettingFront) ! Ks * (1 + (Md) * S/F)
       ! define the derivatives
-      dxMaxInfilRate_dWat(:) = -hydCondWettingFront*wettingFrontSuction*dDepthWettingFront_dWat(:)/depthWettingFront**2_i4b
-      dxMaxInfilRate_dTk(:)  = -hydCondWettingFront*wettingFrontSuction*dDepthWettingFront_dTk(:)/depthWettingFront**2_i4b
+      if(updateInfil)then
+        dxMaxInfilRate_dWat(:) = -hydCondWettingFront*wettingFrontSuction*dDepthWettingFront_dWat(:)/depthWettingFront**2_i4b
+        dxMaxInfilRate_dTk(:)  = -hydCondWettingFront*wettingFrontSuction*dDepthWettingFront_dTk(:)/depthWettingFront**2_i4b
+      endif
     case(noInfiltrationExcess)
       ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
       !hydCondWettingFront =  surfaceSatHydCond ! this is not needed for this calculation, but keeping it here in case not setting this will cause unanticipated problems down the line
-      ! define the maximum infiltration rate (m s-1)
+      ! define the maximum infiltration rate (m s-1), derivatives are zero
       xMaxInfilRate = veryBig ! If maximum infiltration is very big we'll never have a rainfall rate that exceeds it, so no infiltration excess
-      ! define the derivatives
-      dxMaxInfilRate_dWat(:) = 0._rkind
-      dxMaxInfilRate_dTk(:)  = 0._rkind
    end select
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_wetting_front
@@ -1746,29 +1761,29 @@ contains
    ! input-output: surface runoff and infiltration flux (m s-1)
    scalarInfilArea  => io_surfaceFlx % scalarInfilArea & ! fraction of unfrozen area where water can infiltrate (-)
   &)
-   ! define the infiltrating area and derivatives for the non-frozen part of the cell/basin
+   ! define the infiltrating area and derivatives for the non-frozen part of the cell/basin, first initialize
+   dInfilArea_dWat(1:nSoil) = 0._rkind
+   dInfilArea_dTk(1:nSoil)  = 0._rkind
+   dInfilArea_dWat(0) = 0._rkind
+   dInfilArea_dTk(0)  = 0._rkind
    if (qSurfScale < qSurfScaleMax) then
      fracCap         = rootZoneLiq/(maxFracCap*availCapacity)                              ! fraction of available root zone filled with water
      fInfRaw         = 1._rkind - exp(-qSurfScale*(1._rkind - fracCap))                          ! infiltrating area -- allowed to violate solution constraints
      scalarInfilArea = min(0.5_rkind*(fInfRaw + sqrt(fInfRaw**2_i4b + scaleFactor)), 1._rkind)   ! infiltrating area -- constrained
-     if (0.5_rkind*(fInfRaw + sqrt(fInfRaw**2_i4b + scaleFactor))< 1._rkind) then
-       dfracCap(:) = ( dRootZoneLiq_dWat(:)/maxFracCap + dRootZoneIce_dWat(:)*fracCap )/availCapacity
-       dfInfRaw(:) = -qSurfScale*dfracCap(:) * exp(-qSurfScale*(1._rkind - fracCap))
-       dInfilArea_dWat(1:nSoil) = 0.5_rkind*dfInfRaw(:) * (1._rkind + fInfRaw/sqrt(fInfRaw**2_i4b + scaleFactor))
-       dfracCap(:) = ( dRootZoneLiq_dTk(:)/maxFracCap + dRootZoneIce_dTk(:)*fracCap )/availCapacity
-       dfInfRaw(:) = -qSurfScale*dfracCap(:) * exp(-qSurfScale*(1._rkind - fracCap))
-       dInfilArea_dTk(1:nSoil)  = 0.5_rkind*dfInfRaw(:) * (1._rkind + fInfRaw/sqrt(fInfRaw**2_i4b + scaleFactor))
-     else ! scalarInfilArea = 1._rkind
-       dInfilArea_dWat(1:nSoil) = 0._rkind
-       dInfilArea_dTk(1:nSoil)  = 0._rkind
-     end if
+     ! define the derivatives
+     if(updateInfil)then
+       if (0.5_rkind*(fInfRaw + sqrt(fInfRaw**2_i4b + scaleFactor))< 1._rkind) then
+         dfracCap(:) = ( dRootZoneLiq_dWat(:)/maxFracCap + dRootZoneIce_dWat(:)*fracCap )/availCapacity
+         dfInfRaw(:) = -qSurfScale*dfracCap(:) * exp(-qSurfScale*(1._rkind - fracCap))
+         dInfilArea_dWat(1:nSoil) = 0.5_rkind*dfInfRaw(:) * (1._rkind + fInfRaw/sqrt(fInfRaw**2_i4b + scaleFactor))
+         dfracCap(:) = ( dRootZoneLiq_dTk(:)/maxFracCap + dRootZoneIce_dTk(:)*fracCap )/availCapacity
+         dfInfRaw(:) = -qSurfScale*dfracCap(:) * exp(-qSurfScale*(1._rkind - fracCap))
+         dInfilArea_dTk(1:nSoil)  = 0.5_rkind*dfInfRaw(:) * (1._rkind + fInfRaw/sqrt(fInfRaw**2_i4b + scaleFactor))
+       endif ! else derivatives are zero
+     endif
    else
-     scalarInfilArea = 1._rkind
-     dInfilArea_dWat(1:nSoil) = 0._rkind
-     dInfilArea_dTk(1:nSoil)  = 0._rkind
+     scalarInfilArea = 1._rkind ! derivatives are zero
    end if
-   dInfilArea_dWat(0) = 0._rkind
-   dInfilArea_dTk(0)  = 0._rkind
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_infiltrating_area
 
@@ -1812,41 +1827,45 @@ contains
    xMaxInfilRate    => io_surfaceFlx % xMaxInfilRate    , & ! maximum infiltration rate (m s-1)
    scalarFrozenArea => io_surfaceFlx % scalarFrozenArea   & ! fraction of area that is considered impermeable due to soil ice (-)
   &)
-   ! define the impermeable area and derivatives due to frozen ground
+   ! define the impermeable area and derivatives due to frozen ground, first initialize
+    dFrozenArea_dWat(1:nSoil) = 0._rkind
+    dFrozenArea_dTk(1:nSoil)  = 0._rkind
+    dFrozenArea_dWat(0) = 0._rkind
+    dFrozenArea_dTk(0)  = 0._rkind
    if (rootZoneIce > tiny(rootZoneIce)) then  ! (avoid divide by zero)
      alpha            = 1._rkind/(soilIceCV**2_i4b)        ! shape parameter in the Gamma distribution
      xLimg            = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
- 
      !if we use this, we will have a derivative of scalarFrozenArea w.r.t. water and temperature in each layer (through mLayerVolFracIce)
-     ! Should fix to deal with frozen area in the root zone
+     ! Should fix to deal with frozen area in the root zone, calculations would be expensive
      !scalarFrozenArea = 1._rkind - gammp(alpha,xLimg)      ! fraction of frozen area
+     !if(updateInfil)then
+     !  dFrozenArea_dWat(1:nSoil) = -dgammp_dx(alpha,xLimg)*(-alpha*soilIceScale/rootZoneIce**2_i4b)*dRootZoneIce_dWat(1:nSoil)
+     !  dFrozenArea_dTk(1:nSoil)  = -dgammp_dx(alpha,xLimg)*(-alpha*soilIceScale/rootZoneIce**2_i4b)*dRootZoneIce_dTk(1:nSoil)
+     !end if
      scalarFrozenArea = 0._rkind
-     dFrozenArea_dWat(1:nSoil) = 0._rkind
-     dFrozenArea_dTk(1:nSoil)  = 0._rkind
    else
      scalarFrozenArea = 0._rkind
-     dFrozenArea_dWat(1:nSoil) = 0._rkind
-     dFrozenArea_dTk(1:nSoil)  = 0._rkind
    end if
-   dFrozenArea_dWat(0) = 0._rkind
-   dFrozenArea_dTk(0)  = 0._rkind
- 
-   if (xMaxInfilRate < scalarRainPlusMelt) then ! = dxMaxInfilRate_d, dependent on layers not at surface
-     dInfilRate_dWat(0) = 0._rkind
-     dInfilRate_dTk(0)  = 0._rkind
-     dInfilRate_dWat(1:nSoil) = dxMaxInfilRate_dWat(:)
-     dInfilRate_dTk(1:nSoil)  = dxMaxInfilRate_dTk(:)
-   else ! = dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp
-     dInfilRate_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq
-     dInfilRate_dTk(0)  = above_soilLiqFluxDeriv*above_soildLiq_dTk
-     dInfilRate_dWat(1:nSoil) = 0._rkind
-     dInfilRate_dTk(1:nSoil)  = 0._rkind
-   end if
+   
+   ! infiltration rate derivatives, first initialize
+    dInfilRate_dWat(1:nSoil) = 0._rkind
+    dInfilRate_dTk(1:nSoil)  = 0._rkind
+    dInfilRate_dWat(0) = 0._rkind
+    dInfilRate_dTk(0)  = 0._rkind
+   if(updateInfil)then
+     if (xMaxInfilRate < scalarRainPlusMelt) then ! = dxMaxInfilRate_d, dependent on layers not at surface
+       dInfilRate_dWat(1:nSoil) = dxMaxInfilRate_dWat(:)
+       dInfilRate_dTk(1:nSoil)  = dxMaxInfilRate_dTk(:)
+     else ! = dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp
+       dInfilRate_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq
+       dInfilRate_dTk(0)  = above_soilLiqFluxDeriv*above_soildLiq_dTk
+     end if
+    endif
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_impermeable_area
 
  subroutine update_surfaceFlx_liquidFlux_computation_flux_derivatives
-  ! **** Update operations for surfaceFlx: flux condition -- main computations (flux derivatives) ****
+  ! **** Update operations for surfaceFlx: flux condition -- main computations (flux derivatives, nonzero only if updateInfil) ****
   associate(&
    ! input: flux at the upper boundary
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt , & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
@@ -2278,7 +2297,7 @@ contains
    ! input: model coordinate variables
    nodeHeight => in_qDrainFlux % nodeHeight, &                ! height of the lowest unsaturated soil node (m)
    ! input: derivative in soil water characteristic
-   node_dPsi_dTheta => in_qDrainFlux % node_dPsi_dTheta, &    ! derivative of the soil moisture characteristic w.r.t. theta (m)
+   node_dPsi_dTheta    => in_qDrainFlux % node_dPsi_dTheta   , &  ! derivative of the soil moisture characteristic w.r.t. theta (m)
    ! input: transmittance
    surfaceSatHydCond => in_qDrainFlux % surfaceSatHydCond, &  ! saturated hydraulic conductivity at the surface (m s-1)
    ! input: soil parameters
