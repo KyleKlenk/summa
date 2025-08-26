@@ -675,7 +675,7 @@ contains
     message=trim(message)//'expect dBaseflow_dMatric to be nSoil x nSoil'
     err=20; return
   end if
-  call in_groundwatr%initialize(nSnow,nSoil,nLayers,firstFluxCall,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
+  call in_groundwatr%initialize(nSnow,nSoil,nLayers,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
   call io_groundwatr%initialize(ixSaturation)
  end subroutine initialize_groundwatr
 

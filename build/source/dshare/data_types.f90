@@ -522,7 +522,6 @@ MODULE data_types
    integer(i4b)             :: nLayers                           ! intent(in):    total number of layers
    logical(lgt)             :: firstFluxCall                     ! intent(in):    logical flag to compute index of the lowest saturated layer
    real(rkind), allocatable :: mLayerdTheta_dPsi(:)              ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
-   real(rkind), allocatable :: mLayerMatricHeadLiqTrial(:)       ! intent(in):    liquid water matric potential (m)
    real(rkind), allocatable :: mLayerVolFracLiqTrial(:)          ! intent(in):    volumetric fraction of liquid water (-)
    real(rkind), allocatable :: mLayerVolFracIceTrial(:)          ! intent(in):    volumetric fraction of ice (-)
   contains
@@ -1489,13 +1488,12 @@ contains
  ! **** end soilLiqFlx ****
 
  ! **** groundwatr ****
- subroutine initialize_in_groundwatr(in_groundwatr,nSnow,nSoil,nLayers,firstFluxCall,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
+ subroutine initialize_in_groundwatr(in_groundwatr,nSnow,nSoil,nLayers,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
   class(in_type_groundwatr),intent(out) :: in_groundwatr               ! class object for intent(in) groundwatr arguments
   integer(i4b),intent(in)               :: nSnow                       ! number of snow layers
   integer(i4b),intent(in)               :: nSoil                       ! number of soil layers
   integer(i4b),intent(in)               :: nLayers                     ! total number of layers
   logical(lgt),intent(in)               :: firstFluxCall               ! logical flag to compute index of the lowest saturated layer
-  real(rkind),intent(in)                :: mLayerMatricHeadLiqTrial(:) ! trial value for the liquid water matric potential (m)
   real(rkind),intent(in)                :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
   real(rkind),intent(in)                :: mLayerVolFracIceTrial(:)    ! trial value for volumetric fraction of ice (-)
   type(var_dlength),intent(in)          :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
@@ -1508,7 +1506,6 @@ contains
    in_groundwatr % nLayers                  = nLayers                                ! intent(in):    total number of layers
    in_groundwatr % firstFluxCall            = firstFluxCall                          ! intent(in):    logical flag to compute index of the lowest saturated layer
    in_groundwatr % mLayerdTheta_dPsi        = mLayerdTheta_dPsi                      ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
-   in_groundwatr % mLayerMatricHeadLiqTrial = mLayerMatricHeadLiqTrial               ! intent(in):    liquid water matric potential (m)
    in_groundwatr % mLayerVolFracLiqTrial    = mLayerVolFracLiqTrial(nSnow+1:nLayers) ! intent(in):    volumetric fraction of liquid water (-)
    in_groundwatr % mLayerVolFracIceTrial    = mLayerVolFracIceTrial(nSnow+1:nLayers) ! intent(in):    volumetric fraction of ice (-)
   end associate
