@@ -994,7 +994,7 @@ contains
          call update_surfaceFlx_FUSE_TOPMODEL;  if (return_flag) return
        case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
       end select
-   else ! do not compute infiltration after first flux call in a splitting operation
+   else ! do not compute infiltration after first flux call in a splitting operation unless updateInfil is true
      dq_dHydStateVec(:) = 0._rkind
      dq_dNrgStateVec(:) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    end if 
@@ -1562,21 +1562,18 @@ contains
  end subroutine update_surfaceFlx_prescribedHead
 
  subroutine update_surfaceFlx_liquidFlux 
-  ! **** Update operations for surfaceFlx: flux condition -- main computations ****
+  ! **** Update operations for surfaceFlx: flux condition ****
   ! THIS WOULD BE A LOT CLEANER IF IT WAS ALL IN ONE SUBROUTINE JUST LIKE THE OTHERS, FIX
-   call update_surfaceFlx_liquidFlux_computation_root_layers 
-
-   call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return 
-
-   call update_surfaceFlx_liquidFlux_computation_wetting_front
-
-   call update_surfaceFlx_liquidFlux_computation_infiltrating_area
-
-   call update_surfaceFlx_liquidFlux_computation_validate_infiltration
- 
-   call update_surfaceFlx_liquidFlux_computation_impermeable_area
-
-   call update_surfaceFlx_liquidFlux_computation_flux_derivatives
+  ! -- main computations
+  call update_surfaceFlx_liquidFlux_computation_root_layers 
+  call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return 
+  call update_surfaceFlx_liquidFlux_computation_wetting_front
+  call update_surfaceFlx_liquidFlux_computation_infiltrating_area
+  call update_surfaceFlx_liquidFlux_computation_validate_infiltration
+  call update_surfaceFlx_liquidFlux_computation_impermeable_area
+  call update_surfaceFlx_liquidFlux_computation_flux_derivatives
+  ! -- put it all together
+  call update_surfaceFlx_liquidFlux_infiltration
 
  end subroutine update_surfaceFlx_liquidFlux
 
@@ -1914,7 +1911,7 @@ contains
    ! unfrozen infiltration area
    scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
 
-   ! compute infiltration (m s-1), if after first flux call in a splitting operation does not change
+   ! compute infiltration (m s-1)
    scalarSurfaceInfiltration = scalarInfilArea_unfrozen*min(scalarRainPlusMelt,xMaxInfilRate)
  
    ! compute surface runoff (m s-1)
@@ -2082,8 +2079,8 @@ contains
    iLayerHydCond => out_iLayerFlux % iLayerHydCond, & ! hydraulic conductivity at the interface between layers (m s-1)
    iLayerDiffuse => out_iLayerFlux % iLayerDiffuse, & ! hydraulic diffusivity at the interface between layers (m2 s-1)
    ! output: derivatives in fluxes w.r.t. ...  
-   dq_dHydStateAbove => out_iLayerFlux % dq_dHydStateAbove, & ! ... matric head or volumetric lquid water in the layer above (m s-1 or s-1)
-   dq_dHydStateBelow => out_iLayerFlux % dq_dHydStateBelow, & ! ... matric head or volumetric lquid water in the layer below (m s-1 or s-1)
+   dq_dHydStateAbove => out_iLayerFlux % dq_dHydStateAbove, & ! ... matric head or volumetric liquid water in the layer above (m s-1 or s-1)
+   dq_dHydStateBelow => out_iLayerFlux % dq_dHydStateBelow, & ! ... matric head or volumetric liquid water in the layer below (m s-1 or s-1)
    ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
    dq_dNrgStateAbove => out_iLayerFlux % dq_dNrgStateAbove, & ! derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
    dq_dNrgStateBelow => out_iLayerFlux % dq_dNrgStateBelow, & ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
