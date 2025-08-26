@@ -2298,6 +2298,7 @@ contains
    nodeHeight => in_qDrainFlux % nodeHeight, &                ! height of the lowest unsaturated soil node (m)
    ! input: derivative in soil water characteristic
    node_dPsi_dTheta    => in_qDrainFlux % node_dPsi_dTheta   , &  ! derivative of the soil moisture characteristic w.r.t. theta (m)
+   node_dPsiLiq_dTemp  => in_qDrainFlux % node_dPsiLiq_dTemp , &  ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input: transmittance
    surfaceSatHydCond => in_qDrainFlux % surfaceSatHydCond, &  ! saturated hydraulic conductivity at the surface (m s-1)
    ! input: soil parameters
@@ -2333,8 +2334,8 @@ contains
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
    end select
    ! energy derivatives
-   err=20; message=trim(message)//"not yet implemented energy derivatives"; return_flag=.true.; return
-   !dq_dNrgStateUnsat = ?? FIX
+   dq_dNrgStateUnsat = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)*node_dPsiLiq_dTemp/zScale_TOPMODEL
+   ! FIX: IS THIS CORRECT???? seems to easy to have been missing originally
 
   end associate
  end subroutine update_qDrainFlux_funcBottomHead

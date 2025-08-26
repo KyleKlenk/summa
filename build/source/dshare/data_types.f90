@@ -786,6 +786,7 @@ MODULE data_types
    real(rkind)  :: lowerBoundTheta           ! lower boundary condition for volumetric liquid water content (-)
    ! input: derivative in soil water characteristic
    real(rkind)  :: node_dPsi_dTheta          ! derivative of the soil moisture characteristic w.r.t. theta (m)
+   real(rkind)  :: node_dPsiLiq_dTemp        ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input: transmittance
    real(rkind)  :: surfaceSatHydCond         ! saturated hydraulic conductivity at the surface (m s-1)
    real(rkind)  :: bottomSatHydCond          ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
@@ -1654,22 +1655,22 @@ contains
    ! input: model control
    in_diagv_node % ixRichards    = ixRichards    ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state variables
-   in_diagv_node % scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(isoil) ! liquid matric head in each layer (m)
-   in_diagv_node % scalarVolFracLiqTrial    = mLayerVolFracLiqTrial(isoil)    ! volumetric fraction of liquid water in a given layer (-)
-   in_diagv_node % scalarVolFracIceTrial    = mLayerVolFracIceTrial(isoil)    ! volumetric fraction of ice in a given layer (-)
-   in_diagv_node % dTheta_dTk               = mLayerdTheta_dTk(isoil)         ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-   in_diagv_node % dPsiLiq_dTemp            = dPsiLiq_dTemp(isoil)            ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   in_diagv_node % scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(iSoil) ! liquid matric head in each layer (m)
+   in_diagv_node % scalarVolFracLiqTrial    = mLayerVolFracLiqTrial(iSoil)    ! volumetric fraction of liquid water in a given layer (-)
+   in_diagv_node % scalarVolFracIceTrial    = mLayerVolFracIceTrial(iSoil)    ! volumetric fraction of ice in a given layer (-)
+   in_diagv_node % dTheta_dTk               = mLayerdTheta_dTk(iSoil)         ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   in_diagv_node % dPsiLiq_dTemp            = dPsiLiq_dTemp(iSoil)            ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input: soil parameters
-   in_diagv_node % vGn_alpha          = vGn_alpha(isoil)          ! van Genuchten "alpha" parameter (m-1)
-   in_diagv_node % vGn_n              = vGn_n(isoil)              ! van Genuchten "n" parameter (-)
-   in_diagv_node % vGn_m              = vGn_m(isoil)              ! van Genuchten "m" parameter (-)
+   in_diagv_node % vGn_alpha          = vGn_alpha(iSoil)          ! van Genuchten "alpha" parameter (m-1)
+   in_diagv_node % vGn_n              = vGn_n(iSoil)              ! van Genuchten "n" parameter (-)
+   in_diagv_node % vGn_m              = vGn_m(iSoil)              ! van Genuchten "m" parameter (-)
    in_diagv_node % mpExp              = mpExp                     ! empirical exponent in macropore flow equation (-)
-   in_diagv_node % theta_sat          = theta_sat(isoil)          ! soil porosity (-)
-   in_diagv_node % theta_res          = theta_res(isoil)          ! soil residual volumetric water content (-)
+   in_diagv_node % theta_sat          = theta_sat(iSoil)          ! soil porosity (-)
+   in_diagv_node % theta_res          = theta_res(iSoil)          ! soil residual volumetric water content (-)
    in_diagv_node % theta_mp           = theta_mp                  ! volumetric liquid water content when macropore flow begins (-)
    in_diagv_node % f_impede           = f_impede                  ! ice impedence factor (-)
-   in_diagv_node % scalarSatHydCond   = mLayerSatHydCond(isoil)   ! saturated hydraulic conductivity at the mid-point of a given layer (m s-1)
-   in_diagv_node % scalarSatHydCondMP = mLayerSatHydCondMP(isoil) ! saturated hydraulic conductivity of macropores at the mid-point of a given layer (m s-1)
+   in_diagv_node % scalarSatHydCond   = mLayerSatHydCond(iSoil)   ! saturated hydraulic conductivity at the mid-point of a given layer (m s-1)
+   in_diagv_node % scalarSatHydCondMP = mLayerSatHydCondMP(iSoil) ! saturated hydraulic conductivity of macropores at the mid-point of a given layer (m s-1)
   end associate
  end subroutine initialize_in_diagv_node
 
@@ -2075,6 +2076,7 @@ contains
    lowerBoundTheta => mpar_data%var(iLookPARAM%lowerBoundTheta)%dat(1),& ! lower boundary condition for volumetric liquid water content (-)
    ! intent(in): derivative in the soil water characteristic
    mLayerdPsi_dTheta => io_soilLiqFlx % mLayerdPsi_dTheta,     & ! derivative in the soil water characteristic w.r.t. theta (m)
+   dPsiLiq_dTemp     => in_soilLiqFlx % dPsiLiq_dTemp,         & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! intent(in): transmittance
    iLayerSatHydCond => flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,& ! saturated hydraulic conductivity at the interface of each layer (m s-1)
    mLayerHydCond    => io_soilLiqFlx % mLayerHydCond,                & ! hydraulic conductivity in each soil layer (m s-1)
@@ -2102,7 +2104,8 @@ contains
    in_qDrainFlux % lowerBoundHead  = lowerBoundHead  ! lower boundary condition (m)
    in_qDrainFlux % lowerBoundTheta = lowerBoundTheta ! lower boundary condition (-)
    ! intent(in): derivative in the soil water characteristic
-   in_qDrainFlux % node_dPsi_dTheta = mLayerdPsi_dTheta(nSoil) ! derivative in the soil water characteristic
+   in_qDrainFlux % node_dPsi_dTheta   = mLayerdPsi_dTheta(nSoil) ! derivative in the soil water characteristic
+   in_qDrainFlux % node_dPsiLiq_dTemp = dPsiLiq_dTemp(nSoil)     ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! intent(in): transmittance
    in_qDrainFlux % surfaceSatHydCond = iLayerSatHydCond(0)     ! saturated hydraulic conductivity at the surface (m s-1)
    in_qDrainFlux % bottomSatHydCond  = iLayerSatHydCond(nSoil) ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
