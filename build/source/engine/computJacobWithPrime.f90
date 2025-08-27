@@ -496,7 +496,7 @@ subroutine computJacobWithPrime(&
             if(iLayer<nSnow .and. mLayerVolFracIce(iLayer)<=maxVolIceContent)then
               if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),watState),watState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
             endif
-            if(mLayerVolFracIce(iLayer)>maxVolIceContent .and. iLayer<nSnow-1)then ! kl>= 4 so always included
+            if(iLayer<nSnow-1 .and. mLayerVolFracIce(iLayer)>maxVolIceContent)then ! kl>= 4 so always included
               if(ixSnowOnlyHyd(iLayer+2)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+2),watState),watState) = -(dt/mLayerDepth(iLayer+2))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
             endif
 
@@ -518,8 +518,7 @@ subroutine computJacobWithPrime(&
             ! - define state indices for the current layer
             watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
 
-            if(watstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
-
+            if(watstate/=integerMissing)then       ! (water state for the current layer is within the state subset)
               ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
               aJac(ixOffDiag(nrgState,watState),watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fu0*iden_water * cj &
                                           + dVolHtCapBulk_dTheta(iLayer) * mLayerTempPrime(iLayer) + mLayerCm(iLayer) * cj &
@@ -550,8 +549,7 @@ subroutine computJacobWithPrime(&
               elseif(iLayer==nSnow .and. nSoilOnlyNrg>0)then !bottom snow layer and there is soil below
                 if(ixSoilOnlyNrg(1)/=integerMissing) aJac(ixOffDiag(ixSoilOnlyNrg(1),watState),watState) = (dt/mLayerDepth(nSnow+1))*(-dNrgFlux_dWatAbove(nSnow) )
               endif
-
-            endif   ! (if the energy state for the current layer is within the state subset)
+            endif   ! (if the water state for the current layer is within the state subset)
 
           end do  ! (looping through snow layers)
         endif   ! (if there are state variables for both water and energy in the snow domain)
@@ -604,17 +602,21 @@ subroutine computJacobWithPrime(&
           end do  ! (looping through hydrology states in the soil domain)
 
           ! - include banded terms for surface infiltration above surface if there is snow (vegetation handled already)
-          if(nSnowOnlyHyd>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then !have snow above first soil layer
+          if(nSnow>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then !have snow above first soil layer
             liteLayer=nSnow ! if passed through a too dense snowpack, need to find top-nondense layer
             do pLayer=nSnow,1,-1
               if(mLayerVolFracIce(pLayer)<=maxVolIceContent) exit
               liteLayer=pLayer
             end do
             do pLayer=liteLayer,nSnow
-              if(ixSnowOnlyHyd(pLayer)/=integerMissing) then
-                ! only include banded terms
+              if(ixSnowOnlyHyd(pLayer)/=integerMissing)then
+                ! compute factor to convert liquid water derivative to total water derivative
+                select case( ixHydType(pLayer) )
+                  case(iname_watLayer); convLiq2tot = mLayerFracLiqSnow(pLayer)
+                  case default;         convLiq2tot = 1._rkind
+                end select
                 if(ixSnowOnlyHyd(pLayer) - ixSoilOnlyHyd(1) <= ku) &
-                    aJac(ixOffDiag(ixSoilOnlyHyd(1),ixSnowOnlyHyd(pLayer)),ixSnowOnlyHyd(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*mLayerFracLiqSnow(pLayer) + aJac(ixOffDiag(ixSoilOnlyHyd(1),ixSnowOnlyHyd(pLayer)),ixSnowOnlyHyd(pLayer))
+                    aJac(ixOffDiag(ixSoilOnlyHyd(1),ixSnowOnlyHyd(pLayer)),ixSnowOnlyHyd(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*convLiq2tot + aJac(ixOffDiag(ixSoilOnlyHyd(1),ixSnowOnlyHyd(pLayer)),ixSnowOnlyHyd(pLayer))
               endif
             end do
           endif
@@ -665,7 +667,6 @@ subroutine computJacobWithPrime(&
 
             ! only compute derivatives if the water state for the current layer is within the state subset
             if(watstate/=integerMissing)then
-
               ! - include derivatives in liquid water fluxes w.r.t. temperature for current layer
               aJac(ixOffDiag(watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*(-dq_dNrgStateBelow(iLayer-1) + dq_dNrgStateAbove(iLayer))   ! dVol/dT (K-1) -- flux depends on ice impedance
 
@@ -725,7 +726,6 @@ subroutine computJacobWithPrime(&
               if(iLayer<nSoil)then
                 if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSoilOnlyNrg(iLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
               endif
-
             endif   ! (if the water state for the current layer is within the state subset)
 
             ! - only include banded terms for surface infiltration below surface in banded structure
@@ -736,14 +736,14 @@ subroutine computJacobWithPrime(&
           end do  ! (looping through energy states in the soil domain)
 
           ! - include banded terms for surface infiltration above surface if there is snow (vegetation handled already)
-          if(nSnowOnlyNrg>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then !have snow above first soil layer
+          if(nSnow>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then !have snow above first soil layer
             liteLayer=nSnow ! if passed through a too dense snowpack, need to find top-nondense layer
             do pLayer=nSnow,1,-1
               if(mLayerVolFracIce(pLayer)<=maxVolIceContent) exit
               liteLayer=pLayer
             end do
             do pLayer=liteLayer,nSnow
-              if(ixSnowOnlyNrg(pLayer)/=integerMissing) then
+              if(ixSnowOnlyNrg(pLayer)/=integerMissing)then
                 ! only include banded terms
                 if(ixSnowOnlyNrg(pLayer) - ixSoilOnlyHyd(1) <= ku) &
                     aJac(ixOffDiag(ixSoilOnlyHyd(1),ixSnowOnlyNrg(pLayer)),ixSnowOnlyNrg(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixOffDiag(ixSoilOnlyHyd(1),ixSnowOnlyNrg(pLayer)),ixSnowOnlyNrg(pLayer))
@@ -885,7 +885,7 @@ subroutine computJacobWithPrime(&
             if(iLayer<nSnow .and. mLayerVolFracIce(iLayer)<=maxVolIceContent)then
               if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+1),watState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot ! dVol(below)/dLiq(above) -- (-)
             endif
-            if(mLayerVolFracIce(iLayer)>maxVolIceContent .and. iLayer<nSnow-1)then
+            if(iLayer<nSnow-1 .and. mLayerVolFracIce(iLayer)>maxVolIceContent)then
               if(ixSnowOnlyHyd(iLayer+2)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+2),watState) = -(dt/mLayerDepth(iLayer+2))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot ! dVol(below)/dLiq(above) -- (-)
             endif
 
@@ -907,8 +907,7 @@ subroutine computJacobWithPrime(&
             ! - define state indices for the current layer
             watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
 
-            if(watstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
-
+            if(watstate/=integerMissing)then       ! (water state for the current layer is within the state subset)
               ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
               aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fu0*iden_water * cj &
                                           + dVolHtCapBulk_dTheta(iLayer) * mLayerTempPrime(iLayer) + mLayerCm(iLayer) * cj &
@@ -922,7 +921,7 @@ subroutine computJacobWithPrime(&
               if(iLayer<nSnow .and. mLayerVolFracIce(iLayer)<=maxVolIceContent)then
                 if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+1),nrgState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer) ! dVol(below)/dT(above) -- K-1
               endif ! (if there is a water state in the layer below the current layer in the given state subset)
-              if(mLayerVolFracIce(iLayer)>maxVolIceContent .and. iLayer<nSnow-1)then
+              if(iLayer<nSnow-1 .and. mLayerVolFracIce(iLayer)>maxVolIceContent)then
                 if(ixSnowOnlyHyd(iLayer+2)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+2),nrgState) = -(dt/mLayerDepth(iLayer+2))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer) ! dVol(below)/dT(above) -- K-1
               endif
 
@@ -930,15 +929,14 @@ subroutine computJacobWithPrime(&
               if(iLayer>1)then
                 if(ixSnowOnlyNrg(iLayer-1)/=integerMissing) aJac(ixSnowOnlyNrg(iLayer-1),watState) = (dt/mLayerDepth(iLayer-1))*( dNrgFlux_dWatBelow(iLayer-1) )
               endif
+            endif   ! (if the water state for the current layer is within the state subset)
 
-              ! (cross-derivative terms for the layer below)
-              if(iLayer<nSnow)then
-                if(ixSnowOnlyNrg(iLayer+1)/=integerMissing) aJac(ixSnowOnlyNrg(iLayer+1),watState) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dWatAbove(iLayer  ) )
-              elseif(iLayer==nSnow .and. nSoilOnlyNrg>0)then !bottom snow layer and there is soil below
-                if(ixSoilOnlyNrg(1)/=integerMissing) aJac(ixSoilOnlyNrg(1),watState) = (dt/mLayerDepth(nSnow+1))*(-dNrgFlux_dWatAbove(nSnow) )
-              endif
-
-            endif   ! (if the energy state for the current layer is within the state subset)
+            ! (cross-derivative terms for the layer below)
+            if(iLayer<nSnow)then
+              if(ixSnowOnlyNrg(iLayer+1)/=integerMissing) aJac(ixSnowOnlyNrg(iLayer+1),watState) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dWatAbove(iLayer  ) )
+            elseif(iLayer==nSnow .and. nSoilOnlyNrg>0)then !bottom snow layer and there is soil below
+              if(ixSoilOnlyNrg(1)/=integerMissing) aJac(ixSoilOnlyNrg(1),watState) = (dt/mLayerDepth(nSnow+1))*(-dNrgFlux_dWatAbove(nSnow) )
+            endif
 
           end do  ! (looping through snow layers)
         endif   ! (if there are state variables for both water and energy in the snow domain)
@@ -986,14 +984,21 @@ subroutine computJacobWithPrime(&
           end do  ! (looping through hydrology states in the soil domain)
 
           ! - include terms for surface infiltration above surface if there is snow (vegetation handled already)
-          if(nSnowOnlyHyd>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then !have snow above first soil layer
+          if(nSnow>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then !have snow above first soil layer
             liteLayer=nSnow ! if passed through a too dense snowpack, need to find top-nondense layer
             do pLayer=nSnow,1,-1
               if(mLayerVolFracIce(pLayer)<=maxVolIceContent) exit
               liteLayer=pLayer
             end do
             do pLayer=liteLayer,nSnow
-              if(ixSnowOnlyHyd(pLayer)/=integerMissing) aJac(ixSoilOnlyHyd(1),ixSnowOnlyHyd(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*mLayerFracLiqSnow(pLayer) + aJac(ixSoilOnlyHyd(1),ixSnowOnlyHyd(pLayer))
+              if(ixSnowOnlyHyd(pLayer)/=integerMissing)then
+                ! compute factor to convert liquid water derivative to total water derivative
+                select case( ixHydType(pLayer) )
+                  case(iname_watLayer); convLiq2tot = mLayerFracLiqSnow(pLayer)
+                  case default;         convLiq2tot = 1._rkind
+                end select
+                aJac(ixSoilOnlyHyd(1),ixSnowOnlyHyd(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*convLiq2tot + aJac(ixSoilOnlyHyd(1),ixSnowOnlyHyd(pLayer))
+              endif
             end do
           endif
 
@@ -1035,7 +1040,6 @@ subroutine computJacobWithPrime(&
 
             ! only compute derivatives if the water state for the current layer is within the state subset
             if(watstate/=integerMissing)then
-
               ! - include derivatives in liquid water fluxes w.r.t. temperature for current layer
               aJac(watState,nrgState) = (dt/mLayerDepth(jLayer))*(-dq_dNrgStateBelow(iLayer-1) + dq_dNrgStateAbove(iLayer))   ! dVol/dT (K-1) -- flux depends on ice impedance
 
@@ -1087,7 +1091,6 @@ subroutine computJacobWithPrime(&
               if(iLayer<nSoil)then
                 if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSoilOnlyNrg(iLayer+1),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
               endif
-
             endif   ! (if the water state for the current layer is within the state subset)
 
             ! - include terms for surface infiltration below surface
@@ -1096,14 +1099,15 @@ subroutine computJacobWithPrime(&
           end do  ! (looping through soil layers)
 
           ! - include terms for surface infiltration above surface if there is snow (vegetation handled already)
-          if(nSnowOnlyNrg>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then !have snow above first soil layer
+          if(nSnow>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then !have snow above first soil layer
             liteLayer=nSnow ! if passed through a too dense snowpack, need to find top-nondense layer
             do pLayer=nSnow,1,-1
               if(mLayerVolFracIce(pLayer)<=maxVolIceContent) exit
               liteLayer=pLayer
             end do
             do pLayer=liteLayer,nSnow
-              if(ixSnowOnlyNrg(pLayer)/=integerMissing) aJac(ixSoilOnlyHyd(1),ixSnowOnlyNrg(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixSoilOnlyHyd(1),ixSnowOnlyNrg(pLayer))
+              if(ixSnowOnlyNrg(pLayer)/=integerMissing)&
+                  aJac(ixSoilOnlyHyd(1),ixSnowOnlyNrg(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixSoilOnlyHyd(1),ixSnowOnlyNrg(pLayer))
             end do
           endif
 
