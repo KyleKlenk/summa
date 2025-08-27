@@ -470,7 +470,7 @@ MODULE var_lookup
   ! soil hydrology
   integer(i4b)    :: scalarInfilArea                 = integerMissing ! fraction of unfrozen area where water can infiltrate (-)
   integer(i4b)    :: scalarFrozenArea                = integerMissing ! fraction of area that is considered impermeable due to soil ice (-)
-  integer(i4b)    :: scalarSoilControl               = integerMissing ! soil control on infiltration: 1=controlling; 0=not (-)
+  integer(i4b)    :: scalarSoilControl               = integerMissing ! soil control on infiltration for derivative
   integer(i4b)    :: mLayerVolFracAir                = integerMissing ! volumetric fraction of air in each layer (-)
   integer(i4b)    :: mLayerTcrit                     = integerMissing ! critical soil temperature above which all water is unfrozen (K)
   integer(i4b)    :: mLayerCompress                  = integerMissing ! change in volumetric water content due to compression of soil (s-1)
