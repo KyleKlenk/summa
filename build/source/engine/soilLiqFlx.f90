@@ -1246,14 +1246,6 @@ contains
   ! compute saturated area
   Ac = (S1_T/S1_T_max)*Ac_max
 
-!  ! compute soil control factor --- done after combining runoff methods so not needed here
-!  ! note: infiltration = scalarSoilControl * p
-!  associate(&
-!   scalarSoilControl  => io_surfaceFlx % scalarSoilControl & ! soil control on infiltration for derivative
-!  &)
-!   scalarSoilControl = 1._rkind - Ac(1)
-!  end associate
-
   ! compute surface runoff
   associate(&
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt  & ! rain plus melt  (m s-1)
@@ -1281,7 +1273,6 @@ contains
    ! input: depth of soil layers (m)
    mLayerDepth  => in_surfaceFlx % mLayerDepth, & ! depth of upper-most soil layer (m)
    ! output: error control
-   !scalarSoilControl  => io_surfaceFlx % scalarSoilControl, & ! soil control on infiltration for derivative
    err                => out_surfaceFlx % err    , &          ! error code
    message            => out_surfaceFlx % message  &          ! error message
   &)
@@ -1331,7 +1322,6 @@ contains
 
     dq_dHydStateVec_SE(:) = 0._rkind 
     dq_dNrgStateVec_SE(:) = 0._rkind
-    !scalarSoilControl  = 0._rkind ! done after combining runoff methods so not needed here
 
    end if
 
@@ -1422,14 +1412,6 @@ contains
    Ac = 1._rkind - base**b  
   end associate
 
-!  ! compute soil control value ---- done after combining runoff methods so not needed here
-!  ! note: infiltration = scalarSoilControl * p
-!  associate(&
-!   scalarSoilControl  => io_surfaceFlx % scalarSoilControl    & ! soil control on infiltration for derivative
-!  &)
-!   scalarSoilControl = 1._rkind - Ac(1)
-!  end associate
-
   ! compute surface runoff
   associate(&
    ! input: flux at the upper boundary
@@ -1458,7 +1440,6 @@ contains
    ! input: depth of soil layers (m)
    mLayerDepth  => in_surfaceFlx % mLayerDepth , & ! depth of upper-most soil layer (m)
    ! output: error control
-   !scalarSoilControl   => io_surfaceFlx % scalarSoilControl, & ! soil control on infiltration for derivative
    err                 => out_surfaceFlx % err,              & ! error code
    message             => out_surfaceFlx % message           & ! error message
   &)
@@ -1509,7 +1490,6 @@ contains
 
     dq_dHydStateVec_SE(:) = 0._rkind 
     dq_dNrgStateVec_SE(:) = 0._rkind
-    !scalarSoilControl     = 0._rkind ! done after combining runoff methods so not needed here
   
    end if
 
@@ -1639,15 +1619,6 @@ contains
    Ac = 0._rkind
   end if
 
-!  ! compute soil control value ---- done after combining runoff methods so not needed here
-!  ! note: infiltration = scalarSoilControl * p
-!  associate(&
-!   ! input: flux at the upper boundary
-!   scalarSoilControl  => io_surfaceFlx % scalarSoilControl & ! soil control on infiltration for derivative
-!  &)
-!   scalarSoilControl = 1._rkind - Ac
-!  end associate
-
   ! compute surface runoff
   associate(&
    ! input: flux at the upper boundary
@@ -1666,7 +1637,6 @@ contains
    ixRichards => in_surfaceFlx % ixRichards, & ! index defining the option for Richards' equation (moisture or mixdform)
    nSoil      => in_surfaceFlx % nSoil,      & ! number of soil layers
    ! output
-   !scalarSoilControl => io_surfaceFlx % scalarSoilControl, & ! soil control on infiltration for derivative
    err               => out_surfaceFlx % err,              & ! error code
    message           => out_surfaceFlx % message           & ! error message
   &)
@@ -1685,7 +1655,6 @@ contains
    ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    dq_dNrgStateVec_SE(1:nSoil) = 0._rkind
 
-   !scalarSoilControl  = 0._rkind ! done after combining runoff methods so not needed here
   end associate
 
  end subroutine update_surfaceFlx_FUSE_TOPMODEL
