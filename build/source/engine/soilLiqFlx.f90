@@ -1181,19 +1181,19 @@ contains
   real(rkind) :: phi_tens ! fraction of total storage as tension storage (m)
 
   ! local variables
-  real(rkind),parameter   :: alpha_LSE=5.e5_rkind ! smoothness parameter for LSE smoother function
-  real(rkind)             :: p                    ! precipitation (m s-1)
-  real(rkind),allocatable :: Ac(:)                ! saturated area (-)
-  real(rkind),allocatable :: S1(:)                ! total water content in upper soil layer (m)
-  real(rkind),allocatable :: S1_max(:)            ! Maximum storage in the upper layer (m)
-  real(rkind),allocatable :: S1_T(:)              ! tension water content in upper soil layer (m)
-  real(rkind),allocatable :: S1_T_max(:)          ! maximum tension water content in upper soil layer (m)
-  real(rkind),allocatable :: qsx(:)               ! surface runoff (m s-1)
-  real(rkind),allocatable :: dS1_dWat(:)          ! derivative of S1 w.r.t. water content
-  real(rkind),allocatable :: S1_T_derivatives(:)  ! array of derivatives for S1_T
-  real(rkind),allocatable :: dS1_T_dS1(:)         ! derivative of S1_T w.r.t S1
-  real(rkind),allocatable :: dS1_T_dWat(:)        ! derivative of S1_T w.r.t water content
-  real(rkind),allocatable :: dAc_dWat(:)          ! derivative of Ac w.r.t water content 
+  real(rkind),parameter :: alpha_LSE=5.e5_rkind  ! smoothness parameter for LSE smoother function
+  real(rkind)           :: p                     ! precipitation (m s-1)
+  real(rkind)           :: Ac                    ! saturated area (-)
+  real(rkind)           :: S1                    ! total water content in upper soil layer (m)
+  real(rkind)           :: S1_max                ! Maximum storage in the upper layer (m)
+  real(rkind)           :: S1_T                  ! tension water content in upper soil layer (m)
+  real(rkind)           :: S1_T_max              ! maximum tension water content in upper soil layer (m)
+  real(rkind)           :: qsx                   ! surface runoff (m s-1)
+  real(rkind)           :: dS1_dWat              ! derivative of S1 w.r.t. water content
+  real(rkind)           :: S1_T_derivatives(1:2) ! array of derivatives for S1_T
+  real(rkind)           :: dS1_T_dS1             ! derivative of S1_T w.r.t S1
+  real(rkind)           :: dS1_T_dWat            ! derivative of S1_T w.r.t water content
+  real(rkind)           :: dAc_dWat              ! derivative of Ac w.r.t water content 
 
   ! validation of parameters
   associate(&
@@ -1219,8 +1219,8 @@ contains
    mLayerDepth      => in_surfaceFlx % mLayerDepth,      & ! depth of soil layers (m) 
    theta_sat        => in_surfaceFlx % theta_sat         & ! soil porosity (-)
   &)
-   S1     = mLayerDepth * mLayerVolFracLiq ! total water content in upper FUSE layer (m)
-   S1_max = mLayerDepth * theta_sat        ! max water storage for upper FUSE layer (m)
+   S1     = mLayerDepth(1) * mLayerVolFracLiq(1) ! total water content in upper FUSE layer (m)
+   S1_max = mLayerDepth(1) * theta_sat           ! max water storage for upper FUSE layer (m)
   end associate
 
   ! compute tension water content
@@ -1230,17 +1230,14 @@ contains
    message => out_surfaceFlx % message  & ! error message
   &)
    S1_T_max = phi_tens * S1_max
-   allocate(S1_T(1:nSoil))
-   do iLayer=1,nSoil
-    S1_T(iLayer)=LogSumExp(-alpha_LSE,[S1(iLayer),S1_T_max(iLayer)],err) ! smooth approximation to S1_T=min(S1,S1_T_max)
-    if (err /= 0) then
-     err=10; message=trim(message)//"FUSE PRMS surface runoff: error in LogSumExp"; return_flag=.true.; return
-    end if
-    if (S1_T(iLayer) < 0._rkind) then ! check for errors
-     err=10; message=trim(message)//"FUSE PRMS surface runoff: S1_T is negative (may need to increase magnitude of alpha_LSE)"
-     return_flag=.true.; return
-    end if
-   end do
+   S1_T     = LogSumExp(-alpha_LSE,[S1,S1_T_max],err) ! smooth approximation to S1_T=min(S1,S1_T_max)
+   if (err /= 0) then
+    err=10; message=trim(message)//"FUSE PRMS surface runoff: error in LogSumExp"; return_flag=.true.; return
+   end if
+   if (S1_T < 0._rkind) then ! check for errors
+    err=10; message=trim(message)//"FUSE PRMS surface runoff: S1_T is negative (may need to increase magnitude of alpha_LSE)"
+    return_flag=.true.; return
+   end if
   end associate
 
   ! compute saturated area
@@ -1255,7 +1252,7 @@ contains
   end associate
 
   ! saturation excess surface runoff component
-  SR_SE = qsx(1)
+  SR_SE = qsx
 
   ! * compute the derivatives for infiltration *
   associate(&
@@ -1280,14 +1277,11 @@ contains
    if (updateInfil) then
 
     ! compute derivatives needed for infiltration derivative
-    dS1_dWat = mLayerDepth                                                    ! derivative of S1 w.r.t. water content
-    allocate(dS1_T_dS1(1:nSoil))                                              ! allocate before assigning individual soil layer elements
-    do iLayer = 1,nSoil 
-     S1_T_derivatives  = SoftArgMax(-alpha_LSE,[S1(iLayer),S1_T_max(iLayer)]) ! compute vector of derivatives for S1_T
-     dS1_T_dS1(iLayer) = S1_T_derivatives(1)                                  ! extract S1_T derivative w.r.t S1
-    end do
-    dS1_T_dWat = dS1_T_dS1 * dS1_dWat                                         ! derivative of S1_T w.r.t water content
-    dAc_dWat   = (dS1_T_dWat/S1_T_max)*Ac_max                                 ! derivative of Ac w.r.t water content 
+    dS1_dWat          = mLayerDepth(1)                       ! derivative of S1 w.r.t. water content
+    S1_T_derivatives  = SoftArgMax(-alpha_LSE,[S1,S1_T_max]) ! compute vector of derivatives for S1_T
+    dS1_T_dS1         = S1_T_derivatives(1)                  ! extract S1_T derivative w.r.t S1
+    dS1_T_dWat        = dS1_T_dS1 * dS1_dWat                 ! derivative of S1_T w.r.t water content
+    dAc_dWat          = (dS1_T_dWat/S1_T_max)*Ac_max         ! derivative of Ac w.r.t water content 
 
     ! process liquid  derivatives
     dVolFracLiq_dWat(:) = 0._rkind ! w.r.t hydrology state variable (depends on form of Richards' equation)
@@ -1296,14 +1290,12 @@ contains
      case(moisture) ! water content state variable
        dVolFracLiq_dWat(:) = 1._rkind
      case(mixdform) ! pressure head state variable (also take freezing into account)
-       do iLayer=1,nSoil
-         Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
-         if (mLayerTemp(iLayer) < Tcrit) then ! water is frozen in the soil layer
-           dVolFracLiq_dWat(iLayer) = 0._rkind
-         else                                 ! water is unfrozen -- use water retention curve
-           dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
-         end if
-       end do
+       Tcrit = crit_soilT( mLayerMatricHead(1) )
+       if (mLayerTemp(1) < Tcrit) then ! water is frozen in the soil layer
+         dVolFracLiq_dWat(1) = 0._rkind
+       else                                 ! water is unfrozen -- use water retention curve
+         dVolFracLiq_dWat(1) = dTheta_dPsi(1)
+       end if
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
     end select 
     dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
@@ -1312,11 +1304,11 @@ contains
     ! Infil = p - p*Ac
     ! note: derivative of left-hand p value included externally
     ! note: rain plus melt derivatives are zero in soil layers
-    dq_dHydStateVec_SE(1:nSoil) = -p*dAc_dWat(1:nSoil) * dVolFracLiq_dWat(1:nSoil) 
+    dq_dHydStateVec_SE(1) = -p*dAc_dWat * dVolFracLiq_dWat(1) 
 
     ! * compute the energy derivatives *
     ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-    dq_dNrgStateVec_SE(1:nSoil) = -p*dAc_dWat(1:nSoil) * dVolFracLiq_dTk(1:nSoil) 
+    dq_dNrgStateVec_SE(1) = -p*dAc_dWat * dVolFracLiq_dTk(1) 
 
    else ! zero derivatives if not first split operation
 
