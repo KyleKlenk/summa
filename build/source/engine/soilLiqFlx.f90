@@ -1055,9 +1055,7 @@ contains
 
  subroutine update_gather_runoff_components
   ! **** Gather surface runoff components for the liquid flux upper hydrology boundary condition ****
-  real(rkind),parameter   :: alpha_LSE=5.e4_rkind ! smoothness parameter for LSE smoother function
-  real(rkind)             :: roundoff_tolerance   ! tolerance for round-off error
-  real(rkind),allocatable :: LSE_derivative(:)    ! LSE function derivative vector
+  real(rkind) :: roundoff_tolerance   ! tolerance for round-off error
 
   ! validate surface runoff component values and correct for round-off error if needed
   roundoff_tolerance = 1.e2_rkind * epsilon(1._rkind) ! permit round-off error near machine epsilon
@@ -1183,7 +1181,7 @@ contains
   real(rkind) :: phi_tens ! fraction of total storage as tension storage (m)
 
   ! local variables
-  real(rkind),parameter   :: alpha_LSE=5.e4_rkind ! smoothness parameter for LSE smoother function
+  real(rkind),parameter   :: alpha_LSE=5.e5_rkind ! smoothness parameter for LSE smoother function
   real(rkind)             :: p                    ! precipitation (m s-1)
   real(rkind),allocatable :: Ac(:)                ! saturated area (-)
   real(rkind),allocatable :: S1(:)                ! total water content in upper soil layer (m)
@@ -1237,6 +1235,10 @@ contains
     S1_T(iLayer)=LogSumExp(-alpha_LSE,[S1(iLayer),S1_T_max(iLayer)],err) ! smooth approximation to S1_T=min(S1,S1_T_max)
     if (err /= 0) then
      err=10; message=trim(message)//"FUSE PRMS surface runoff: error in LogSumExp"; return_flag=.true.; return
+    end if
+    if (S1_T(iLayer) < 0._rkind) then ! check for errors
+     err=10; message=trim(message)//"FUSE PRMS surface runoff: S1_T is negative (may need to increase magnitude of alpha_LSE)"
+     return_flag=.true.; return
     end if
    end do
   end associate
@@ -1345,7 +1347,7 @@ contains
   real(rkind) :: b ! ARNO/VIC exponent (-) 
 
   ! local variables
-  real(rkind),parameter   :: alpha_LSE=5.e4_rkind   ! smoothness parameter for LSE smoother function
+  real(rkind),parameter   :: alpha_LSE=5.e5_rkind   ! smoothness parameter for LSE smoother function
   real(rkind)             :: p                      ! precipitation (m s-1)
   real(rkind),allocatable :: S1(:)                  ! total water content in upper FUSE layer (m)
   real(rkind),allocatable :: dS1_dWat(:)            ! derivative of S1 w.r.t. water content
@@ -1396,6 +1398,10 @@ contains
     S1_star(iLayer) = LogSumExp(-alpha_LSE,[S1(iLayer),S1_max(iLayer)],err) ! smooth approximation of min(S1,S1_max) to prevent negative bases
     if (err /= 0) then
      err=10; message=trim(message)//"FUSE ARNO/VIC surface runoff: error in LogSumExp"; return_flag=.true.; return
+    end if
+    if (S1_star(iLayer) < 0._rkind) then ! check for errors
+     err=10; message=trim(message)//"FUSE ARNO/VIC surface runoff: S1_star is negative (may need to increase magnitude of alpha_LSE)"
+     return_flag=.true.; return
     end if
    end do
 
