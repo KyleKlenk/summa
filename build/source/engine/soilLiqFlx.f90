@@ -1054,8 +1054,6 @@ contains
  end subroutine update_surfaceFlx
 
  subroutine update_gather_runoff_components
-  use soil_utils_module,only:LogSumExp  ! smooth max/min
-  use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
   ! **** Gather surface runoff components for the liquid flux upper hydrology boundary condition ****
   real(rkind),parameter   :: alpha_LSE=5.e4_rkind ! smoothness parameter for LSE smoother function
   real(rkind)             :: roundoff_tolerance   ! tolerance for round-off error
@@ -1102,25 +1100,23 @@ contains
    scalarSurfaceRunoff_IE    = SR_IE       ! infiltration excess runoff 
    scalarSurfaceRunoff_SE    = SR_SE       ! saturation excess runoff   
    scalarSurfaceRunoff       = SR_IE+SR_SE ! total surface runoff
-   !print *, "A:"
-   !print *, "SR_IE=",SR_IE
-   !print *, "SR_SE=",SR_SE
   end associate
 
-!  ! check total surface runoff
-!  ! note: - due to combinations of independent methods, it is possible that runoff exceeds RPM in extreme cases
-!  !       - however, the total runoff is capped at RPM for feasibility using a smooth minimum function (LSE)
-!  associate(&
-!   scalarRainPlusMelt  => in_surfaceFlx % scalarRainPlusMelt,   & ! rain plus melt  (m s-1)
-!   scalarSurfaceRunoff => out_surfaceFlx % scalarSurfaceRunoff, & ! surface runoff (m s-1)
-!   err                 => out_surfaceFlx % err,                 & ! error code
-!   message             => out_surfaceFlx % message              & ! error message
-!  &)
-!   scalarSurfaceRunoff = LogSumExp(-alpha_LSE,[scalarSurfaceRunoff,scalarRainPlusMelt],err) ! smooth approximation to min(SR,RPM) 
-!   if (err /= 0) then
-!    err=10; message=trim(message)//"update_gather_runoff_components: error in LogSumExp"; return_flag=.true.; return
-!   end if
-!  end associate
+  ! check total surface runoff
+  ! note: - due to combinations of independent methods, it is possible that runoff exceeds RPM in extreme cases
+  associate(&
+   scalarRainPlusMelt  => in_surfaceFlx % scalarRainPlusMelt,   & ! rain plus melt  (m s-1)
+   scalarSurfaceRunoff => out_surfaceFlx % scalarSurfaceRunoff, & ! surface runoff (m s-1)
+   err                 => out_surfaceFlx % err,                 & ! error code
+   message             => out_surfaceFlx % message              & ! error message
+  &)
+   if (scalarSurfaceRunoff > scalarRainPlusMelt) then
+    err=10;
+    message=trim(message)//&
+    &"update_gather_runoff_components: sum of infiltration and saturation excess surface runoff components exceeds rain plus melt";
+    return_flag=.true.; return
+   end if
+  end associate
 
   ! interface surface infiltration variable to surfaceFlx output object
   associate(&
@@ -1129,11 +1125,7 @@ contains
    scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration  & ! surface infiltration (m s-1)
   &)
    scalarSurfaceInfiltration = scalarRainPlusMelt - scalarSurfaceRunoff ! surface infiltration  
-   !print *, "B:"
-   !print *, "scalarSurfaceInfiltration=",scalarSurfaceInfiltration
   end associate
-
-  ! check surface infiltration ...
 
   ! compute soil control factor
   ! note: infiltration = scalarSoilControl * p
@@ -1147,8 +1139,6 @@ contains
    else
     scalarSoilControl = 0._rkind
    end if
-   !print *, "C:"
-   !print *, "scalarSoilControl=",scalarSoilControl
   end associate
 
   ! interface infiltration derivatives w.r.t state variables to surfaceFlx output object
@@ -1162,28 +1152,8 @@ contains
   &)
    dq_dHydStateVec(1:nSoil) = dq_dHydStateVec_IE(1:nSoil) + dq_dHydStateVec_SE(1:nSoil) ! infiltration derivative w.r.t hydrology state variable 
    dq_dNrgStateVec(1:nSoil) = dq_dNrgStateVec_IE(1:nSoil) + dq_dNrgStateVec_SE(1:nSoil) ! infiltration derivative w.r.t energy state variable 
-   !print *, "D:"
-   !print *, "sum(dq_dHydStateVec)=",sum(dq_dHydStateVec)
-   !print *, "sum(dq_dNrgStateVec)=",sum(dq_dNrgStateVec)
   end associate
 
-!  ! complete infiltration derivatives by taking smoothed minimum function used for runoff into account
-!  ! note: - may need to take the variation of LSE derivatives with depth into account
-!  !       - currently using the LSE derivative in the uppermost soil layer
-!  associate(&
-!   ! input:
-!   nSoil               => in_surfaceFlx % nSoil,                & ! number of soil layers
-!   scalarRainPlusMelt  => in_surfaceFlx % scalarRainPlusMelt,   & ! rain plus melt  (m s-1)
-!   scalarSurfaceRunoff => out_surfaceFlx % scalarSurfaceRunoff, & ! surface runoff (m s-1)
-!   ! output: derivatives in surface infiltration w.r.t. ...
-!   dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-!   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
-!  &)
-!   LSE_derivative = SoftArgMax(-alpha_LSE,[scalarSurfaceRunoff,scalarRainPlusMelt]) ! compute vector of derivatives for LSE
-!   dq_dHydStateVec(1:nSoil) = dq_dHydStateVec(1:nSoil) * LSE_derivative(1) ! infiltration derivative w.r.t hydrology state variable 
-!   dq_dNrgStateVec(1:nSoil) = dq_dNrgStateVec(1:nSoil) * LSE_derivative(1) ! infiltration derivative w.r.t energy state variable 
-!  end associate
-!
  end subroutine update_gather_runoff_components
 
  subroutine update_surfaceFlx_zero_IE
