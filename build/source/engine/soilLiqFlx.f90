@@ -1148,8 +1148,8 @@ contains
    dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
    dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
   &)
-   dq_dHydStateVec(1:nSoil) = dq_dHydStateVec_IE(1:nSoil) + dq_dHydStateVec_SE(1:nSoil) ! infiltration derivative w.r.t hydrology state variable 
-   dq_dNrgStateVec(1:nSoil) = dq_dNrgStateVec_IE(1:nSoil) + dq_dNrgStateVec_SE(1:nSoil) ! infiltration derivative w.r.t energy state variable 
+   dq_dHydStateVec(:) = dq_dHydStateVec_IE(:) + dq_dHydStateVec_SE(:) ! infiltration derivative w.r.t hydrology state variable 
+   dq_dNrgStateVec(:) = dq_dNrgStateVec_IE(:) + dq_dNrgStateVec_SE(:) ! infiltration derivative w.r.t energy state variable 
   end associate
 
  end subroutine update_gather_runoff_components
@@ -1636,15 +1636,15 @@ contains
    ! note: infiltration depends on water content in the aquifer, which is presumed to not explicitly depend on hydrology state variables
    ! note: rain plus melt derivatives are zero in soil layers
    select case(ixRichards)  ! select form of Richards' equation
-     case(moisture); dq_dHydStateVec_SE(1:nSoil) = 0._rkind 
-     case(mixdform); dq_dHydStateVec_SE(1:nSoil) = 0._rkind 
+     case(moisture); dq_dHydStateVec_SE(:) = 0._rkind 
+     case(mixdform); dq_dHydStateVec_SE(:) = 0._rkind 
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
    end select
 
    ! * compute the energy derivatives *
    ! compute the energy derivative at the surface
    ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-   dq_dNrgStateVec_SE(1:nSoil) = 0._rkind
+   dq_dNrgStateVec_SE(:) = 0._rkind
 
   end associate
 
