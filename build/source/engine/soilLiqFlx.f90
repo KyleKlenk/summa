@@ -1268,7 +1268,6 @@ contains
     dq_dHydStateVec(:) = 0._rkind
     dq_dNrgStateVec(:) = 0._rkind
     scalarSoilControl  = 0._rkind
-        print*,"not updating infil",scalarSoilControl
    end if
   end associate
 
