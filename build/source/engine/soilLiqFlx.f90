@@ -1224,7 +1224,6 @@ contains
 
   ! compute tension water content
   associate(&
-   nSoil   => in_surfaceFlx % nSoil   , & ! number of soil layers
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
@@ -1252,12 +1251,10 @@ contains
   ! * compute the derivatives for infiltration *
   associate(&
    ! input: model control
-   firstSplitOper     => in_surfaceFlx % firstSplitOper    , & ! flag indicating if desire to compute infiltration
    ixRichards         => in_surfaceFlx % ixRichards        , & ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: rain plus melt
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt, & ! rain plus melt  (m s-1)
    ! input: state and diagnostic variables
-   nSoil              => in_surfaceFlx % nSoil             , & ! number of soil layers
    mLayerTemp         => in_surfaceFlx % mLayerTemp        , & ! temperature (K)
    mLayerMatricHead   => in_surfaceFlx % mLayerMatricHead  , & ! matric head in each soil layer (m)
    mLayerVolFracLiq   => in_surfaceFlx % mLayerVolFracLiq  , & ! volumetric liquid water content in each soil layer (-)
@@ -1366,7 +1363,6 @@ contains
   ! Optional: - smoothed to prevent negative bases using a smooth approximation of S1_star = min(S1,S1_max)
   !           - (Smoothed Ac) = 1 - (1-S1_star/S1_max)**b 
   associate(&
-   nSoil   => in_surfaceFlx % nSoil,   & ! number of soil layers
    err     => out_surfaceFlx % err,    & ! error code
    message => out_surfaceFlx % message & ! error message
   &)
@@ -1411,12 +1407,10 @@ contains
   ! ** compute the derivatives for infiltration **
   associate(&
    ! input: model control
-   firstSplitOper     => in_surfaceFlx % firstSplitOper    , & ! flag indicating if desire to compute infiltration
    ixRichards         => in_surfaceFlx % ixRichards        , & ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: rain plus melt
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt, & ! rain plus melt  (m s-1)
    ! input: state and diagnostic variables
-   nSoil              => in_surfaceFlx % nSoil             , & ! number of soil layers
    mLayerTemp         => in_surfaceFlx % mLayerTemp        , & ! temperature (K)
    mLayerMatricHead   => in_surfaceFlx % mLayerMatricHead  , & ! matric head in each soil layer (m)
    mLayerVolFracLiq   => in_surfaceFlx % mLayerVolFracLiq  , & ! volumetric liquid water content in each soil layer (-)
