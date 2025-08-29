@@ -742,14 +742,6 @@ subroutine mDecisions(err,message)
     end if
   end if
 
-  ! check bigBucket groundwater option is used when FUSE TOPMODEL surface runoff is selected
-  if(model_decisions(iLookDECISIONS%surfRun_SE)%iDecision == FUSETOPM)then
-    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
-      message=trim(message)//'groundwater parameterization must be bigBucket when using FUSE TOPMODEL surface runoff (set "groundwatr" to "bigBuckt" in model decisions input file)'
-      err=20; return
-    end if
-  end if
-
   ! check that maximum infiltration rate assumption aligns with groundwater option
   ! TOPMODEL baseflow assumes a reduction in hydraulic conductivity with depth, possibly to 0 at the bottom of the soil, and infiltration rate assumptions must match these conductivities
   ! BigBucket means we have an aquifer below the soil column, for which Green-Ampt is the most basic assumption. TOPMODEL_GA is not appropriate for this but for backward compatability we throw a warning instead of a graceful exit

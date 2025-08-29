@@ -678,10 +678,6 @@ MODULE data_types
    real(rkind) :: wettingFrontSuction ! Green-Ampt wetting front suction (m)
    real(rkind) :: soilIceScale        ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
    real(rkind) :: soilIceCV           ! soil ice CV in Gamma distribution used to define frozen area (-)
-   ! input: aquifer variables for FUSE parameterizations
-   real(rkind) :: aquiferBaseflowExp        ! baseflow exponent (-)
-   real(rkind) :: scalarAquiferStorageTrial ! trial value of aquifer storage (m)
-   real(rkind) :: aquiferScaleFactor        ! scaling factor for aquifer storage in the big bucket (m)
    ! input: FUSE parameters
    real(rkind) :: FUSE_Ac_max   ! FUSE PRMS max saturated area
    real(rkind) :: FUSE_phi_tens ! FUSE PRMS tension fraction
@@ -689,6 +685,7 @@ MODULE data_types
    real(rkind) :: FUSE_lambda   ! FUSE TOPMODEL gamma distribution lambda parameter
    real(rkind) :: FUSE_chi      ! FUSE TOPMODEL chi   distribution lambda parameter
    real(rkind) :: FUSE_mu       ! FUSE TOPMODEL mu    distribution lambda parameter
+   real(rkind) :: FUSE_n        ! FUSE TOPMODEL exponent
   contains
    procedure :: initialize => initialize_in_surfaceFlx
  end type in_type_surfaceFlx 
@@ -1844,17 +1841,6 @@ contains
    in_surfaceFlx % soilIceCV           = soilIceCV           ! soil ice CV in Gamma distribution used to define frozen area (-)
   end associate
 
-  ! intent(in): aquifer values for FUSE parameterizations
-  associate(&
-   aquiferBaseflowExp        => mpar_data%var(iLookPARAM%aquiferBaseflowExp)%dat(1), & ! baseflow exponent (-)
-   scalarAquiferStorageTrial => in_soilLiqFlx % scalarAquiferStorageTrial,           & ! trial value of aquifer storage (m)
-   aquiferScaleFactor        => mpar_data%var(iLookPARAM%aquiferScaleFactor)%dat(1)  & ! scaling factor for aquifer storage in the big bucket (m)
-  &)
-   in_surfaceFlx % aquiferBaseflowExp        = aquiferBaseflowExp        ! baseflow exponent (-)
-   in_surfaceFlx % scalarAquiferStorageTrial = scalarAquiferStorageTrial ! trial value of aquifer storage (m)
-   in_surfaceFlx % aquiferScaleFactor        = aquiferScaleFactor        ! scaling factor for aquifer storage in the big bucket (m)
-  end associate
-
   ! intent(in): FUSE parameters
   associate(&
    FUSE_Ac_max   => mpar_data%var(iLookPARAM%FUSE_Ac_max  )%dat(1), & ! FUSE PRMS max saturated area
@@ -1862,7 +1848,8 @@ contains
    FUSE_b        => mpar_data%var(iLookPARAM%FUSE_b       )%dat(1), & ! FUSE ARNO/VIC exponent
    FUSE_lambda   => mpar_data%var(iLookPARAM%FUSE_lambda  )%dat(1), & ! FUSE TOPMODEL gamma distribution lambda parameter
    FUSE_chi      => mpar_data%var(iLookPARAM%FUSE_chi     )%dat(1), & ! FUSE TOPMODEL chi   distribution lambda parameter
-   FUSE_mu       => mpar_data%var(iLookPARAM%FUSE_mu      )%dat(1)  & ! FUSE TOPMODEL mu    distribution lambda parameter
+   FUSE_mu       => mpar_data%var(iLookPARAM%FUSE_mu      )%dat(1), & ! FUSE TOPMODEL mu    distribution lambda parameter
+   FUSE_n        => mpar_data%var(iLookPARAM%FUSE_n       )%dat(1)  & ! FUSE TOPMODEL exponent
   &)
    in_surfaceFlx % FUSE_Ac_max   = FUSE_Ac_max   ! FUSE PRMS max saturated area
    in_surfaceFlx % FUSE_phi_tens = FUSE_phi_tens ! FUSE PRMS tension fraction
@@ -1870,6 +1857,7 @@ contains
    in_surfaceFlx % FUSE_lambda   = FUSE_lambda   ! FUSE TOPMODEL gamma distribution lambda parameter
    in_surfaceFlx % FUSE_chi      = FUSE_chi      ! FUSE TOPMODEL chi   distribution lambda parameter
    in_surfaceFlx % FUSE_mu       = FUSE_mu       ! FUSE TOPMODEL mu    distribution lambda parameter
+   in_surfaceFlx % FUSE_n        = FUSE_n        ! FUSE TOPMODEL exponent
   end associate
  end subroutine initialize_in_surfaceFlx
 

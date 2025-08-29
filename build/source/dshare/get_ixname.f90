@@ -438,6 +438,7 @@ contains
   case('FUSE_lambda  '            ); get_ixParam = iLookPARAM%FUSE_lambda            ! FUSE TOPMODEL gamma distribution lambda parameter       
   case('FUSE_chi     '            ); get_ixParam = iLookPARAM%FUSE_chi               ! FUSE TOPMODEL gamma distribution chi    parameter       
   case('FUSE_mu      '            ); get_ixParam = iLookPARAM%FUSE_mu                ! FUSE TOPMODEL gamma distribution mu     parameter       
+  case('FUSE_n       '            ); get_ixParam = iLookPARAM%FUSE_n                 ! FUSE TOPMODEL exponent                                  
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing

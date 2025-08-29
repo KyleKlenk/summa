@@ -1476,14 +1476,11 @@ contains
  end subroutine update_surfaceFlx_FUSE_ARNO_VIC
 
  subroutine update_surfaceFlx_FUSE_TOPMODEL
-  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, WRR: FUSE) -- TOPMODEL ****
+  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- TOPMODEL ****
   ! note: this parameterization utilizes saturation excess surface runoff only
-  ! BEING CHANGED TO BE ON SOIL COLUMN RATHER THAN AQUIFER SO DERIVATIVES AREN'T CORRECTED HERE YET, FIX
   ! * local variables *
   ! runoff and infiltration variables
-  real(rkind) :: p            ! precipitation (m s-1)
-  real(rkind) :: Ac           ! saturated area (-)
-  real(rkind) :: qsx          ! surface runoff (m s-1)
+  real(rkind) :: Ac     ! saturated area (-)
   ! FUSE parameters and variables
   real(rkind) :: lambda ! mean
   real(rkind) :: chi    ! scale
@@ -1500,19 +1497,33 @@ contains
   complex(rkind) :: F1,F2    ! temporary storage for regularized lower incomplete gamma function values
   complex(rkind) :: lambda_n ! mean of the power-transformed topographic index
   ! lower FUSE layer variables
-  real(rkind) :: S2_max ! max storage in lower layer (m)
-  real(rkind) :: S2     ! total water content in lower layer (m)
-  real(rkind) :: n      ! base flow exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
+  real(rkind) :: S2_max ! max storage in lower FUSE layer (m)
+  real(rkind) :: S2     ! total water content in lower FUSE layer (m)
+  real(rkind) :: n      ! TOPMODEL exponent exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
+  ! derivative variables
+  real(rkind) :: dS2_dWat                ! derivative in S2 w.r.t water content 
+  real(rkind) :: dAc_dWat                ! derivative of Ac w.r.t water content 
+  real(rkind) :: dzeta_crit_n_dS2        ! derivative of zeta_crit_n w.r.t S2
+  real(rkind) :: dzeta_crit_dzeta_crit_n ! derivative of zeta_crit w.r.t zeta_crit_n
+  real(rkind) :: dx_crit_dzeta_crit      ! derivative of x_crit w.r.t zeta_crit
+  real(rkind) :: dx_crit_dS2             ! derivative of x_crit w.r.t S2
+  real(rkind) :: dgammp_dx_crit          ! derivative of gammp function in Ac w.r.t x_crit
 
   ! interface FUSE input parameters
   lambda = in_surfaceFlx % FUSE_lambda
   chi    = in_surfaceFlx % FUSE_chi
   mu     = in_surfaceFlx % FUSE_mu
+  n      = in_surfaceFlx % FUSE_n
 
-  ! interface SUMMA aquifer input values with FUSE lower layer variables
-  n      = in_surfaceFlx % aquiferBaseflowExp
-  S2     = in_surfaceFlx % scalarAquiferStorageTrial 
-  S2_max = in_surfaceFlx % aquiferScaleFactor
+  ! compute water content in lower FUSE layer
+  associate(&
+   mLayerVolFracLiq => in_surfaceFlx % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
+   mLayerDepth      => in_surfaceFlx % mLayerDepth,      & ! depth of soil layers (m) 
+   theta_sat        => in_surfaceFlx % theta_sat         & ! soil porosity (-)
+  &)
+   S2     = mLayerDepth(2) * mLayerVolFracLiq(2) ! total water content in lower FUSE layer (m)
+   S2_max = mLayerDepth(2) * theta_sat           ! max water storage for lower FUSE layer (m)
+  end associate
 
   ! validation of parameters
   associate(&
@@ -1521,31 +1532,27 @@ contains
    message => out_surfaceFlx % message  & ! error message
   &)
    ! validate gamma distribution parameters
+   if ((lambda < 5._rkind ).or.(lambda > 10._rkind)) then
+    err=10; message=trim(message)//"FUSE TOPMODEL lambda value must be between 5 and 10"; return_flag=.true.; return
+   end if
    if (lambda <= mu) then
-    print *, "lambda=",lambda
-    print *, "mu=",mu
     err=10; message=trim(message)//"FUSE TOPMODEL lambda value must be greater than mu value"; return_flag=.true.; return
    end if
-   if (chi <= 0._rkind) then
-    print *, "chi=",chi
-    err=10; message=trim(message)//"FUSE TOPMODEL chi value must be positive"; return_flag=.true.; return
+   if ((chi < 2._rkind ).or.(chi > 5._rkind)) then
+    err=10; message=trim(message)//"FUSE TOPMODEL chi value must be between 2 and 5"; return_flag=.true.; return
    end if
-   if (mu <= 0._rkind) then
-    print *, "mu=",mu
-    err=10; message=trim(message)//"FUSE TOPMODEL mu value must be positive"; return_flag=.true.; return
+   if ((mu < 2.5_rkind ).or.(mu > 3.5_rkind)) then
+    err=10; message=trim(message)//"FUSE TOPMODEL mu value must be between 2.5 and 3.5"; return_flag=.true.; return
    end if
 
-   if (n < 3.5_rkind) then ! validate baseflow exponent to avoid divergence of lambda_n
-    print *, "n=",n
-    err=10; message=trim(message)//"FUSE base flow exponent must be at least 3.5"; return_flag=.true.; return
+   if ((n < 3.5_rkind).or.(n > 10._rkind)) then ! validate TOPMODEL exponent to avoid divergence of lambda_n
+    err=10; message=trim(message)//"FUSE TOPMODEL exponent must be between 3.5 and 10"; return_flag=.true.; return
    end if
    if (S2 < 0._rkind) then ! check for negative water content values in the lower FUSE layer
-    print *, "S2=",S2
-    err=10; message=trim(message)//"invalid water content value detected in lower FUSE layer"; return_flag=.true.; return
+    err=10; message=trim(message)//"negative water content value detected in lower FUSE layer"; return_flag=.true.; return
    end if
    if (S2 > S2_max) then   ! check if water content in lower FUSE layer exceeds the maximum storage
-    print *, "S2,S2_max=",S2,S2_max
-    err=10; message=trim(message)//"invalid water content in lower FUSE layer exceeds max storage"; return_flag=.true.; return
+    err=10; message=trim(message)//"water content in lower FUSE layer exceeds max storage"; return_flag=.true.; return
    end if
   end associate
 
@@ -1571,15 +1578,23 @@ contains
 
    ! compute critical zeta value
    ! note: to obtain physical topography values, only the real part of lambda_n is used 
-   zeta_crit_n=lambda_n%re/(S2/S2_max) ! power-transformed critical topographic index
+   zeta_crit_n=lambda_n%re*S2_max/S2 ! power-transformed critical topographic index
+   if (zeta_crit_n <= 0._rkind) then
+    associate(&
+     ! output: error control
+     err     => out_surfaceFlx % err    , & ! error code
+     message => out_surfaceFlx % message  & ! error message
+    &)
+     err=10; message=trim(message)//"FUSE TOPMODEL zeta_crit_n is negative"
+     return_flag=.true.; return
+    end associate
+   end if
 
    zeta_crit=log(zeta_crit_n**n) ! critical topographic index in log space
 
    ! transform to x random variable and validate result
    x_crit=zeta_crit-mu
    if (x_crit <= 0._rkind) then
-    print *, "zeta_crit=",zeta_crit
-    print *, "mu=",mu
     associate(&
      ! output: error control
      err     => out_surfaceFlx % err    , & ! error code
@@ -1594,45 +1609,84 @@ contains
    ! compute saturated area
    Ac = 1._rkind-gammp(alpha,x_crit/theta)
 
-  else ! if no water is stored in lower FUSE layer
+  else ! if no water is stored in lower FUSE layer (based on asymptotic behaviour of integral in eq. 9c of Clark et al. (2008))
    Ac = 0._rkind
   end if
 
   ! compute surface runoff
   associate(&
-   ! input: flux at the upper boundary
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt & ! rain plus melt  (m s-1)
   &)
-   p = scalarRainPlusMelt ! interface precipitation value (melt included for generality)
-   qsx = Ac * p
+   SR_SE = Ac * scalarRainPlusMelt ! saturation excess surface runoff component
   end associate
 
-  ! saturation excess surface runoff component
-  SR_SE = qsx
-
-  ! ** compute the derivatives for surface infiltration **
+  ! ** compute the derivatives for infiltration **
   associate(&
-   ! input
-   ixRichards => in_surfaceFlx % ixRichards, & ! index defining the option for Richards' equation (moisture or mixdform)
-   nSoil      => in_surfaceFlx % nSoil,      & ! number of soil layers
-   ! output
-   err               => out_surfaceFlx % err,              & ! error code
-   message           => out_surfaceFlx % message           & ! error message
+   ! input: model control
+   ixRichards         => in_surfaceFlx % ixRichards        , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: rain plus melt
+   scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt, & ! rain plus melt  (m s-1)
+   ! input: state and diagnostic variables
+   mLayerTemp         => in_surfaceFlx % mLayerTemp        , & ! temperature (K)
+   mLayerMatricHead   => in_surfaceFlx % mLayerMatricHead  , & ! matric head in each soil layer (m)
+   mLayerVolFracLiq   => in_surfaceFlx % mLayerVolFracLiq  , & ! volumetric liquid water content in each soil layer (-)
+   ! input: pre-computed derivatives in ...
+   dTheta_dTk         => in_surfaceFlx % dTheta_dTk        , & ! ... volumetric liquid water content w.r.t. temperature (K-1)
+   dTheta_dPsi        => in_surfaceFlx % dTheta_dPsi       , & ! ... the soil water characteristic w.r.t. psi (m-1)
+   ! input: depth of soil layers (m)
+   mLayerDepth        => in_surfaceFlx % mLayerDepth       , & ! depth of upper-most soil layer (m)
+   ! output: error control
+   err                => out_surfaceFlx % err,               & ! error code
+   message            => out_surfaceFlx % message            & ! error message
   &)
 
-   ! * compute the hydrology derivatives *
-   ! note: infiltration depends on water content in the aquifer, which is presumed to not explicitly depend on hydrology state variables
-   ! note: rain plus melt derivatives are zero in soil layers
-   select case(ixRichards)  ! select form of Richards' equation
-     case(moisture); dq_dHydStateVec_SE(:) = 0._rkind 
-     case(mixdform); dq_dHydStateVec_SE(:) = 0._rkind 
-     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
-   end select
+   if (updateInfil) then
 
-   ! * compute the energy derivatives *
-   ! compute the energy derivative at the surface
-   ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-   dq_dNrgStateVec_SE(:) = 0._rkind
+    ! compute derivatives needed for infiltration derivative
+    if (S2 > 0._rkind) then ! for S2 > 0: Ac = 1._rkind-gammp(alpha,x_crit/theta)
+     dS2_dWat  = mLayerDepth(2)                       ! derivative of S2 w.r.t. water content      
+     dzeta_crit_n_dS2 = -lambda_n%re*S2_max/S2**2_i4b ! derivative of zeta_crit_n=lambda_n%re*S2_max/S2 w.r.t S2     
+     dzeta_crit_dzeta_crit_n = ( n*zeta_crit_n**(n-1._rkind) ) / zeta_crit_n**n    ! derivative of zeta_crit=log(zeta_crit_n**n) w.r.t zeta_crit_n
+     dx_crit_dzeta_crit = 1._rkind                                                 ! derivative of x_crit=zeta_crit-mu w.r.t zeta_crit
+     dx_crit_dS2 = dx_crit_dzeta_crit * dzeta_crit_dzeta_crit_n * dzeta_crit_n_dS2 ! derivative of x_crit w.r.t S2 via chain rule
+     dgammp_dx_crit = ( (x_crit/theta)**(alpha-1._rkind) * exp(-x_crit/theta) )/theta/gamma(alpha) ! derivative of gammp function in Ac w.r.t x_crit 
+     dAc_dWat = -dgammp_dx_crit * dx_crit_dS2 * dS2_dWat ! derivative of Ac w.r.t water content via chain rule 
+    else ! for S2 = 0: Ac = 0
+     dAc_dWat = 0._rkind
+    end if
+
+    ! process liquid derivatives
+    dVolFracLiq_dWat(:) = 0._rkind
+    dVolFracLiq_dTk(:)  = 0._rkind
+    select case(ixRichards) ! form of Richards' equation
+     case(moisture) ! state variable is water content
+       dVolFracLiq_dWat(:) = 1._rkind
+     case(mixdform) ! state variable is pressure head
+       Tcrit = crit_soilT( mLayerMatricHead(2) )
+       if (mLayerTemp(2) < Tcrit) then ! frozen layer
+         dVolFracLiq_dWat(2) = 0._rkind
+       else                            ! unfrozen layer
+         dVolFracLiq_dWat(2) = dTheta_dPsi(2)
+       end if
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+    end select 
+    dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
+
+    ! * compute the hydrology derivatives (only saturation excess components for FUSE) *
+    ! scalarSurfaceInfiltration = scalarRainPlusMelt - scalarRainPlusMelt*Ac
+    ! note: rain plus melt derivatives are zero in soil layers
+    dq_dHydStateVec_SE(2) = -scalarRainPlusMelt * dAc_dWat * dVolFracLiq_dWat(2)
+
+    ! * compute the energy derivatives components (only saturation excess components for FUSE) *
+    ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+    dq_dNrgStateVec_SE(2) = -scalarRainPlusMelt * dAc_dWat * dVolFracLiq_dTk(2)
+
+   else ! zero derivatives if not first split operation
+
+    dq_dHydStateVec_SE(:) = 0._rkind 
+    dq_dNrgStateVec_SE(:) = 0._rkind
+  
+   end if
 
   end associate
 
