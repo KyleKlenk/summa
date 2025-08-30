@@ -1509,13 +1509,15 @@ contains
   real(rkind) :: S2     ! total water content in lower FUSE layer (m)
   real(rkind) :: n      ! TOPMODEL exponent exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
   ! derivative variables
-  real(rkind) :: dS2_dWat                ! derivative in S2 w.r.t water content 
-  real(rkind) :: dAc_dWat                ! derivative of Ac w.r.t water content 
-  real(rkind) :: dzeta_crit_n_dS2        ! derivative of zeta_crit_n w.r.t S2
-  real(rkind) :: dzeta_crit_dzeta_crit_n ! derivative of zeta_crit w.r.t zeta_crit_n
-  real(rkind) :: dx_crit_dzeta_crit      ! derivative of x_crit w.r.t zeta_crit
-  real(rkind) :: dx_crit_dS2             ! derivative of x_crit w.r.t S2
-  real(rkind) :: dgammp_dx_crit          ! derivative of gammp function in Ac w.r.t x_crit
+  real(rkind) :: dS2_dWat(1:in_surfaceFlx % nSoil) ! derivative in S2 w.r.t water content 
+  real(rkind) :: dAc_dWat(1:in_surfaceFlx % nSoil) ! derivative of Ac w.r.t water content 
+  real(rkind) :: dzeta_crit_n_dS2                  ! derivative of zeta_crit_n w.r.t S2
+  real(rkind) :: dzeta_crit_dzeta_crit_n           ! derivative of zeta_crit w.r.t zeta_crit_n
+  real(rkind) :: dx_crit_dzeta_crit                ! derivative of x_crit w.r.t zeta_crit
+  real(rkind) :: dx_crit_dS2                       ! derivative of x_crit w.r.t S2
+  real(rkind) :: dgammp_dx_crit                    ! derivative of gammp function in Ac w.r.t x_crit
+  ! tolerance variables
+  real(rkind) :: roundoff_tolerance                ! tolerance for round-off error
 
   ! interface FUSE input parameters
   lambda = in_surfaceFlx % FUSE_lambda
@@ -1524,13 +1526,16 @@ contains
   n      = in_surfaceFlx % FUSE_n
 
   ! compute water content in lower FUSE layer
+  ! note: the entire soil column is used
   associate(&
+   nSoil            => in_surfaceFlx % nSoil,            & ! number of soil layers
    mLayerVolFracLiq => in_surfaceFlx % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
    mLayerDepth      => in_surfaceFlx % mLayerDepth,      & ! depth of soil layers (m) 
+   iLayerHeight     => in_surfaceFlx % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
    theta_sat        => in_surfaceFlx % theta_sat         & ! soil porosity (-)
   &)
-   S2     = mLayerDepth(2) * mLayerVolFracLiq(2) ! total water content in lower FUSE layer (m)
-   S2_max = mLayerDepth(2) * theta_sat           ! max water storage for lower FUSE layer (m)
+   S2     = sum( mLayerDepth(:) * mLayerVolFracLiq(:) ) ! total water content in upper FUSE layer (m)
+   S2_max = iLayerHeight(nSoil) * theta_sat             ! max water storage for upper FUSE layer (m)
   end associate
 
   ! validation of parameters
@@ -1593,25 +1598,28 @@ contains
      err     => out_surfaceFlx % err    , & ! error code
      message => out_surfaceFlx % message  & ! error message
     &)
-     err=10; message=trim(message)//"FUSE TOPMODEL zeta_crit_n is negative"
+     err=10; message=trim(message)//"FUSE TOPMODEL zeta_crit_n <= 0"
      return_flag=.true.; return
     end associate
    end if
 
-   zeta_crit=log(zeta_crit_n**n) ! critical topographic index in log space
+   zeta_crit=n*log(zeta_crit_n) ! critical topographic index in log space
 
    ! transform to x random variable and validate result
    x_crit=zeta_crit-mu
-   if (x_crit <= 0._rkind) then
+   roundoff_tolerance = 1.e2_rkind * epsilon(1._rkind) ! tolerance for round-off error is near machine epsilon 
+   if (x_crit < -roundoff_tolerance) then ! less than zero outside tolerance
     associate(&
      ! output: error control
      err     => out_surfaceFlx % err    , & ! error code
      message => out_surfaceFlx % message  & ! error message
     &)
-     err=10; message=trim(message)//"FUSE TOPMODEL zeta_crit value must be greater than mu value -- &
+     err=10; message=trim(message)//"FUSE TOPMODEL zeta_crit must be greater or equal to mu -- &
                     &try increasing lambda or decreasing mu";
      return_flag=.true.; return
     end associate
+   else if (x_crit < 0._rkind) then       ! less than zero but within tolerance
+    x_crit = 0._rkind
    end if
 
    ! compute saturated area
@@ -1641,10 +1649,11 @@ contains
    ! input: pre-computed derivatives in ...
    dTheta_dTk         => in_surfaceFlx % dTheta_dTk        , & ! ... volumetric liquid water content w.r.t. temperature (K-1)
    dTheta_dPsi        => in_surfaceFlx % dTheta_dPsi       , & ! ... the soil water characteristic w.r.t. psi (m-1)
-   ! input: depth of soil layers (m)
+   ! input: soil layers
+   nSoil              => in_surfaceFlx % nSoil             , & ! number of soil layers
    mLayerDepth        => in_surfaceFlx % mLayerDepth       , & ! depth of upper-most soil layer (m)
    ! output: error control
-   err                => out_surfaceFlx % err,               & ! error code
+   err                => out_surfaceFlx % err              , & ! error code
    message            => out_surfaceFlx % message            & ! error message
   &)
 
@@ -1652,15 +1661,15 @@ contains
 
     ! compute derivatives needed for infiltration derivative
     if (S2 > 0._rkind) then ! for S2 > 0: Ac = 1._rkind-gammp(alpha,x_crit/theta)
-     dS2_dWat  = mLayerDepth(2)                       ! derivative of S2 w.r.t. water content      
+     dS2_dWat  = mLayerDepth(:)                       ! derivative of S2 w.r.t. water content      
      dzeta_crit_n_dS2 = -lambda_n%re*S2_max/S2**2_i4b ! derivative of zeta_crit_n=lambda_n%re*S2_max/S2 w.r.t S2     
      dzeta_crit_dzeta_crit_n = ( n*zeta_crit_n**(n-1._rkind) ) / zeta_crit_n**n    ! derivative of zeta_crit=log(zeta_crit_n**n) w.r.t zeta_crit_n
      dx_crit_dzeta_crit = 1._rkind                                                 ! derivative of x_crit=zeta_crit-mu w.r.t zeta_crit
      dx_crit_dS2 = dx_crit_dzeta_crit * dzeta_crit_dzeta_crit_n * dzeta_crit_n_dS2 ! derivative of x_crit w.r.t S2 via chain rule
      dgammp_dx_crit = ( (x_crit/theta)**(alpha-1._rkind) * exp(-x_crit/theta) )/theta/gamma(alpha) ! derivative of gammp function in Ac w.r.t x_crit 
-     dAc_dWat = -dgammp_dx_crit * dx_crit_dS2 * dS2_dWat ! derivative of Ac w.r.t water content via chain rule 
+     dAc_dWat = -dgammp_dx_crit * dx_crit_dS2 * dS2_dWat(:) ! derivative of Ac w.r.t water content via chain rule 
     else ! for S2 = 0: Ac = 0
-     dAc_dWat = 0._rkind
+     dAc_dWat(:) = 0._rkind
     end if
 
     ! process liquid derivatives
@@ -1670,12 +1679,14 @@ contains
      case(moisture) ! state variable is water content
        dVolFracLiq_dWat(:) = 1._rkind
      case(mixdform) ! state variable is pressure head
-       Tcrit = crit_soilT( mLayerMatricHead(2) )
-       if (mLayerTemp(2) < Tcrit) then ! frozen layer
-         dVolFracLiq_dWat(2) = 0._rkind
-       else                            ! unfrozen layer
-         dVolFracLiq_dWat(2) = dTheta_dPsi(2)
-       end if
+       do iLayer = 1,nSoil
+         Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
+         if (mLayerTemp(iLayer) < Tcrit) then ! frozen layer
+           dVolFracLiq_dWat(iLayer) = 0._rkind
+         else                                 ! unfrozen layer
+           dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
+         end if
+       end do
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
     end select 
     dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
@@ -1683,11 +1694,11 @@ contains
     ! * compute the hydrology derivatives (only saturation excess components for FUSE) *
     ! scalarSurfaceInfiltration = scalarRainPlusMelt - scalarRainPlusMelt*Ac
     ! note: rain plus melt derivatives are zero in soil layers
-    dq_dHydStateVec_SE(2) = -scalarRainPlusMelt * dAc_dWat * dVolFracLiq_dWat(2)
+    dq_dHydStateVec_SE(:) = -scalarRainPlusMelt * dAc_dWat(:) * dVolFracLiq_dWat(:)
 
     ! * compute the energy derivatives components (only saturation excess components for FUSE) *
     ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-    dq_dNrgStateVec_SE(2) = -scalarRainPlusMelt * dAc_dWat * dVolFracLiq_dTk(2)
+    dq_dNrgStateVec_SE(:) = -scalarRainPlusMelt * dAc_dWat(:) * dVolFracLiq_dTk(:)
 
    else ! zero derivatives if not first split operation
 
