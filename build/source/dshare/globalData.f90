@@ -123,8 +123,6 @@ MODULE globalData
   real(rkind),parameter,public                :: verySmall=1.e-6_rkind              ! a small number used as an additive constant to check if substantial difference among real numbers
   real(rkind),parameter,public                :: verySmaller=1.e-12_rkind           ! a smaller number used as an additive constant to check if substantial difference among real numbers
   real(rkind),parameter,public                :: veryBig=1.e+20_rkind               ! a very big number
-  ! define algorithmic control parameters
-  real(rkind),parameter,public                :: dx = 1.e-8_rkind                   ! finite difference increment
   ! define summary information on all data structures
   integer(i4b),parameter                      :: nStruct=14                         ! number of data structures
   type(struct_info),parameter,public,dimension(nStruct) :: structInfo=(/&

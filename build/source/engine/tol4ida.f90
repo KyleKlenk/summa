@@ -9,12 +9,6 @@ use type4ida
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
-! domain types
-USE globalData,only:iname_cas        ! named variables for canopy air space
-USE globalData,only:iname_veg        ! named variables for vegetation canopy
-USE globalData,only:iname_snow       ! named variables for snow
-USE globalData,only:iname_soil       ! named variables for soil
-
 ! named variables to describe the state variable type
 USE globalData,only:iname_nrgCanair  ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy  ! named variable defining the energy of the vegetation canopy
