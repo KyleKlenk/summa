@@ -27,9 +27,6 @@ USE nrtype
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
-! access the global print flag
-USE globalData,only:globalPrintFlag
-
 ! domain types
 USE globalData,only:iname_cas        ! named variables for canopy air space
 USE globalData,only:iname_veg        ! named variables for vegetation canopy
