@@ -61,7 +61,7 @@ subroutine computResidWithPrime(&
                       nSnow,                     & ! intent(in):  number of snow layers
                       nSoil,                     & ! intent(in):  number of soil layers
                       nLayers,                   & ! intent(in):  total number of layers
-                      enthalpyStateVec,               & ! intent(in):  flag if enthalpy is state variable
+                      enthalpyStateVec,          & ! intent(in):  flag if enthalpy is state variable
                       ! input: flux vectors
                       sMul,                      & ! intent(in):  state vector multiplier (used in the residual calculations)
                       fVec,                      & ! intent(in):  flux vector
@@ -253,6 +253,32 @@ subroutine computResidWithPrime(&
 
     ! compute the residual vector for the aquifer
     if(ixAqWat/=integerMissing)  rVec(ixAqWat) = sMul(ixAqWat)*scalarAquiferStoragePrime - ( fVec(ixAqWat)*dt + rAdd(ixAqWat) )
+
+    ! print the state variables if requested
+    if(globalPrintFlag)then
+      write(*,'(a)') 'In computResidWithPrime:'
+      write(*,'(a,i4)') '  nSnow = ', nSnow
+      write(*,'(a,i4)') '  nSoil = ', nSoil
+      write(*,'(a,i4)') '  nLayers = ', nLayers
+      write(*,'(a,f12.5)') '  dt = ', dt
+      write(*,'(a,1x,100(e12.5,1x))') '  sMul = ', sMul(min(iJac1,size(sMul)):min(iJac2,size(sMul)))
+      write(*,'(a,1x,100(e12.5,1x))') '  fVec = ', fVec(min(iJac1,size(fVec)):min(iJac2,size(fVec)))
+      write(*,'(a,f12.5)') '  scalarCanairTempPrime = ', scalarCanairTempPrime
+      write(*,'(a,f12.5)') '  scalarCanopyTempPrime = ', scalarCanopyTempPrime
+      write(*,'(a,f12.5)') '  scalarCanopyWatPrime = ', scalarCanopyWatPrime
+      write(*,'(a,1x,100(e12.5,1x))') '  mLayerTempPrime = ', mLayerTempPrime(min(iJac1,size(mLayerTempPrime)):min(iJac2,size(mLayerTempPrime)))
+      write(*,'(a,f12.5)') '  scalarAquiferStoragePrime = ', scalarAquiferStoragePrime
+      write(*,'(a,f12.5)') '  scalarCanopyIcePrime = ', scalarCanopyIcePrime
+      write(*,'(a,f12.5)') '  scalarCanopyLiqPrime = ', scalarCanopyLiqPrime
+      write(*,'(a,1x,100(e12.5,1x))') '  mLayerVolFracIcePrime = ', mLayerVolFracIcePrime(min(iJac1,size(mLayerVolFracIcePrime)):min(iJac2,size(mLayerVolFracIcePrime)))
+      write(*,'(a,1x,100(e12.5,1x))') '  mLayerVolFracWatPrime = ', mLayerVolFracWatPrime(min(iJac1,size(mLayerVolFracWatPrime)):min(iJac2,size(mLayerVolFracWatPrime)))
+      write(*,'(a,1x,100(e12.5,1x))') '  mLayerVolFracLiqPrime = ', mLayerVolFracLiqPrime(min(iJac1,size(mLayerVolFracLiqPrime)):min(iJac2,size(mLayerVolFracLiqPrime)))
+      write(*,'(a,f12.5)') '  scalarCanopyCmTrial = ', scalarCanopyCmTrial
+      write(*,'(a,1x,100(e12.5,1x))') '  mLayerCmTrial = ', mLayerCmTrial(min(iJac1,size(mLayerCmTrial)):min(iJac2,size(mLayerCmTrial)))
+      write(*,'(a,f12.5)') '  scalarCanairEnthalpyPrime = ', scalarCanairEnthalpyPrime 
+      write(*,'(a,f12.5)') '  scalarCanopyEnthTempPrime = ', scalarCanopyEnthTempPrime
+      write(*,'(a,1x,100(e12.5,1x))') '  mLayerEnthTempPrime = ', mLayerEnthTempPrime(min(iJac1,size(mLayerEnthTempPrime)):min(iJac2,size(mLayerEnthTempPrime)))
+    endif
 
     ! print result
     if(globalPrintFlag .or. any(isNan(rVec)))then

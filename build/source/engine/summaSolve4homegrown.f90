@@ -197,7 +197,6 @@ contains
  integer(i4b)                    :: mSoil                    ! number of soil layers in solution vector
  integer(i4b)                    :: iLayer                   ! row index
  integer(i4b)                    :: jLayer                   ! column index
- logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
  logical(lgt)                    :: return_flag              ! flag that controls execution of return statements
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! class objects for subroutine arguments
@@ -248,9 +247,6 @@ contains
  
    ! get the number of soil layers in the solution vector
    mSoil = size(indx_data%var(iLookINDEX%ixMatOnly)%dat)
-  
-   ! initialize the global print flag
-   globalPrintFlagInit=globalPrintFlag
 
    ! compute the Jacobian
    call update_Jacobian; if (return_flag) return ! compute Jacobian for Newton step -- return if error
