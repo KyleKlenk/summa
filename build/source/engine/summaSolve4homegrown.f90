@@ -636,7 +636,7 @@ contains
     end if
 
     ! dummy check for the function
-    if (fold==realMissing) print*, 'missing'
+    if (fold==realMissing) print*, 'missing fold in trustRegionRefinement'
 
     ! dummy
     stateVecNew = realMissing

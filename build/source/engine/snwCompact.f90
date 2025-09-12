@@ -150,7 +150,6 @@ contains
    volFracIceLoss = max(0._rkind,mLayerMeltFreeze(iSnow)/iden_ice)  ! volumetric fraction of ice lost due to melt (-)
    ! (adjust snow depth to account for cavitation)
    scalarDepthNew = mLayerDepth(iSnow) * mLayerVolFracIceNew(iSnow)/(mLayerVolFracIceNew(iSnow) + volFracIceLoss)
-   !print*, 'volFracIceLoss = ', volFracIceLoss
   else
    scalarDepthNew = mLayerDepth(iSnow)
   end if

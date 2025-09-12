@@ -283,8 +283,7 @@ contains
    ! * error check
    case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute thermal conductivity'; return
 
-  end select
-  !print*, 'iLayer, mLayerThermalC(iLayer) = ', iLayer, mLayerThermalC(iLayer)
+   end select
 
  end do  ! looping through layers
 

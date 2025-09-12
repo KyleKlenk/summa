@@ -266,9 +266,6 @@ contains
      case default; err=20; message=trim(message)//'unable to identify case for sunlit/shaded leaves'; return
     end select
 
-    ! print progress
-    !write(*,'(a,1x,20(f12.5,1x))') 'leafTemp, par, psn, rs = ', scalarVegetationTemp, absorbedPAR, scalarPhotosynthesis, scalarStomResist
-
    end do  ! looping through sunlit and shaded leaves
 
 
@@ -313,13 +310,6 @@ contains
   ! *******************************************************************************************************************************************
 
  end select  ! (identifying option for stomatal resistance)
-
- ! print progress
- !write(*,'(a,1x,L1,1x,20(f16.8,1x))') 'ix_StomResist==BallBerryFlex, scalarPhotosynthesisSunlit, scalarPhotosynthesisShaded, scalarStomResistSunlit, scalarPhotosynthesisShaded = ', &
- !                                      ix_StomResist==BallBerryFlex, scalarPhotosynthesisSunlit, scalarPhotosynthesisShaded, scalarStomResistSunlit, scalarPhotosynthesisShaded
- !pause
-
- ! end association to variables in the data structures
  end associate
 
  end subroutine stomResist
