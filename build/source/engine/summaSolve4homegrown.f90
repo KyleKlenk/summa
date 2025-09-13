@@ -1000,104 +1000,104 @@ contains
                               &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
                               &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                               &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,message)
- USE eval8summa_module,only:eval8summa                        ! simulation of fluxes and residuals given a trial state vector
- implicit none
- ! input
- real(rkind),intent(in)          :: stateVecNew(:)            ! updated state vector
- real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
- type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
- type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
- type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
- type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
- type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
- type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
- type(var_d),        intent(in)  :: forc_data                 ! model forcing data
- type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
- type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
- ! input-output
- real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
- type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! model control variables and previous function evaluation
- type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
- type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
- type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
- real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
- ! output
- real(rkind),intent(out)         :: fluxVecNew(:)             ! updated flux vector
- real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
- real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! updated residual vector
- real(rkind),intent(out)         :: fNew                      ! new function value
- logical(lgt),intent(out)        :: feasible                  ! flag to denote the feasibility of the solution
- integer(i4b),intent(out)        :: err                       ! error code
- character(*),intent(out)        :: message                   ! error message
- ! ----------------------------------------------------------------------------------------------------------
- ! local
- !real(rkind),allocatable         :: fRHS(:)                   ! RHS function for ARKODE
- character(len=256)              :: cmessage                  ! error message of downwind routine
- ! ----------------------------------------------------------------------------------------------------------
- ! initialize error control
- err=0; message='eval8summa_wrapper/'
+  USE eval8summa_module,only:eval8summa                        ! simulation of fluxes and residuals given a trial state vector
+  implicit none
+  ! input
+  real(rkind),intent(in)          :: stateVecNew(:)            ! updated state vector
+  real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
+  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
+  type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
+  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
+  type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
+  type(var_d),        intent(in)  :: forc_data                 ! model forcing data
+  type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
+  type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
+  ! input-output
+  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
+  type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! model control variables and previous function evaluation
+  type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
+  type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
+  type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
+  real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
+  ! output
+  real(rkind),intent(out)         :: fluxVecNew(:)             ! updated flux vector
+  real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
+  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! updated residual vector
+  real(rkind),intent(out)         :: fNew                      ! new function value
+  logical(lgt),intent(out)        :: feasible                  ! flag to denote the feasibility of the solution
+  integer(i4b),intent(out)        :: err                       ! error code
+  character(*),intent(out)        :: message                   ! error message
+  ! ----------------------------------------------------------------------------------------------------------
+  ! local
+  !real(rkind),allocatable         :: fRHS(:)                   ! RHS function for ARKODE
+  character(len=256)              :: cmessage                  ! error message of downwind routine
+  ! ----------------------------------------------------------------------------------------------------------
+  ! initialize error control
+  err=0; message='eval8summa_wrapper/'
 
- associate(&
-  dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
-  dt             => in_SS4HG % dt             ,& ! intent(in): entire time step for drainage pond rate
-  nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
-  nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
-  nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
-  nState         => in_SS4HG % nState         ,& ! intent(in): total number of state variables
-  firstSubStep   => in_SS4HG % firstSubStep   ,& ! intent(in): flag to indicate if we are processing the first sub-step
-  computeVegFlux => in_SS4HG % computeVegFlux ,& ! intent(in): flag to indicate if computing fluxes over vegetation
-  scalarSolution => in_SS4HG % scalarSolution ,& ! intent(in): flag to denote if implementing the scalar solution
-  firstFluxCall  => io_SS4HG % firstFluxCall  ,& ! intent(inout): flag to indicate if we are processing the first flux call  
-  ixSaturation   => io_SS4HG % ixSaturation    & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)    
- &)
- ! compute the flux and the residual vector for a given state vector
-  call eval8summa(&
-                  ! input: model control
-                  dt_cur,                  & ! intent(in):    current stepsize
-                  dt,                      & ! intent(in):    length of the time step (seconds)
-                  nSnow,                   & ! intent(in):    number of snow layers
-                  nSoil,                   & ! intent(in):    number of soil layers
-                  nLayers,                 & ! intent(in):    total number of layers
-                  nState,                  & ! intent(in):    total number of state variables
-                  .false.,                 & ! intent(in):    not inside Sundials solver
-                  firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                  firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                  .false.,                 & ! intent(in):    not processing the first iteration in a splitting operation
-                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                  ! input: state vectors
-                  stateVecNew,             & ! intent(in):    updated model state vector
-                  fScale,                  & ! intent(in):    characteristic scale of the function evaluations
-                  sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
-                  ! input: data structures
-                  model_decisions,         & ! intent(in):    model decisions
-                  lookup_data,             & ! intent(in):    lookup tables
-                  type_data,               & ! intent(in):    type of vegetation and soil
-                  attr_data,               & ! intent(in):    spatial attributes
-                  mpar_data,               & ! intent(in):    model parameters
-                  forc_data,               & ! intent(in):    model forcing data
-                  bvar_data,               & ! intent(in):    average model variables for the entire basin
-                  prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                  ! input-output: data structures
-                  indx_data,               & ! intent(inout): index data
-                  diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                  flux_data,               & ! intent(inout): model fluxes for a local HRU
-                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                  ! input-output: baseflow
-                  ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                  dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-                  ! output
-                  feasible,                & ! intent(out):   flag to denote the feasibility of the solution
-                  fluxVecNew,              & ! intent(out):   new flux vector
-                  !fRHS,                    & ! intent(out):   RHS function for ARKODE
-                  resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                  resVecNew,               & ! intent(out):   new residual vector
-                  fNew,                    & ! intent(out):   new function evaluation
-                  err,cmessage)              ! intent(out):   error control
- end associate
+  associate(&
+   dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
+   dt             => in_SS4HG % dt             ,& ! intent(in): entire time step for drainage pond rate
+   nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+   nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+   nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
+   nState         => in_SS4HG % nState         ,& ! intent(in): total number of state variables
+   firstSubStep   => in_SS4HG % firstSubStep   ,& ! intent(in): flag to indicate if we are processing the first sub-step
+   computeVegFlux => in_SS4HG % computeVegFlux ,& ! intent(in): flag to indicate if computing fluxes over vegetation
+   scalarSolution => in_SS4HG % scalarSolution ,& ! intent(in): flag to denote if implementing the scalar solution
+   firstFluxCall  => io_SS4HG % firstFluxCall  ,& ! intent(inout): flag to indicate if we are processing the first flux call  
+   ixSaturation   => io_SS4HG % ixSaturation    & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)    
+  &)
+   ! compute the flux and the residual vector for a given state vector
+   call eval8summa(&
+                   ! input: model control
+                   dt_cur,                  & ! intent(in):    current stepsize
+                   dt,                      & ! intent(in):    length of the time step (seconds)
+                   nSnow,                   & ! intent(in):    number of snow layers
+                   nSoil,                   & ! intent(in):    number of soil layers
+                   nLayers,                 & ! intent(in):    total number of layers
+                   nState,                  & ! intent(in):    total number of state variables
+                   .false.,                 & ! intent(in):    not inside Sundials solver
+                   firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
+                   firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
+                   .false.,                 & ! intent(in):    not processing the first iteration in a splitting operation
+                   computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                   scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
+                   ! input: state vectors
+                   stateVecNew,             & ! intent(in):    updated model state vector
+                   fScale,                  & ! intent(in):    characteristic scale of the function evaluations
+                   sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
+                   ! input: data structures
+                   model_decisions,         & ! intent(in):    model decisions
+                   lookup_data,             & ! intent(in):    lookup tables
+                   type_data,               & ! intent(in):    type of vegetation and soil
+                   attr_data,               & ! intent(in):    spatial attributes
+                   mpar_data,               & ! intent(in):    model parameters
+                   forc_data,               & ! intent(in):    model forcing data
+                   bvar_data,               & ! intent(in):    average model variables for the entire basin
+                   prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                   ! input-output: data structures
+                   indx_data,               & ! intent(inout): index data
+                   diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                   flux_data,               & ! intent(inout): model fluxes for a local HRU
+                   deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                   ! input-output: baseflow
+                   ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                   dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                   ! output
+                   feasible,                & ! intent(out):   flag to denote the feasibility of the solution
+                   fluxVecNew,              & ! intent(out):   new flux vector
+                   !fRHS,                    & ! intent(out):   RHS function for ARKODE
+                   resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
+                   resVecNew,               & ! intent(out):   new residual vector
+                   fNew,                    & ! intent(out):   new function evaluation
+                   err,cmessage)              ! intent(out):   error control
+  end associate
 
- if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
  
  end subroutine eval8summa_wrapper
 
