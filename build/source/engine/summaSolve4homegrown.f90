@@ -495,7 +495,7 @@ contains
     call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
                            &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
                            &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                           &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,message)
+                           &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     ! check line search
@@ -731,7 +731,10 @@ contains
 
     ! get brackets if they do not exist
     if ( ieee_is_nan(xMin) .or. ieee_is_nan(xMax) ) then
-     call getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,cmessage)
+     call getBrackets(stateVecTrial,rvec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
+                     &mpar_data,forc_data,bvar_data,prog_data,&
+                     &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
+                     &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,err,cmessage)
      if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
     end if
 
@@ -764,7 +767,7 @@ contains
    call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
                           &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                          &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,message)
+                          &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)
    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
    ! check feasibility (should be feasible because of the call to imposeConstraints, except if canopyTemp>canopyTempMax (500._rkind)) 
@@ -777,86 +780,6 @@ contains
 
   end subroutine safeRootfinder
 
-  ! *********************************************************************************************************
-  ! * internal subroutine getBrackets: get the brackets
-  ! *********************************************************************************************************
-  subroutine getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,message)
-  USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan          ! IEEE arithmetic (check NaN)
-  implicit none
-  ! dummies
-  real(rkind),intent(in)         :: stateVecTrial(:)         ! trial state vector
-  real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
-  real(rkind),intent(out)        :: xMin,xMax                ! constraints
-  integer(i4b),intent(inout)     :: err                      ! error code
-  character(*),intent(out)       :: message                  ! error message
-  ! locals
-  real(rkind)                    :: stateVecPrev(in_SS4HG % nState) ! iteration state vector
-  integer(i4b)                   :: iCheck                          ! check the model state variables
-  integer(i4b),parameter         :: nCheck=100                      ! number of times to check the model state variables
-  logical(lgt)                   :: feasible                        ! feasibility of the solution
-  real(rkind),parameter          :: delX=1._rkind                   ! trial increment
-  real(rkind)                    :: xIncrement(in_SS4HG % nState)   ! trial increment
-  ! initialize
-  err=0; message='getBrackets/'
-
-  ! initialize state vector
-  stateVecNew = stateVecTrial
-  stateVecPrev = stateVecNew
-
-  ! get xIncrement
-  xIncrement = -sign((/delX/),rVec)
-
-  ! try the increment a few times
-  do iCheck=1,nCheck
-
-   ! state vector with proposed iteration increment
-   stateVecNew = stateVecPrev + xIncrement
-
-   ! impose solution constraints adjusting state vector and iteration increment
-   associate(&
-    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
-    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
-    nState         => in_SS4HG % nState          & ! intent(in): total number of state variables
-   &)
-    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecPrev,nState,nSoil,nSnow,cmessage,err)
-   end associate
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-   xIncrement = stateVecNew - stateVecPrev
-
-   ! evaluate summa
-   associate(fnew => out_SS4HG % fnew)
-    call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
-                           &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
-                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                           &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,message)
-   end associate
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
-   ! check feasibility (should be feasible because of the call to imposeConstraints, except if canopyTemp>canopyTempMax (500._rkind)) 
-   if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
-
-   ! update brackets
-   if(real(resVecNew(1), rkind)<0._rkind)then
-    xMin = stateVecNew(1)
-   else
-    xMax = stateVecNew(1)
-   endif
-
-   ! check that the brackets are defined
-   if( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) ) exit
-
-   ! check that we found the brackets
-   if(iCheck==nCheck)then
-    message=trim(message)//'could not fix the problem where residual and iteration increment are of the same sign'
-    err=20; return
-   endif
-
-   ! Save the state vector
-    stateVecPrev = stateVecNew
-
-  end do  ! multiple checks
-
-  end subroutine getBrackets
 
  end subroutine summaSolve4homegrown
 
@@ -993,6 +916,116 @@ contains
  end function checkConv
 
  ! *********************************************************************************************************
+ ! * module subroutine getBrackets: get the brackets for safeRootfinder
+ ! *********************************************************************************************************
+ subroutine getBrackets(stateVecTrial,rvec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
+                       &mpar_data,forc_data,bvar_data,prog_data,&
+                       &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
+                       &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,err,message)
+  USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan            ! IEEE arithmetic (check NaN)
+  USE eval8summa_module,only: imposeConstraints                ! imposeConstraints
+  implicit none
+  ! input
+  real(rkind),intent(in)          :: stateVecTrial(:)          ! trial state vector
+  real(qp),intent(in)             :: rVec(:)   ! NOTE: qp      ! residual vector
+  real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
+  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
+  type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
+  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
+  type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
+  type(var_d),        intent(in)  :: forc_data                 ! model forcing data
+  type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
+  type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
+  ! input-output
+  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
+  type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+  type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
+  type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
+  type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
+  real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
+  integer(i4b),intent(inout)      :: err                       ! error code
+  ! output
+  type(out_type_summaSolve4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+  real(rkind),intent(out)         :: stateVecNew(:)            ! new state vector
+  real(rkind),intent(out)         :: fluxVecNew(:)             ! updated flux vector
+  real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
+  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! updated residual vector
+  real(rkind),intent(out)         :: xMin,xMax                 ! constraints
+  character(*),intent(out)        :: message                   ! error message
+  ! locals
+  real(rkind)                     :: stateVecPrev(in_SS4HG % nState) ! iteration state vector
+  integer(i4b)                    :: iCheck                          ! check the model state variables
+  integer(i4b),parameter          :: nCheck=100                      ! number of times to check the model state variables
+  logical(lgt)                    :: feasible                        ! feasibility of the solution
+  real(rkind),parameter           :: delX=1._rkind                   ! trial increment
+  real(rkind)                     :: xIncrement(in_SS4HG % nState)   ! trial increment
+  character(len=256)              :: cmessage                        ! error message of downwind routine
+  ! initialize
+  err=0; message='getBrackets/'
+
+  ! initialize state vector
+  stateVecNew = stateVecTrial
+  stateVecPrev = stateVecNew
+
+  ! get xIncrement
+  xIncrement = -sign((/delX/),rVec)
+
+  ! try the increment a few times
+  do iCheck=1,nCheck
+
+   ! state vector with proposed iteration increment
+   stateVecNew = stateVecPrev + xIncrement
+
+   ! impose solution constraints adjusting state vector and iteration increment
+   associate(&
+    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+    nState         => in_SS4HG % nState          & ! intent(in): total number of state variables
+   &)
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecPrev,nState,nSoil,nSnow,cmessage,err)
+   end associate
+   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
+   xIncrement = stateVecNew - stateVecPrev
+
+   ! evaluate summa
+   associate(fnew => out_SS4HG % fnew)
+    call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
+                           &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
+                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
+                           &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)
+   end associate
+   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
+
+   ! check feasibility (should be feasible because of the call to imposeConstraints, except if canopyTemp>canopyTempMax (500._rkind)) 
+   if (.not.feasible) then; message=trim(message)//'state vector not feasible'; err=20; return; end if
+
+   ! update brackets
+   if (real(resVecNew(1), rkind)<0._rkind) then
+    xMin = stateVecNew(1)
+   else
+    xMax = stateVecNew(1)
+   end if
+
+   ! check that the brackets are defined
+   if ( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) ) exit
+
+   ! check that we found the brackets
+   if (iCheck==nCheck) then
+    message=trim(message)//'could not fix the problem where residual and iteration increment are of the same sign'
+    err=20; return
+   endif
+
+   ! Save the state vector
+   stateVecPrev = stateVecNew
+
+  end do  ! multiple checks
+
+ end subroutine getBrackets
+
+ ! *********************************************************************************************************
  ! * module subroutine eval8summa_wrapper: compute the right-hand-side vector
  ! *********************************************************************************************************
  ! NOTE: This is simply a wrapper routine for eval8summa, to reduce the number of calling arguments
@@ -1016,7 +1049,7 @@ contains
   type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
   ! input-output
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
-  type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! model control variables and previous function evaluation
+  type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
   type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
