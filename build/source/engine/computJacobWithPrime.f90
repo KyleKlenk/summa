@@ -776,29 +776,31 @@ subroutine computJacobWithPrime(&
     ! ----------------------------------------
     if(enthalpyStateVec)then 
 
-      allocate(watRows(nBands),nrgRows(nBands))
-      do jLayer=1,nBands-1
-        watRows(jLayer) = jLayer
-        nrgRows(jLayer) = jLayer + 1
-      end do
-      watRows(nBands) = nBands
-      nrgRows(nBands) = nBands
+      if(fullMatrix) then
+        allocate(watRows(nState),nrgRows(nState)) ! all rows are used
+        do jLayer=1,nState
+          watRows(jLayer) = jLayer
+          nrgRows(jLayer) = jLayer
+        end do
+      else
+        allocate(watRows(nBands),nrgRows(nBands)) ! only the bands are used
+        do jLayer=1,nBands-1
+          watRows(jLayer) = jLayer
+          nrgRows(jLayer) = jLayer + 1
+        end do
+        watRows(nBands) = nBands
+        nrgRows(nBands) = nBands
+      endif
 
       if(ixCasNrg/=integerMissing)then
         aJac(:,ixCasNrg) = aJac(:,ixCasNrg) * dCanairTemp_dEnthalpy
-        if(ixMatrix==ixBandMatrix) aJac(ixDiag,   ixCasNrg) = aJac(ixDiag,   ixCasNrg) + 1._rkind * cj
-        if(ixMatrix==ixFullMatrix) aJac(ixCasNrg, ixCasNrg) = aJac(ixCasNrg, ixCasNrg) + 1._rkind * cj
+        aJac(ixInd(ixCasNrg,ixCasNrg),ixCasNrg) = aJac(ixInd(ixCasNrg,ixCasNrg),ixCasNrg) + 1._rkind * cj
       endif
       
       if(ixVegNrg/=integerMissing)then
-        if(ixMatrix==ixBandMatrix)then
-          if(ixVegHyd/=integerMissing) aJac(watRows,ixVegHyd) = aJac(watRows,ixVegHyd) + aJac(nrgRows,ixVegNrg) * dCanopyTemp_dCanWat
-        else if(ixMatrix==ixFullMatrix)then
-          if(ixVegHyd/=integerMissing) aJac(:,ixVegHyd) = aJac(:,ixVegHyd) + aJac(:,ixVegNrg) * dCanopyTemp_dCanWat
-        endif
+        if(ixVegHyd/=integerMissing) aJac(watRows,ixVegHyd) = aJac(watRows,ixVegHyd) + aJac(nrgRows,ixVegNrg) * dCanopyTemp_dCanWat
         aJac(:,ixVegNrg) = aJac(:,ixVegNrg) * dCanopyTemp_dEnthalpy
-        if(ixMatrix==ixBandMatrix) aJac(ixDiag,   ixVegNrg) = aJac(ixDiag,   ixVegNrg) + 1._rkind * cj
-        if(ixMatrix==ixFullMatrix) aJac(ixVegNrg, ixVegNrg) = aJac(ixVegNrg, ixVegNrg) + 1._rkind * cj
+        aJac(ixInd(ixVegNrg,ixVegNrg),ixVegNrg) = aJac(ixInd(ixVegNrg,ixVegNrg),ixVegNrg) + 1._rkind * cj
       endif
       
       if(nSnowSoilNrg>0)then
@@ -807,17 +809,11 @@ subroutine computJacobWithPrime(&
           if(nrgState==integerMissing) cycle
           watState = ixSnowSoilHyd(iLayer)
           if(watstate/=integerMissing)then 
-            if(ixMatrix==ixBandMatrix)then
-              if(iLayer<=nSnow) aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dTheta(iLayer)
-              if(iLayer>nSnow)  aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dPsi0(iLayer-nSnow)
-            else if(ixMatrix==ixFullMatrix)then
-              if(iLayer<=nSnow) aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dTheta(iLayer)
-              if(iLayer>nSnow)  aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dPsi0(iLayer-nSnow)
-            endif
+            if(iLayer<=nSnow) aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dTheta(iLayer)
+            if(iLayer>nSnow)  aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dPsi0(iLayer-nSnow)
           endif
           aJac(:,nrgState) = aJac(:,nrgState) * dTemp_dEnthalpy(iLayer)
-          if(ixMatrix==ixBandMatrix) aJac(ixDiag,   nrgState) = aJac(ixDiag,   nrgState) + 1._rkind * cj
-          if(ixMatrix==ixFullMatrix) aJac(nrgState, nrgState) = aJac(nrgState, nrgState) + 1._rkind * cj
+          aJac(ixInd(nrgState,nrgState),nrgState) = aJac(ixInd(nrgState,nrgState),nrgState) + 1._rkind * cj
         enddo
       endif
     else
