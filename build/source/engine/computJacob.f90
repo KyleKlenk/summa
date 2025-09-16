@@ -537,7 +537,7 @@ subroutine computJacob(&
           if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixInd(ixSoilOnlyHyd(iLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
         endif
 
-        ! - only include banded terms for baseflow in banded structure
+        ! - include baseflow derivatives
         if(computeBaseflow .and. nSoilOnlyHyd==nSoil)then
           do pLayer=1,nSoil
             qState = ixSoilOnlyHyd(pLayer)  ! hydrology state index within the state subset
@@ -548,14 +548,14 @@ subroutine computJacob(&
           end do
         endif
 
-        ! - only include banded terms for surface infiltration below surface in banded structure
+        ! - include derivatives for surface infiltration below surface
         if(ixSoilOnlyHyd(1)/=integerMissing)then
           if(watState - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) & 
-              aJac(ixInd(ixSoilOnlyHyd(1),watState),watState) = -(dt/mLayerDepth(1+nSnow))*dq_dHydStateLayerSurfVec(iLayer) + aJac(ixInd(ixSoilOnlyHyd(1),watState),watState)
+              aJac(ixInd(ixSoilOnlyHyd(1),watState),watState) = -(dt/mLayerDepth(nSnow+1))*dq_dHydStateLayerSurfVec(iLayer) + aJac(ixInd(ixSoilOnlyHyd(1),watState),watState)
         endif
       end do  ! (looping through hydrology states in the soil domain)
 
-      ! - include banded terms for surface infiltration above surface if there is snow (vegetation handled already)
+      ! - include derivatives for surface infiltration above surface if there is snow (vegetation handled already)
       if(nSnow>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then !have snow above first soil layer
         densLimit=nSnow ! if passed through a too dense snowpack, need to find top dense layer (bottom layer always included, dense or not)
         do pLayer=nSnow-1,1,-1
@@ -570,7 +570,7 @@ subroutine computJacob(&
               case default;         convLiq2tot = 1._rkind
             end select
             if(ixSnowOnlyHyd(pLayer) - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) &
-                aJac(ixInd(ixSoilOnlyHyd(1),ixSnowOnlyHyd(pLayer)),ixSnowOnlyHyd(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*convLiq2tot + aJac(ixInd(ixSoilOnlyHyd(1),ixSnowOnlyHyd(pLayer)),ixSnowOnlyHyd(pLayer))
+                aJac(ixInd(ixSoilOnlyHyd(1),ixSnowOnlyHyd(pLayer)),ixSnowOnlyHyd(pLayer)) = -(dt/mLayerDepth(nSnow+1))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*convLiq2tot + aJac(ixInd(ixSoilOnlyHyd(1),ixSnowOnlyHyd(pLayer)),ixSnowOnlyHyd(pLayer))
           endif
         end do
       endif
@@ -584,7 +584,7 @@ subroutine computJacob(&
       aJac(ixInd(ixAqWat,ixAqWat),ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat)
       if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixInd(ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoil)_dTk
       if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixInd(ixAqWat,ixSoilOnlyHyd(nSoil)),ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoil)_dWat
-      ! - only include banded terms for derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration), would have to have few soil layers
+      ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
       if(computeVegFlux)then
         if(ixCasNrg/=integerMissing)then
           if(ixAqWat-ixCasNrg <= kl .or. fullMatrix) aJac(ixInd(ixAqWat,ixCasNrg),ixCasNrg) = -dAquiferTrans_dTCanair*dt ! dVol/dT (K-1)
@@ -644,7 +644,7 @@ subroutine computJacob(&
             endif
           endif
 
-          ! - only include banded terms for derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration) in banded structure 
+          ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
           if(computeVegFlux)then
             if(ixCasNrg/=integerMissing)then
               if(watState-ixCasNrg <= kl .or. fullMatrix) aJac(ixInd(watState,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-mLayerdTrans_dTCanair(iLayer)) + aJac(ixInd(watState,ixCasNrg),ixCasNrg) ! dVol/dT (K-1)
@@ -681,14 +681,14 @@ subroutine computJacob(&
           endif
         endif   ! (if the water state for the current layer is within the state subset)
 
-        ! - only include banded terms for surface infiltration below surface in banded structure
+        ! - include derivatives for surface infiltration below surface
         if(ixSoilOnlyHyd(1)/=integerMissing)then
           if(nrgState - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) &
-              aJac(ixInd(ixSoilOnlyHyd(1),nrgState),nrgState) = -(dt/mLayerDepth(1+nSnow))*dq_dNrgStateLayerSurfVec(iLayer) + aJac(ixInd(ixSoilOnlyHyd(1),nrgState),nrgState)
+              aJac(ixInd(ixSoilOnlyHyd(1),nrgState),nrgState) = -(dt/mLayerDepth(nSnow+1))*dq_dNrgStateLayerSurfVec(iLayer) + aJac(ixInd(ixSoilOnlyHyd(1),nrgState),nrgState)
         endif
       end do  ! (looping through energy states in the soil domain)
 
-      ! - include banded terms for surface infiltration above surface if there is snow (vegetation handled already)
+      ! - include derivatives for surface infiltration above surface if there is snow (vegetation handled already)
       if(nSnow>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then !have snow above first soil layer
         densLimit=nSnow ! if passed through a too dense snowpack, need to find top dense layer (bottom layer always included, dense or not)
         do pLayer=nSnow-1,1,-1
@@ -697,9 +697,8 @@ subroutine computJacob(&
         end do
         do pLayer=densLimit,nSnow
           if(ixSnowOnlyNrg(pLayer)/=integerMissing)then
-            ! only include banded terms
             if(ixSnowOnlyNrg(pLayer) - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) &
-                aJac(ixInd(ixSoilOnlyHyd(1),ixSnowOnlyNrg(pLayer)),ixSnowOnlyNrg(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixInd(ixSoilOnlyHyd(1),ixSnowOnlyNrg(pLayer)),ixSnowOnlyNrg(pLayer))
+                aJac(ixInd(ixSoilOnlyHyd(1),ixSnowOnlyNrg(pLayer)),ixSnowOnlyNrg(pLayer)) = -(dt/mLayerDepth(nSnow+1))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixInd(ixSoilOnlyHyd(1),ixSnowOnlyNrg(pLayer)),ixSnowOnlyNrg(pLayer))
           endif
         end do
       endif
