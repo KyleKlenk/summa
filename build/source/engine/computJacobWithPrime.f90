@@ -182,8 +182,6 @@ subroutine computJacobWithPrime(&
     ixCasNrg                     => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy air space energy state variable
     ixVegNrg                     => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy energy state variable
     ixVegHyd                     => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
-    ixTopNrg                     => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most energy state in the snow+soil subdomain
-    ixTopHyd                     => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most hydrology state in the snow+soil subdomain
     ixAqWat                      => indx_data%var(iLookINDEX%ixAqWat)%dat(1)                        ,& ! intent(in): [i4b]    index of water storage in the aquifer
     ! vector of energy indices for the snow and soil domains
     ! NOTE: states not in the subset are equal to integerMissing
@@ -272,8 +270,7 @@ subroutine computJacobWithPrime(&
                           + LH_fus*iden_water * scalarCanopyTempPrime * d2Theta_dTkCanopy2 &
                           + LH_fus            * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime / canopyDepth
 
-      if(ixVegHyd/=integerMissing) dMat(ixVegHyd) = dMat(ixVegHyd) * cj
-                
+      if(ixVegHyd/=integerMissing) dMat(ixVegHyd) = dMat(ixVegHyd) * cj                
     endif
 
     ! compute terms for the Jacobian for the snow-soil domain (excluding fluxes)
@@ -281,19 +278,18 @@ subroutine computJacobWithPrime(&
     do iLayer=1,nLayers
       if(ixSnowSoilNrg(iLayer)/=integerMissing)&
           dMat(ixSnowSoilNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
-                                      + dVolHtCapBulk_dTk(iLayer) * mLayerTempPrime(iLayer) &
-                                      + dCm_dTk(iLayer) * mLayerVolFracWatPrime(iLayer) &
-                                      + LH_fus*iden_water * mLayerTempPrime(iLayer)  * mLayerd2Theta_dTk2(iLayer) &
-                                      + LH_fus*iden_water * dFracLiqWat_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
+                                       + dVolHtCapBulk_dTk(iLayer) * mLayerTempPrime(iLayer) &
+                                       + dCm_dTk(iLayer) * mLayerVolFracWatPrime(iLayer) &
+                                       + LH_fus*iden_water * mLayerTempPrime(iLayer)  * mLayerd2Theta_dTk2(iLayer) &
+                                       + LH_fus*iden_water * dFracLiqWat_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
 
       if(ixSnowSoilHyd(iLayer)/=integerMissing) dMat(ixSnowSoilHyd(iLayer)) = dMat(ixSnowSoilHyd(iLayer)) * cj
     end do
 
     ! compute terms for the Jacobian for the soil domain (excluding fluxes)
     do iLayer=1,nSoil
-      if(ixSoilOnlyHyd(iLayer)/=integerMissing)then ! writes over dMat(ixSoilOnlyHyd(iLayer) = 1.0
+      if(ixSoilOnlyHyd(iLayer)/=integerMissing)then ! writes over dMat(ixSoilOnlyHyd(iLayer) = 1.0 * cj above
         dMat(ixSoilOnlyHyd(iLayer)) = ( dVolTot_dPsi0(iLayer) + dCompress_dPsi(iLayer) ) * cj + d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer)
-
         if(ixRichards==mixdform)&
             dMat(ixSoilOnlyHyd(iLayer)) = dMat(ixSoilOnlyHyd(iLayer)) + specificStorage * dVolTot_dPsi0(iLayer) * mLayerMatricHeadPrime(iLayer) / theta_sat(iLayer)
       endif
@@ -344,9 +340,9 @@ subroutine computJacobWithPrime(&
       if(ixVegHyd/=integerMissing .and. ixVegNrg/=integerMissing)&
           ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fu0/canopyDepth = J m-3; dLiq = kg m-2
           aJac(ixInd(ixVegNrg,ixVegHyd),ixVegHyd) = (-1._rkind + scalarFracLiqVeg)*LH_fu0/canopyDepth * cj &
-                                                     + dVolHtCapBulk_dCanWat * scalarCanopyTempPrime + scalarCanopyCm/canopyDepth * cj &
-                                                     - (dt/canopyDepth) * dCanopyNetFlux_dCanWat &
-                                                     + LH_fu0 * scalarCanopyTempPrime * dFracLiqVeg_dTkCanopy / canopyDepth
+                                                   + dVolHtCapBulk_dCanWat * scalarCanopyTempPrime + scalarCanopyCm/canopyDepth * cj &
+                                                   - (dt/canopyDepth) * dCanopyNetFlux_dCanWat &
+                                                   + LH_fu0 * scalarCanopyTempPrime * dFracLiqVeg_dTkCanopy / canopyDepth
     endif  ! if there is a need to compute energy fluxes within vegetation
 
     ! -----
@@ -357,10 +353,8 @@ subroutine computJacobWithPrime(&
 
         ! - check that the snow layer is desired
         if(ixSnowOnlyNrg(iLayer)==integerMissing) cycle
-
         ! (define the energy state)
         nrgState = ixSnowOnlyNrg(iLayer)       ! index within the full state vector
-
         ! - define state indices for the current layer
         watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
 
@@ -380,15 +374,13 @@ subroutine computJacobWithPrime(&
     ! ----------------------------------------
     if(nSoilOnlyHyd>0 .and. nSoilOnlyNrg>0)then
       do iLayer=1,nSoilOnlyNrg
+
         ! - check that the soil layer is desired
         if(ixSoilOnlyNrg(iLayer)==integerMissing) cycle
-
         ! - define indices of the soil layers
         jLayer   = iLayer+nSnow                ! index of layer in the snow+soil vector
-
         ! - define the energy state variable
         nrgState = ixSoilOnlyNrg(iLayer)       ! index within the full state vector
-
         ! - define index of hydrology state variable within the state subset
         watState = ixSoilOnlyHyd(iLayer)
 
@@ -398,11 +390,11 @@ subroutine computJacobWithPrime(&
           aJac(ixInd(nrgState,watState),watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
                                                        + mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer) &
                                                        + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) + mLayerCm(jLayer) * d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer)
-          if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))then  ! ice is present
-            aJac(ixInd(nrgState,watState),watState) = -LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
-                                                         - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
-          endif
+          if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))&  ! ice is present
+              aJac(ixInd(nrgState,watState),watState) = -LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
+                                                       - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
         endif   ! (if the water state for the current layer is within the state subset)
+
       end do  ! (looping through energy states in the soil domain)
     endif   ! (if there are state variables for both water and energy in the soil domain)
 
@@ -411,8 +403,7 @@ subroutine computJacobWithPrime(&
     ! *********************************************************************************************************************************************************
     call fluxJacAdd(fullMatrix,dt,nSnow,nSoil,nLayers,computeVegFlux,computeBaseflow,&
                     indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,&
-                    dMat,aJac,&
-                    err,cmessage)
+                    dMat,aJac,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     
     ! *********************************************************************************************************************************************************
