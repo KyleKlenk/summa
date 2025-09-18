@@ -576,7 +576,6 @@ subroutine fluxJacAdd(&
 
         ! check if the state is in the subset
         if(ixSnowSoilNrg(iLayer)==integerMissing) cycle
-
         ! - define index within the state subset and the full state vector
         nrgState = ixSnowSoilNrg(iLayer)        ! index within the state subset
 
@@ -971,8 +970,7 @@ function ixInd(jState,iState)
   if(fullMatrix) then
     ixInd = jState
   else
-    ixInd = kl + 1 + jState - iState
-    if(jState==iState) ixInd = ixDiag
+    ixInd = ixDiag + jState - iState
   endif
 end function ixInd
 
