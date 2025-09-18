@@ -368,7 +368,11 @@ contains
   
     ! * case 2: scalar
     else
-     call safeRootfinder(stateVecTrial,rVecScaled,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,out_SRF)
+     call safeRootfinder(mSoil,stateVecTrial,rVecScaled,newtStepScaled,fScale,xScale,&
+                        &in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
+                        &mpar_data,forc_data,bvar_data,prog_data,&
+                        &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
+                        &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SRF)
      call out_SRF % finalize(fNew,converged,err,cmessage)
      if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
     end if
@@ -654,133 +658,6 @@ contains
 
   end subroutine trustRegionRefinement
 
-
-  ! *********************************************************************************************************
-  ! * internal subroutine safeRootfinder: refine the 1-d iteration increment using brackets
-  ! *********************************************************************************************************
-  subroutine safeRootfinder(stateVecTrial,rVecscaled,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,out_SRF)
-  USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan          ! IEEE arithmetic (check NaN)
-  USE globalData,only:dNaN                                   ! double precision NaN
-  implicit none
-  ! input
-  real(rkind),intent(in)         :: stateVecTrial(:)         ! trial state vector
-  real(rkind),intent(in)         :: rVecScaled(:)            ! scaled residual vector
-  real(rkind),intent(in)         :: newtStepScaled(:)        ! scaled newton step
-  ! output
-  real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
-  real(rkind),intent(out)        :: fluxVecNew(:)            ! new flux vector
-  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
-  type(out_type_lineSearchRefinement),intent(out) :: out_SRF ! object for scalar intent(out) arguments (reusing lineSearchRefinement class)
-  ! --------------------------------------------------------------------------------------------------------
-  ! local variables
-  character(len=256)             :: cmessage                 ! error message of downwind routine
-  real(rkind),parameter          :: relTolerance=0.005_rkind ! force bi-section if trial is slightly larger than (smaller than) xmin (xmax)
-  real(rkind)                    :: xTolerance               ! relTolerance*(xmax-xmin)
-  real(rkind)                    :: xInc(in_SS4HG % nState)  ! iteration increment (re-scaled to original units of the state vector)
-  real(rkind)                    :: rVec(in_SS4HG % nState)  ! residual vector (re-scaled to original units of the state equation)
-  logical(lgt)                   :: feasible                 ! feasibility of the solution
-  logical(lgt)                   :: doBisection              ! flag to do the bi-section
-  logical(lgt)                   :: bracketsDefined          ! flag to define if the brackets are defined
-  integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
-  real(rkind),parameter          :: delX=1._rkind            ! trial increment
-  ! --------------------------------------------------------------------------------------------------------
-  associate(&
-   iter           => in_SS4HG % iter           ,& ! intent(in): iteration index
-   nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
-   nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
-   nState         => in_SS4HG % nState         ,& ! intent(in): total number of state
-   xMin           => io_SS4HG % xMin           ,& ! intent(inout): bracket of the root   
-   xMax           => io_SS4HG % xMax           ,& ! intent(inout): bracket of the root  
-   fNew           => out_SRF % fNew            ,& ! intent(out): new function evaluation
-   converged      => out_SRF % converged       ,& ! intent(out): convergence flag
-   err            => out_SRF % err             ,& ! intent(out): error code
-   message        => out_SRF % message          & ! intent(out): error message
-  &)
-
-   err=0; message='safeRootfinder/'
-   converged = .false.
-
-   ! check scalar
-   if (size(stateVecTrial)/=1 .or. size(rVecScaled)/=1 .or. size(newtStepScaled)/=1) then
-    message=trim(message)//'unexpected size of input vectors'
-    err=20; return
-   end if
-
-   ! initialize brackets to rkind precision NaN
-   if (iter==1) then
-    xMax = dNaN
-    xMin = dNaN
-   end if
-
-   ! get the residual vector
-   rVec = real(rVecScaled, rkind)*real(fScale, rkind)
-
-   ! update brackets
-   if (rVec(1)<0._rkind) then
-    xMin = stateVecTrial(1)
-   else
-    xMax = stateVecTrial(1)
-   end if
-
-   ! get the iteration increment
-   xInc = newtStepScaled*xScale
-
-   ! *****
-   ! * case 1: the iteration increment is the same sign as the residual vector
-   if (xInc(1)*rVec(1) > 0._rkind) then
-
-    ! get brackets if they do not exist
-    if ( ieee_is_nan(xMin) .or. ieee_is_nan(xMax) ) then
-     call getBrackets(stateVecTrial,rvec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
-                     &mpar_data,forc_data,bvar_data,prog_data,&
-                     &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                     &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,err,cmessage)
-     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
-    end if
-
-    ! use bi-section
-    stateVecNew(1) = 0.5_rkind*(xMin + xMax)
-
-   ! *****
-   ! * case 2: the iteration increment is the correct sign
-   else
-
-    ! state vector with proposed iteration increment
-    stateVecNew = stateVecTrial + xInc
-     
-    ! impose solution constraints adjusting state vector and iteration increment
-    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
-    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
-    xInc = stateVecNew - stateVecTrial
-
-   end if  ! if the iteration increment is the same sign as the residual vector
-
-   ! bi-section
-   bracketsDefined = ( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) )  ! check that the brackets are defined
-   if (bracketsDefined) then
-    xTolerance  = relTolerance*(xMax-xMin)
-    doBisection = (stateVecNew(1)<xMin+xTolerance .or. stateVecNew(1)>xMax-xTolerance)
-    if (doBisection) stateVecNew(1) = 0.5_rkind*(xMin+xMax)
-   end if
-
-   ! evaluate summa
-   call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
-                          &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
-                          &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                          &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)
-   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
-
-   ! check feasibility (should be feasible because of the call to imposeConstraints, except if canopyTemp>canopyTempMax (500._rkind)) 
-   if (.not.feasible) then; err=20; message=trim(message)//'state vector not feasible'; return; end if
-
-   ! check convergence
-   converged = checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,xInc,stateVecNew,out_SS4HG)
-
-  end associate
-
-  end subroutine safeRootfinder
-
-
  end subroutine summaSolve4homegrown
 
  ! *********************************************************************************************************
@@ -916,9 +793,161 @@ contains
  end function checkConv
 
  ! *********************************************************************************************************
+ ! * module subroutine safeRootfinder: refine the 1-d iteration increment using brackets
+ ! *********************************************************************************************************
+ subroutine safeRootfinder(mSoil,stateVecTrial,rVecscaled,newtStepScaled,fScale,xScale,&
+                          &in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
+                          &mpar_data,forc_data,bvar_data,prog_data,&
+                          &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
+                          &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SRF)
+  USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan            ! IEEE arithmetic (check NaN)
+  USE eval8summa_module,only: imposeConstraints                ! imposeConstraints
+  USE globalData,only:dNaN                                     ! double precision NaN
+  implicit none
+  ! input
+  integer(i4b),intent(in)         :: mSoil                     ! number of soil layers in solution vector
+  real(rkind),intent(in)          :: stateVecTrial(:)          ! trial state vector
+  real(rkind),intent(in)          :: rVecScaled(:)             ! scaled residual vector
+  real(rkind),intent(in)          :: newtStepScaled(:)         ! scaled newton step
+  real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
+  real(rkind),intent(in)          :: xScale(:)                 ! characteristic scale of the state vector
+  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
+  type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
+  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
+  type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
+  type(var_d),        intent(in)  :: forc_data                 ! model forcing data
+  type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
+  type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
+  ! input-output
+  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
+  type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+  type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
+  type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
+  type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
+  real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
+  ! output
+  type(out_type_summaSolve4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+  real(rkind),intent(out)         :: stateVecNew(:)            ! new state vector
+  real(rkind),intent(out)         :: fluxVecNew(:)             ! new flux vector
+  real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
+  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! new residual vector
+  type(out_type_lineSearchRefinement),intent(out) :: out_SRF   ! object for scalar intent(out) arguments (reusing lineSearchRefinement class)
+  ! --------------------------------------------------------------------------------------------------------
+  ! local variables
+  character(len=256)              :: cmessage                  ! error message of downwind routine
+  real(rkind),parameter           :: relTolerance=0.005_rkind  ! force bi-section if trial is slightly larger than (smaller than) xmin (xmax)
+  real(rkind)                     :: xTolerance                ! relTolerance*(xmax-xmin)
+  real(rkind)                     :: xInc(in_SS4HG % nState)   ! iteration increment (re-scaled to original units of the state vector)
+  real(rkind)                     :: rVec(in_SS4HG % nState)   ! residual vector (re-scaled to original units of the state equation)
+  logical(lgt)                    :: feasible                  ! feasibility of the solution
+  logical(lgt)                    :: doBisection               ! flag to do the bi-section
+  logical(lgt)                    :: bracketsDefined           ! flag to define if the brackets are defined
+  integer(i4b),parameter          :: nCheck=100                ! number of times to check the model state variables
+  real(rkind),parameter           :: delX=1._rkind             ! trial increment
+  ! --------------------------------------------------------------------------------------------------------
+  associate(&
+   iter           => in_SS4HG % iter           ,& ! intent(in): iteration index
+   nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+   nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+   nState         => in_SS4HG % nState         ,& ! intent(in): total number of state
+   xMin           => io_SS4HG % xMin           ,& ! intent(inout): bracket of the root   
+   xMax           => io_SS4HG % xMax           ,& ! intent(inout): bracket of the root  
+   fNew           => out_SRF % fNew            ,& ! intent(out): new function evaluation
+   converged      => out_SRF % converged       ,& ! intent(out): convergence flag
+   err            => out_SRF % err             ,& ! intent(out): error code
+   message        => out_SRF % message          & ! intent(out): error message
+  &)
+
+   err=0; message='safeRootfinder/'
+   converged = .false.
+
+   ! check scalar
+   if (size(stateVecTrial)/=1 .or. size(rVecScaled)/=1 .or. size(newtStepScaled)/=1) then
+    message=trim(message)//'unexpected size of input vectors'
+    err=20; return
+   end if
+
+   ! initialize brackets to rkind precision NaN
+   if (iter==1) then
+    xMax = dNaN
+    xMin = dNaN
+   end if
+
+   ! get the residual vector
+   rVec = real(rVecScaled, rkind)*real(fScale, rkind)
+
+   ! update brackets
+   if (rVec(1)<0._rkind) then
+    xMin = stateVecTrial(1)
+   else
+    xMax = stateVecTrial(1)
+   end if
+
+   ! get the iteration increment
+   xInc = newtStepScaled*xScale
+
+   ! *****
+   ! * case 1: the iteration increment is the same sign as the residual vector
+   if (xInc(1)*rVec(1) > 0._rkind) then
+
+    ! get brackets if they do not exist
+    if ( ieee_is_nan(xMin) .or. ieee_is_nan(xMax) ) then
+     call getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
+                     &mpar_data,forc_data,bvar_data,prog_data,&
+                     &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
+                     &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,err,cmessage)
+     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
+    end if
+
+    ! use bi-section
+    stateVecNew(1) = 0.5_rkind*(xMin + xMax)
+
+   ! *****
+   ! * case 2: the iteration increment is the correct sign
+   else
+
+    ! state vector with proposed iteration increment
+    stateVecNew = stateVecTrial + xInc
+     
+    ! impose solution constraints adjusting state vector and iteration increment
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
+    xInc = stateVecNew - stateVecTrial
+
+   end if  ! if the iteration increment is the same sign as the residual vector
+
+   ! bi-section
+   bracketsDefined = ( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) )  ! check that the brackets are defined
+   if (bracketsDefined) then
+    xTolerance  = relTolerance*(xMax-xMin)
+    doBisection = (stateVecNew(1)<xMin+xTolerance .or. stateVecNew(1)>xMax-xTolerance)
+    if (doBisection) stateVecNew(1) = 0.5_rkind*(xMin+xMax)
+   end if
+
+   ! evaluate summa
+   call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
+                          &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
+                          &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
+                          &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)
+   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
+
+   ! check feasibility (should be feasible because of the call to imposeConstraints, except if canopyTemp>canopyTempMax (500._rkind)) 
+   if (.not.feasible) then; err=20; message=trim(message)//'state vector not feasible'; return; end if
+
+   ! check convergence
+   converged = checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,xInc,stateVecNew,out_SS4HG)
+
+  end associate
+
+ end subroutine safeRootfinder
+
+ ! *********************************************************************************************************
  ! * module subroutine getBrackets: get the brackets for safeRootfinder
  ! *********************************************************************************************************
- subroutine getBrackets(stateVecTrial,rvec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
+ subroutine getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
                        &mpar_data,forc_data,bvar_data,prog_data,&
                        &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                        &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,err,message)
