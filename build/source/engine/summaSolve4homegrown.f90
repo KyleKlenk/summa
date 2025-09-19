@@ -341,7 +341,10 @@ contains
      select case(ixStepRefinement)
       case(ixLineSearch)  
        call in_LSR % initialize(doRefine,fOld)    
-       call lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
+       call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&
+                                &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
+                                &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
+                                &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)
        call out_LSR % finalize(fNew,converged,err,cmessage)
       case(ixTrustRegion)
        call in_TRR % initialize(doRefine,fOld)
@@ -355,7 +358,10 @@ contains
      if (err<0) then
       doRefine=.false.;
       call in_LSR % initialize(doRefine,fOld)    
-      call lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
+      call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&
+                               &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
+                               &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
+                               &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)
       call out_LSR % finalize(fNew,converged,err,cmessage)
      end if
   
@@ -394,25 +400,52 @@ contains
    end associate 
   end subroutine finalize_computJacob_summaSolve4homegrown
 
+ end subroutine summaSolve4homegrown
 
-  ! *********************************************************************************************************
-  ! * internal subroutine lineSearchRefinement: refine the iteration increment using line searches
-  ! *********************************************************************************************************
-  subroutine lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
-  ! provide access to the matrix routines
+ ! *********************************************************************************************************
+ ! * module subroutine lineSearchRefinement: refine the iteration increment using line searches
+ ! *********************************************************************************************************
+ subroutine lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&
+                                &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
+                                &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
+                                &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)
+  ! provide access to the external procedures
   USE matrixOper_module, only: computeGradient
+  USE eval8summa_module, only: imposeConstraints
   implicit none
   ! input
-  type(in_type_lineSearchRefinement),intent(in)  :: in_LSR   ! class object for intent(in) arguments
-  real(rkind),intent(in)         :: stateVecTrial(:)         ! trial state vector
-  real(rkind),intent(in)         :: newtStepScaled(:)        ! scaled newton step
-  real(rkind),intent(in)         :: aJacScaled(:,:)          ! scaled jacobian matrix
-  real(rkind),intent(in)         :: rVecScaled(:)            ! scaled residual vector
+  type(in_type_lineSearchRefinement),intent(in) :: in_LSR      ! class object for intent(in) arguments
+  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  integer(i4b),intent(in)         :: mSoil                     ! number of soil layers in solution vector
+  real(rkind),intent(in)          :: stateVecTrial(:)          ! trial state vector
+  real(rkind),intent(in)          :: newtStepScaled(:)         ! scaled newton step
+  real(rkind),intent(in)          :: aJacScaled(:,:)           ! scaled jacobian matrix
+  real(rkind),intent(in)          :: rVecScaled(:)             ! scaled residual vector
+  real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
+  real(rkind),intent(in)          :: xScale(:)                 ! characteristic scale of the state vector
+  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
+  type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
+  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
+  type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
+  type(var_d),        intent(in)  :: forc_data                 ! model forcing data
+  type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
+  type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
+  ! input-output
+  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
+  type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+  type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
+  type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
+  type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
+  real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
   ! output
-  real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
-  real(rkind),intent(out)        :: fluxVecNew(:)            ! new flux vector
-  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
-  type(out_type_lineSearchRefinement),intent(out) :: out_LSR ! class object for intent(out) arguments
+  real(rkind),intent(out)        :: stateVecNew(:)             ! new state vector
+  real(rkind),intent(out)        :: fluxVecNew(:)              ! new flux vector
+  real(rkind),intent(out)        :: resSinkNew(:)              ! sink terms on the RHS of the flux equation
+  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp    ! new residual vector
+  type(out_type_summaSolve4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+  type(out_type_lineSearchRefinement),intent(out) :: out_LSR   ! class object for intent(out) arguments
   ! --------------------------------------------------------------------------------------------------------
   ! local
   character(len=256)             :: cmessage                      ! error message of downwind routine
@@ -448,14 +481,14 @@ contains
   &)
    ! initialize error control
    err=0; message='lineSearchRefinement/'
-   converged =.false.
+   converged = .false.
 
    ! check the need to compute the line search
-   if(doLineSearch)then
+   if (doLineSearch) then
 
     ! compute the gradient of the function vector
     call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
     ! compute the initial slope
     slopeInit = dot_product(gradScaled,newtStepScaled)
@@ -476,7 +509,7 @@ contains
     xInc(:) = xInc(:)*xScale(:)
 
     ! if enthalpy, then need to convert the iteration increment to temperature
-    !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
+    !if (nrgFormulation==ix_enthalpy) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
 
     ! state vector with proposed iteration increment
     stateVecNew = stateVecTrial + xInc
@@ -484,7 +517,7 @@ contains
     ! impose solution constraints adjusting state vector and iteration increment
     ! NOTE: We may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
     call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
     xInc = stateVecNew - stateVecTrial
 
     ! compute the residual vector and function
@@ -493,10 +526,10 @@ contains
                            &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
                            &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                            &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
     ! check line search
-    if(globalPrintFlag)then
+    if (globalPrintFlag) then
      write(*,'(a,1x,i4,1x,e17.10)' ) 'iLine, xLambda                 = ', iLine, xLambda
      write(*,'(a,1x,10(e17.10,1x))') 'fOld,fNew                      = ', fOld,fNew
      write(*,'(a,1x,10(e17.10,1x))') 'fold + alpha*slopeInit*xLambda = ', fold + alpha*slopeInit*xLambda
@@ -505,33 +538,33 @@ contains
     end if
 
     ! check feasibility
-    if(.not.feasible) cycle ! go back and impose constraints again
+    if (.not.feasible) cycle ! go back and impose constraints again
 
     ! check convergence
     ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
     converged = checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,newtStepScaled*xScale,stateVecNew,out_SS4HG)
-    if(converged) return
+    if (converged) return
 
     ! early return if not computing the line search
-    if(.not.doLineSearch) return
+    if (.not.doLineSearch) return
 
     ! check if the function is accepted
-    if(fNew < fold + alpha*slopeInit*xLambda) return
+    if (fNew < fold + alpha*slopeInit*xLambda) return
 
     ! ***
     ! *** IF GET TO HERE WE BACKTRACK
     !      --> all remaining code simply computes the restricted step multiplier (xLambda)
 
     ! first backtrack: use quadratic
-    if(iLine==1)then
-     xLambdaTemp = -slopeInit / (2._rkind*(fNew - fOld - slopeInit) )
-     if(xLambdaTemp > 0.5_rkind*xLambda) xLambdaTemp = 0.5_rkind*xLambda
+    if (iLine==1) then
+     xLambdaTemp = -slopeInit / ( 2._rkind*(fNew - fOld - slopeInit) )
+     if (xLambdaTemp > 0.5_rkind*xLambda) xLambdaTemp = 0.5_rkind*xLambda
 
     ! subsequent backtracks: use cubic
     else
 
      ! check that we did not back-track all the way back to the original value
-     if(iLine==maxLineSearch)then
+     if (iLine == maxLineSearch) then
       message=trim(message)//'backtracked all the way back to the original value'
       err=-20; return
      end if
@@ -545,21 +578,21 @@ contains
      bCoef = (-xLambdaPrev*rhs1/(xLambda*xLambda) + xLambda*rhs2/(xLambdaPrev*xLambdaPrev)) / (xLambda - xLambdaPrev)
 
      ! check if a quadratic
-     if(aCoef==0._rkind)then
+     if (aCoef == 0._rkind) then
       xLambdaTemp = -slopeInit/(2._rkind*bCoef)
 
      ! calculate cubic
      else
       disc = bCoef*bCoef - 3._rkind*aCoef*slopeInit
-      if(disc < 0._rkind)then
+      if (disc < 0._rkind) then
        xLambdaTemp = 0.5_rkind*xLambda
       else
        xLambdaTemp = (-bCoef + sqrt(disc))/(3._rkind*aCoef)
       end if
-     end if  ! calculating cubic
+     end if
 
      ! constrain to <= 0.5*xLambda
-     if(xLambdaTemp > 0.5_rkind*xLambda) xLambdaTemp=0.5_rkind*xLambda
+     if (xLambdaTemp > 0.5_rkind*xLambda) xLambdaTemp=0.5_rkind*xLambda
 
     end if  ! subsequent backtracks
 
@@ -570,12 +603,10 @@ contains
     ! constrain lambda
     xLambda = max(xLambdaTemp, 0.1_rkind*xLambda)
 
-   end do lineSearch  ! backtrack loop
+   end do lineSearch
   end associate
 
-  end subroutine lineSearchRefinement
-
- end subroutine summaSolve4homegrown
+ end subroutine lineSearchRefinement
 
  ! *********************************************************************************************************
  ! * module subroutine trustRegionRefinement: refine the iteration increment using trust regions
