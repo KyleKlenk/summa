@@ -578,138 +578,6 @@ contains
  end subroutine summaSolve4homegrown
 
  ! *********************************************************************************************************
- ! module function checkConv: check convergence based on the residual vector
- ! *********************************************************************************************************
- function checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,rVec,xInc,xVec,out_SS4HG)
-  implicit none
-  ! result
-  logical(lgt)                 :: checkConv                    ! flag to denote convergence
-  ! dummies
-  integer(i4b),intent(in)      :: mSoil                        ! number of soil layers in solution vector
-  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
-  type(var_dlength),intent(in) :: mpar_data                    ! model parameters
-  type(var_ilength),intent(in) :: indx_data                    ! indices defining model states and layers
-  type(var_dlength),intent(in) :: prog_data                    ! prognostic variables for a local HRU
-  real(rkind),intent(in)       :: rVec(:)                      ! residual vector (mixed units)
-  real(rkind),intent(in)       :: xInc(:)                      ! iteration increment (mixed units)
-  real(rkind),intent(in)       :: xVec(:)                      ! state vector (mixed units)
-  type(out_type_summaSolve4homegrown),intent(in) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
-  ! locals
-  real(rkind),dimension(mSoil) :: psiScale                ! scaling factor for matric head
-  real(rkind),parameter        :: xSmall=1.e-0_rkind      ! a small offset
-  real(rkind),parameter        :: scalarTighten=0.1_rkind ! scaling factor for the scalar solution
-  real(rkind)                  :: soilWatbalErr           ! error in the soil water balance
-  real(rkind)                  :: canopy_max              ! absolute value of the residual in canopy water (kg m-2)
-  real(rkind),dimension(1)     :: energy_max              ! maximum absolute value of the energy residual (J m-3)
-  real(rkind),dimension(1)     :: liquid_max              ! maximum absolute value of the volumetric liquid water content residual (-)
-  real(rkind),dimension(1)     :: matric_max              ! maximum absolute value of the matric head iteration increment (m)
-  real(rkind)                  :: aquifer_max             ! absolute value of the residual in aquifer water (m)
-  logical(lgt)                 :: canopyConv              ! flag for canopy water balance convergence
-  logical(lgt)                 :: watbalConv              ! flag for soil water balance convergence
-  logical(lgt)                 :: liquidConv              ! flag for residual convergence
-  logical(lgt)                 :: matricConv              ! flag for matric head convergence
-  logical(lgt)                 :: energyConv              ! flag for energy convergence
-  logical(lgt)                 :: aquiferConv             ! flag for aquifer water balance convergence
-  ! -------------------------------------------------------------------------------------------------------------------------------------------------
-  ! association to variables in the data structures
-  associate(&
-   ! model control
-   iter                    => in_SS4HG % iter                                   ,& ! intent(in): iteration index
-   nsnow                   => in_SS4HG % nsnow                                  ,& ! intent(in): number of snow layers
-   scalarSolution          => in_SS4HG % scalarSolution                         ,& ! intent(in): flag to denote if implementing the scalar solution
-   ! convergence parameters
-   absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
-   absConvTol_matric       => mpar_data%var(iLookPARAM%absConvTol_matric)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for matric head        (m)
-   absConvTol_energy       => mpar_data%var(iLookPARAM%absConvTol_energy)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for energy             (J m-3)
-   ! layer depth
-   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat          ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
-   ! model indices
-   ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)          ,&  ! intent(in): [i4b]    index of aquifer storage state variable
-   ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)         ,&  ! intent(in): [i4b]    index of canopy air space energy state variable
-   ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)         ,&  ! intent(in): [i4b]    index of canopy energy state variable
-   ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)         ,&  ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
-   ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all energy states
-   ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all hydrology states
-   ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for matric head state variables in the state vector
-   ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat        ,&  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
-   fnew                    => out_SS4HG % fnew                                   &  ! intent(in): [dp] new function evaluations
-  &) 
-
-   ! check convergence based on the canopy water balance
-   if (ixVegHyd/=integerMissing) then
-    canopy_max = real(abs(rVec(ixVegHyd)), rkind)*iden_water
-    canopyConv = (canopy_max    < absConvTol_liquid)  ! absolute error in canopy water balance (mm)
-   else
-    canopy_max = realMissing
-    canopyConv = .true.
-   end if
-
-   ! check convergence based on the residuals for energy (J m-3)
-   if (size(ixNrgOnly)>0) then
-    energy_max = real(maxval(abs( rVec(ixNrgOnly) )), rkind)
-    energyConv = (energy_max(1) < absConvTol_energy)  ! (based on the residual)
-   else
-    energy_max = realMissing
-    energyConv = .true.
-   end if
-
-   ! check convergence based on the residuals for volumetric liquid water content (-)
-   if (size(ixHydOnly)>0) then
-    liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), rkind)
-    ! (tighter convergence for the scalar solution)
-    if (scalarSolution) then
-     liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten)   ! (based on the residual)
-    else
-     liquidConv = (liquid_max(1) < absConvTol_liquid)                 ! (based on the residual)
-    end if
-   else
-    liquid_max = realMissing
-    liquidConv = .true.
-   end if
-
-   ! check convergence based on the iteration increment for matric head
-   ! NOTE: scale by matric head to avoid unnecessairly tight convergence when there is no water
-   if (size(ixMatOnly)>0) then
-    psiScale   = abs( xVec(ixMatOnly) ) + xSmall ! avoid divide by zero
-    matric_max = maxval(abs( xInc(ixMatOnly)/psiScale ) )
-    matricConv = (matric_max(1) < absConvTol_matric)  ! NOTE: based on iteration increment
-   else
-    matric_max = realMissing
-    matricConv = .true.
-   end if
-
-   ! check convergence based on the soil water balance error (m)
-   if (size(ixMatOnly)>0) then
-    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+ixMatricHead) )
-    watbalConv    = (abs(soilWatbalErr) < absConvTol_liquid)  ! absolute error in total soil water balance (m)
-   else
-    soilWatbalErr = realMissing
-    watbalConv    = .true.
-   end if
-
-   ! check convergence based on the aquifer storage
-   if (ixAqWat/=integerMissing) then
-    aquifer_max = real(abs(rVec(ixAqWat)), rkind)*iden_water
-    aquiferConv = (aquifer_max    < absConvTol_liquid)  ! absolute error in aquifer water balance (mm)
-   else
-    aquifer_max = realMissing
-    aquiferConv = .true.
-   end if
-
-   ! final convergence check
-   checkConv = (canopyConv .and. watbalConv .and. matricConv .and. liquidConv .and. energyConv .and. aquiferConv)
-
-   ! print progress towards solution
-   if (globalPrintFlag) then
-    write(*,'(a,1x,i4,1x,7(e15.5,1x),7(L1,1x))') 'check convergence: ', iter, &
-     fnew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
-   end if
-
-  end associate ! end associations with variables in the data structures
-
- end function checkConv
-
- ! *********************************************************************************************************
  ! * module subroutine trustRegionRefinement: refine the iteration increment using trust regions
  ! *********************************************************************************************************
  subroutine trustRegionRefinement(in_TRR,in_SS4HG,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_TRR)
@@ -1155,5 +1023,137 @@ contains
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
  
  end subroutine eval8summa_wrapper
+
+ ! *********************************************************************************************************
+ ! module function checkConv: check convergence based on the residual vector
+ ! *********************************************************************************************************
+ function checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,rVec,xInc,xVec,out_SS4HG)
+  implicit none
+  ! result
+  logical(lgt)                 :: checkConv                    ! flag to denote convergence
+  ! dummies
+  integer(i4b),intent(in)      :: mSoil                        ! number of soil layers in solution vector
+  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(var_dlength),intent(in) :: mpar_data                    ! model parameters
+  type(var_ilength),intent(in) :: indx_data                    ! indices defining model states and layers
+  type(var_dlength),intent(in) :: prog_data                    ! prognostic variables for a local HRU
+  real(rkind),intent(in)       :: rVec(:)                      ! residual vector (mixed units)
+  real(rkind),intent(in)       :: xInc(:)                      ! iteration increment (mixed units)
+  real(rkind),intent(in)       :: xVec(:)                      ! state vector (mixed units)
+  type(out_type_summaSolve4homegrown),intent(in) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
+  ! locals
+  real(rkind),dimension(mSoil) :: psiScale                ! scaling factor for matric head
+  real(rkind),parameter        :: xSmall=1.e-0_rkind      ! a small offset
+  real(rkind),parameter        :: scalarTighten=0.1_rkind ! scaling factor for the scalar solution
+  real(rkind)                  :: soilWatbalErr           ! error in the soil water balance
+  real(rkind)                  :: canopy_max              ! absolute value of the residual in canopy water (kg m-2)
+  real(rkind),dimension(1)     :: energy_max              ! maximum absolute value of the energy residual (J m-3)
+  real(rkind),dimension(1)     :: liquid_max              ! maximum absolute value of the volumetric liquid water content residual (-)
+  real(rkind),dimension(1)     :: matric_max              ! maximum absolute value of the matric head iteration increment (m)
+  real(rkind)                  :: aquifer_max             ! absolute value of the residual in aquifer water (m)
+  logical(lgt)                 :: canopyConv              ! flag for canopy water balance convergence
+  logical(lgt)                 :: watbalConv              ! flag for soil water balance convergence
+  logical(lgt)                 :: liquidConv              ! flag for residual convergence
+  logical(lgt)                 :: matricConv              ! flag for matric head convergence
+  logical(lgt)                 :: energyConv              ! flag for energy convergence
+  logical(lgt)                 :: aquiferConv             ! flag for aquifer water balance convergence
+  ! -------------------------------------------------------------------------------------------------------------------------------------------------
+  ! association to variables in the data structures
+  associate(&
+   ! model control
+   iter                    => in_SS4HG % iter                                   ,& ! intent(in): iteration index
+   nsnow                   => in_SS4HG % nsnow                                  ,& ! intent(in): number of snow layers
+   scalarSolution          => in_SS4HG % scalarSolution                         ,& ! intent(in): flag to denote if implementing the scalar solution
+   ! convergence parameters
+   absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
+   absConvTol_matric       => mpar_data%var(iLookPARAM%absConvTol_matric)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for matric head        (m)
+   absConvTol_energy       => mpar_data%var(iLookPARAM%absConvTol_energy)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for energy             (J m-3)
+   ! layer depth
+   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat          ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
+   ! model indices
+   ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)          ,&  ! intent(in): [i4b]    index of aquifer storage state variable
+   ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)         ,&  ! intent(in): [i4b]    index of canopy air space energy state variable
+   ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)         ,&  ! intent(in): [i4b]    index of canopy energy state variable
+   ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)         ,&  ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+   ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all energy states
+   ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all hydrology states
+   ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for matric head state variables in the state vector
+   ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat        ,&  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
+   fnew                    => out_SS4HG % fnew                                   &  ! intent(in): [dp] new function evaluations
+  &) 
+
+   ! check convergence based on the canopy water balance
+   if (ixVegHyd/=integerMissing) then
+    canopy_max = real(abs(rVec(ixVegHyd)), rkind)*iden_water
+    canopyConv = (canopy_max    < absConvTol_liquid)  ! absolute error in canopy water balance (mm)
+   else
+    canopy_max = realMissing
+    canopyConv = .true.
+   end if
+
+   ! check convergence based on the residuals for energy (J m-3)
+   if (size(ixNrgOnly)>0) then
+    energy_max = real(maxval(abs( rVec(ixNrgOnly) )), rkind)
+    energyConv = (energy_max(1) < absConvTol_energy)  ! (based on the residual)
+   else
+    energy_max = realMissing
+    energyConv = .true.
+   end if
+
+   ! check convergence based on the residuals for volumetric liquid water content (-)
+   if (size(ixHydOnly)>0) then
+    liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), rkind)
+    ! (tighter convergence for the scalar solution)
+    if (scalarSolution) then
+     liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten)   ! (based on the residual)
+    else
+     liquidConv = (liquid_max(1) < absConvTol_liquid)                 ! (based on the residual)
+    end if
+   else
+    liquid_max = realMissing
+    liquidConv = .true.
+   end if
+
+   ! check convergence based on the iteration increment for matric head
+   ! NOTE: scale by matric head to avoid unnecessairly tight convergence when there is no water
+   if (size(ixMatOnly)>0) then
+    psiScale   = abs( xVec(ixMatOnly) ) + xSmall ! avoid divide by zero
+    matric_max = maxval(abs( xInc(ixMatOnly)/psiScale ) )
+    matricConv = (matric_max(1) < absConvTol_matric)  ! NOTE: based on iteration increment
+   else
+    matric_max = realMissing
+    matricConv = .true.
+   end if
+
+   ! check convergence based on the soil water balance error (m)
+   if (size(ixMatOnly)>0) then
+    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+ixMatricHead) )
+    watbalConv    = (abs(soilWatbalErr) < absConvTol_liquid)  ! absolute error in total soil water balance (m)
+   else
+    soilWatbalErr = realMissing
+    watbalConv    = .true.
+   end if
+
+   ! check convergence based on the aquifer storage
+   if (ixAqWat/=integerMissing) then
+    aquifer_max = real(abs(rVec(ixAqWat)), rkind)*iden_water
+    aquiferConv = (aquifer_max    < absConvTol_liquid)  ! absolute error in aquifer water balance (mm)
+   else
+    aquifer_max = realMissing
+    aquiferConv = .true.
+   end if
+
+   ! final convergence check
+   checkConv = (canopyConv .and. watbalConv .and. matricConv .and. liquidConv .and. energyConv .and. aquiferConv)
+
+   ! print progress towards solution
+   if (globalPrintFlag) then
+    write(*,'(a,1x,i4,1x,7(e15.5,1x),7(L1,1x))') 'check convergence: ', iter, &
+     fnew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
+   end if
+
+  end associate ! end associations with variables in the data structures
+
+ end function checkConv
 
 end module summaSolve4homegrown_module
