@@ -102,12 +102,10 @@ contains
  ! public subroutine summaSolve4homegrown: calculate the iteration increment, evaluate the new state, and refine if necessary
  ! **************************************************************************************************************************
  subroutine summaSolve4homegrown(&
-                        in_SS4HG,               & ! intent(in): model control and previous function value
                        ! input: model control
-                       !firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
+                       in_SS4HG,                & ! intent(in): model control and previous function value
                        ! input: state vectors
                        stateVecTrial,           & ! intent(in):    trial state vector
-                       !xMin,xMax,               & ! intent(inout): brackets of the root
                        fScale,                  & ! intent(in):    characteristic scale of the function evaluations
                        xScale,                  & ! intent(in):    characteristic scale of the state vector
                        rVec,                    & ! intent(in):    residual vector
@@ -128,7 +126,6 @@ contains
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! input-output: baseflow
-                       !ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                        dBaseflow_dMatric,       & ! intent(inout): derivative in baseflow w.r.t. matric head (s-1)
                        io_SS4HG,                & ! intent(inout): first flux call flag, root brackets, index of lowest saturated layer
                        ! output
@@ -143,71 +140,67 @@ contains
  USE matrixOper_module,  only: scaleMatrices
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
- type(in_type_summaSolve4homegrown),intent(in)     :: in_SS4HG  ! model control variables and previous function evaluation
- type(io_type_summaSolve4homegrown),intent(inout)  :: io_SS4HG  ! first flux call flag and baseflow variables
- ! input: model control
-! logical(lgt),intent(inout)      :: firstFluxCall            ! flag to indicate if we are processing the first flux call
+ type(in_type_summaSolve4homegrown),intent(in)    :: in_SS4HG ! model control variables and previous function evaluation
+ type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
  ! input: state vectors
- real(rkind),intent(in)          :: stateVecTrial(:)         ! trial state vector
-! real(rkind),intent(inout)       :: xMin,xMax                ! brackets of the root
- real(rkind),intent(in)          :: fScale(:)                ! characteristic scale of the function evaluations
- real(rkind),intent(in)          :: xScale(:)                ! characteristic scale of the state vector
- real(qp),intent(in)             :: rVec(:)   ! NOTE: qp     ! residual vector
- real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp     ! state vector multiplier (used in the residual calculations)
- real(rkind),intent(inout)       :: dMat(:)                  ! diagonal matrix (excludes flux derivatives)
+ real(rkind),intent(in)          :: stateVecTrial(:)          ! trial state vector
+ real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
+ real(rkind),intent(in)          :: xScale(:)                 ! characteristic scale of the state vector
+ real(qp),intent(in)             :: rVec(:)   ! NOTE: qp      ! residual vector
+ real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
+ real(rkind),intent(inout)       :: dMat(:)                   ! diagonal matrix (excludes flux derivatives)
  ! input: data structures
- type(model_options),intent(in)  :: model_decisions(:)       ! model decisions
- type(zLookup),      intent(in)  :: lookup_data              ! lookup tables
- type(var_i),        intent(in)  :: type_data                ! type of vegetation and soil
- type(var_d),        intent(in)  :: attr_data                ! spatial attributes
- type(var_dlength),  intent(in)  :: mpar_data                ! model parameters
- type(var_d),        intent(in)  :: forc_data                ! model forcing data
- type(var_dlength),  intent(in)  :: bvar_data                ! model variables for the local basin
- type(var_dlength),  intent(in)  :: prog_data                ! prognostic variables for a local HRU
+ type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
+ type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
+ type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
+ type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
+ type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
+ type(var_d),        intent(in)  :: forc_data                 ! model forcing data
+ type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
+ type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
  ! output: data structures
- type(var_ilength),intent(inout) :: indx_data                ! indices defining model states and layers
- type(var_dlength),intent(inout) :: diag_data                ! diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data                ! model fluxes for a local HRU
- type(var_dlength),intent(inout) :: deriv_data               ! derivatives in model fluxes w.r.t. relevant state variables
+ type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
+ type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
+ type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
  ! input-output: baseflow
-! integer(i4b),intent(inout)      :: ixSaturation             ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)   ! derivative in baseflow w.r.t. matric head (s-1)
+ real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: flux and residual vectors
- real(rkind),intent(out)         :: stateVecNew(:)           ! new state vector
- real(rkind),intent(out)         :: fluxVecNew(:)            ! new flux vector
- real(rkind),intent(out)         :: resSinkNew(:)            ! sink terms on the RHS of the flux equation
- real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp  ! new residual vector
- type(out_type_summaSolve4homegrown),intent(out)  :: out_SS4HG  ! new function evaluation, convergence flag, and error control
+ real(rkind),intent(out)         :: stateVecNew(:)            ! new state vector
+ real(rkind),intent(out)         :: fluxVecNew(:)             ! new flux vector
+ real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
+ real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! new residual vector
+ type(out_type_summaSolve4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! Jacobian matrix
- real(rkind)                     :: nJac(in_SS4HG % nState,in_SS4HG % nState)      ! numerical Jacobian matrix
- real(rkind)                     :: aJac(in_SS4HG % nLeadDim,in_SS4HG % nState)      ! Jacobian matrix
- real(rkind)                     :: aJacScaled(in_SS4HG % nLeadDim,in_SS4HG % nState)      ! Jacobian matrix (scaled)
- real(rkind)                     :: aJacScaledTemp(in_SS4HG % nLeadDim,in_SS4HG % nState)  ! Jacobian matrix (scaled) -- temporary copy since decomposed in lapack
+ real(rkind) :: nJac(in_SS4HG % nState,in_SS4HG % nState)             ! numerical Jacobian matrix
+ real(rkind) :: aJac(in_SS4HG % nLeadDim,in_SS4HG % nState)           ! Jacobian matrix
+ real(rkind) :: aJacScaled(in_SS4HG % nLeadDim,in_SS4HG % nState)     ! Jacobian matrix (scaled)
+ real(rkind) :: aJacScaledTemp(in_SS4HG % nLeadDim,in_SS4HG % nState) ! Jacobian matrix (scaled) -- temporary copy since decomposed in lapack
  ! solution/step vectors
- real(rkind),dimension(in_SS4HG % nState)   :: rVecScaled               ! residual vector (scaled)
- real(rkind),dimension(in_SS4HG % nState)   :: newtStepScaled           ! full newton step (scaled)
+ real(rkind),dimension(in_SS4HG % nState) :: rVecScaled           ! residual vector (scaled)
+ real(rkind),dimension(in_SS4HG % nState) :: newtStepScaled       ! full newton step (scaled)
  ! step size refinement
- logical(lgt)                    :: doRefine                 ! flag for step refinement
- integer(i4b),parameter          :: ixLineSearch=1001        ! step refinement = line search
- integer(i4b),parameter          :: ixTrustRegion=1002       ! step refinement = trust region
- integer(i4b),parameter          :: ixStepRefinement=ixLineSearch   ! decision for the numerical solution
+ logical(lgt)                    :: doRefine                      ! flag for step refinement
+ integer(i4b),parameter          :: ixLineSearch=1001             ! step refinement = line search
+ integer(i4b),parameter          :: ixTrustRegion=1002            ! step refinement = trust region
+ integer(i4b),parameter          :: ixStepRefinement=ixLineSearch ! decision for the numerical solution
  ! general
- integer(i4b)                    :: mSoil                    ! number of soil layers in solution vector
- integer(i4b)                    :: iLayer                   ! row index
- integer(i4b)                    :: jLayer                   ! column index
- logical(lgt)                    :: return_flag              ! flag that controls execution of return statements
- character(LEN=256)              :: cmessage                 ! error message of downwind routine
+ integer(i4b)                    :: mSoil                         ! number of soil layers in solution vector
+ integer(i4b)                    :: iLayer                        ! row index
+ integer(i4b)                    :: jLayer                        ! column index
+ logical(lgt)                    :: return_flag                   ! flag that controls execution of return statements
+ character(LEN=256)              :: cmessage                      ! error message of downwind routine
  ! class objects for subroutine arguments
  type(in_type_computJacob)           :: in_computJacob  ! computJacob
  type(out_type_computJacob)          :: out_computJacob ! computJacob 
- type(in_type_lineSearchRefinement)  :: in_LSR  ! lineSearchRefinement
- type(out_type_lineSearchRefinement) :: out_LSR ! lineSearchRefinement 
- type(in_type_lineSearchRefinement)  :: in_TRR  ! trustRegionRefinement
- type(out_type_lineSearchRefinement) :: out_TRR ! trustRegionRefinement
- type(out_type_lineSearchRefinement) :: out_SRF ! safeRootFinder
+ type(in_type_lineSearchRefinement)  :: in_LSR          ! lineSearchRefinement
+ type(out_type_lineSearchRefinement) :: out_LSR         ! lineSearchRefinement 
+ type(in_type_lineSearchRefinement)  :: in_TRR          ! trustRegionRefinement
+ type(out_type_lineSearchRefinement) :: out_TRR         ! trustRegionRefinement
+ type(out_type_lineSearchRefinement) :: out_SRF         ! safeRootFinder
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
 
