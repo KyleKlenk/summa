@@ -94,8 +94,9 @@ USE mDecisions_module,only:       &
 
 implicit none
 private
-public::summaSolve4homegrown
-public::checkConv
+public :: summaSolve4homegrown
+public :: refine_Newton_step
+public :: checkConv
 contains
 
  ! **************************************************************************************************************************
@@ -135,7 +136,6 @@ contains
                        resVecNew,               & ! intent(out):   new residual vector
                        out_SS4HG)                 ! intent(out):   new function evaluation, convergence flag, and error control  
  USE computJacob_module, only: computJacob
- USE eval8summa_module,  only: imposeConstraints
  USE matrixOper_module,  only: lapackSolv
  USE matrixOper_module,  only: scaleMatrices
  implicit none
@@ -182,11 +182,6 @@ contains
  ! solution/step vectors
  real(rkind),dimension(in_SS4HG % nState) :: rVecScaled           ! residual vector (scaled)
  real(rkind),dimension(in_SS4HG % nState) :: newtStepScaled       ! full newton step (scaled)
- ! step size refinement
- logical(lgt)                    :: doRefine                      ! flag for step refinement
- integer(i4b),parameter          :: ixLineSearch=1001             ! step refinement = line search
- integer(i4b),parameter          :: ixTrustRegion=1002            ! step refinement = trust region
- integer(i4b),parameter          :: ixStepRefinement=ixLineSearch ! decision for the numerical solution
  ! general
  integer(i4b)                    :: mSoil                         ! number of soil layers in solution vector
  integer(i4b)                    :: iLayer                        ! row index
@@ -194,13 +189,8 @@ contains
  logical(lgt)                    :: return_flag                   ! flag that controls execution of return statements
  character(LEN=256)              :: cmessage                      ! error message of downwind routine
  ! class objects for subroutine arguments
- type(in_type_computJacob)           :: in_computJacob  ! computJacob
- type(out_type_computJacob)          :: out_computJacob ! computJacob 
- type(in_type_lineSearchRefinement)  :: in_LSR          ! lineSearchRefinement
- type(out_type_lineSearchRefinement) :: out_LSR         ! lineSearchRefinement 
- type(in_type_lineSearchRefinement)  :: in_TRR          ! trustRegionRefinement
- type(out_type_lineSearchRefinement) :: out_TRR         ! trustRegionRefinement
- type(out_type_lineSearchRefinement) :: out_SRF         ! safeRootFinder
+ type(in_type_computJacob)       :: in_computJacob                ! computJacob object
+ type(out_type_computJacob)      :: out_computJacob               ! computJacob object 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
 
@@ -250,7 +240,12 @@ contains
    ! *** Update steps for the summaSolve4homegrown algorithm (computing the Newton step) ***
    call solve_linear_system;             if (return_flag) return ! solve the linear system for the Newton step -- return if error
   
-   call refine_Newton_step;              if (return_flag) return ! refine Newton step if needed -- return if error
+   ! refine Newton step if needed
+   call refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&         ! input
+                          &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
+                          &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
+                          &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG)                                    ! output
+   if (return_flag) return ! return if error
   end subroutine update_summaSolve4homegrown
 
   subroutine finalize_summaSolve4homegrown
@@ -318,66 +313,6 @@ contains
    end associate
   end subroutine solve_linear_system
 
-  subroutine refine_Newton_step  
-   ! *** Refine the Newton step if necessary ***  
-  
-   ! initialize the flag for step refinement
-   doRefine=.true.
-  
-   ! * case 1: state vector
-   ! compute the flux vector and the residual, and (if necessary) refine the iteration increment
-   ! NOTE: in 99.9% of cases newtStep will be used (no refinement)
-
-   associate(&
-    fOld      => in_SS4HG  % fOld     ,&
-    fnew      => out_SS4HG % fnew     ,& 
-    converged => out_SS4HG % converged,&
-    err       => out_SS4HG % err      ,& 
-    message   => out_SS4HG % message   &     
-   &)  
-    if (size(stateVecTrial)>1) then
-
-     ! try to backtrack
-     select case(ixStepRefinement)
-      case(ixLineSearch)  
-       call in_LSR % initialize(doRefine,fOld)    
-       call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&
-                                &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
-                                &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                                &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)
-       call out_LSR % finalize(fNew,converged,err,cmessage)
-      case(ixTrustRegion)
-       call in_TRR % initialize(doRefine,fOld)
-       call trustRegionRefinement(in_TRR,in_SS4HG,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_TRR)
-       call out_TRR % finalize(fNew,converged,err,cmessage)
-      case default; err=20; message=trim(message)//'unable to identify numerical solution'; return_flag=.true.; return
-     end select
-  
-     ! check warnings: negative error code = warning; in this case back-tracked to the original value
-     ! NOTE: Accept the full newton step if back-tracked to the original value
-     if (err<0) then
-      doRefine=.false.;
-      call in_LSR % initialize(doRefine,fOld)    
-      call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&
-                               &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
-                               &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                               &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)
-      call out_LSR % finalize(fNew,converged,err,cmessage)
-     end if
-  
-    ! * case 2: scalar
-    else
-     call safeRootfinder(mSoil,stateVecTrial,rVecScaled,newtStepScaled,fScale,xScale,&
-                        &in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
-                        &mpar_data,forc_data,bvar_data,prog_data,&
-                        &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                        &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SRF)
-     call out_SRF % finalize(fNew,converged,err,cmessage)
-     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
-    end if
-   end associate
-  end subroutine refine_Newton_step  
-
   subroutine initialize_computJacob_summaSolve4homegrown
    ! *** Transfer data to in_computJacob class object from local variables in summaSolve4homegrown ***
    associate(&
@@ -401,6 +336,118 @@ contains
   end subroutine finalize_computJacob_summaSolve4homegrown
 
  end subroutine summaSolve4homegrown
+
+ ! *********************************************************************************************************
+ ! * module subroutine refine_Newton_step: refine the Newton step if necessary
+ ! *********************************************************************************************************
+ subroutine refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&         ! input
+                              &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
+                              &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
+                              &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG)                                    ! output
+  ! provide access to the external procedures
+  USE matrixOper_module, only: computeGradient
+  USE eval8summa_module, only: imposeConstraints
+  implicit none
+  ! input
+  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  integer(i4b),intent(in)         :: mSoil                     ! number of soil layers in solution vector
+  real(rkind),intent(in)          :: stateVecTrial(:)          ! trial state vector
+  real(rkind),intent(in)          :: newtStepScaled(:)         ! scaled newton step
+  real(rkind),intent(in)          :: aJacScaled(:,:)           ! scaled jacobian matrix
+  real(rkind),intent(in)          :: rVecScaled(:)             ! scaled residual vector
+  real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
+  real(rkind),intent(in)          :: xScale(:)                 ! characteristic scale of the state vector
+  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
+  type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
+  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
+  type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
+  type(var_d),        intent(in)  :: forc_data                 ! model forcing data
+  type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
+  type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
+  ! input-output
+  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
+  type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+  type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
+  type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
+  type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
+  real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
+  ! output
+  real(rkind),intent(out)         :: stateVecNew(:)            ! new state vector
+  real(rkind),intent(out)         :: fluxVecNew(:)             ! new flux vector
+  real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
+  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! new residual vector
+  type(out_type_summaSolve4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+  ! local
+  logical(lgt)                    :: doRefine                      ! flag for step refinement
+  integer(i4b),parameter          :: ixLineSearch=1001             ! step refinement = line search
+  integer(i4b),parameter          :: ixTrustRegion=1002            ! step refinement = trust region
+  integer(i4b),parameter          :: ixStepRefinement=ixLineSearch ! decision for the numerical solution
+  logical(lgt)                    :: return_flag                   ! flag that controls execution of return statements
+  character(LEN=256)              :: cmessage                      ! error message of downwind routine
+  type(in_type_lineSearchRefinement)  :: in_LSR                    ! lineSearchRefinement
+  type(out_type_lineSearchRefinement) :: out_LSR                   ! lineSearchRefinement 
+  type(in_type_lineSearchRefinement)  :: in_TRR                    ! trustRegionRefinement
+  type(out_type_lineSearchRefinement) :: out_TRR                   ! trustRegionRefinement
+  type(out_type_lineSearchRefinement) :: out_SRF                   ! safeRootFinder
+ 
+  ! initialize the flag for step refinement
+  doRefine=.true.
+ 
+  ! * case 1: state vector
+  ! compute the flux vector and the residual, and (if necessary) refine the iteration increment
+  ! NOTE: in 99.9% of cases newtStep will be used (no refinement)
+
+  associate(&
+   fOld      => in_SS4HG  % fOld     ,&
+   fnew      => out_SS4HG % fnew     ,& 
+   converged => out_SS4HG % converged,&
+   err       => out_SS4HG % err      ,& 
+   message   => out_SS4HG % message   &     
+  &)  
+   if (size(stateVecTrial)>1) then
+
+    ! try to backtrack
+    select case(ixStepRefinement)
+     case(ixLineSearch)  
+      call in_LSR % initialize(doRefine,fOld)    
+      call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&  ! input
+                               &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
+                               &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
+                               &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                            ! output
+      call out_LSR % finalize(fNew,converged,err,cmessage)
+     case(ixTrustRegion)
+      call in_TRR % initialize(doRefine,fOld)
+      call trustRegionRefinement(in_TRR,in_SS4HG,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_TRR)
+      call out_TRR % finalize(fNew,converged,err,cmessage)
+     case default; err=20; message=trim(message)//'unable to identify numerical solution'; return_flag=.true.; return
+    end select
+ 
+    ! check warnings: negative error code = warning; in this case back-tracked to the original value
+    ! NOTE: Accept the full newton step if back-tracked to the original value
+    if (err<0) then
+     doRefine=.false.;
+     call in_LSR % initialize(doRefine,fOld)    
+     call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&  ! input
+                              &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
+                              &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
+                              &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                            ! output
+     call out_LSR % finalize(fNew,converged,err,cmessage)
+    end if
+ 
+   ! * case 2: scalar
+   else
+    call safeRootfinder(mSoil,stateVecTrial,rVecScaled,newtStepScaled,fScale,xScale,&              ! input
+                       &in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&                 ! input
+                       &mpar_data,forc_data,bvar_data,prog_data,&                                  ! input
+                       &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,& ! input-output
+                       &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SRF)             ! output
+    call out_SRF % finalize(fNew,converged,err,cmessage)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
+   end if
+  end associate
+ end subroutine refine_Newton_step  
 
  ! *********************************************************************************************************
  ! * module subroutine lineSearchRefinement: refine the iteration increment using line searches
@@ -617,17 +664,17 @@ contains
   USE matrixOper_module, only: computeGradient
   implicit none
   ! input
-  type(in_type_lineSearchRefinement),intent(in) :: in_TRR            ! object for scalar intent(in) arguments -- reusing line search class
-  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG          ! model control variables and previous function evaluation
-  real(rkind),intent(in)                        :: stateVecTrial(:)  ! trial state vector
-  real(rkind),intent(in)                        :: newtStepScaled(:) ! scaled newton step
-  real(rkind),intent(in)                        :: aJacScaled(:,:)   ! scaled jacobian matrix
-  real(rkind),intent(in)                        :: rVecScaled(:)     ! scaled residual vector
+  type(in_type_lineSearchRefinement),intent(in)   :: in_TRR            ! object for scalar intent(in) arguments -- reusing line search class
+  type(in_type_summaSolve4homegrown),intent(in)   :: in_SS4HG          ! model control variables and previous function evaluation
+  real(rkind),intent(in)                          :: stateVecTrial(:)  ! trial state vector
+  real(rkind),intent(in)                          :: newtStepScaled(:) ! scaled newton step
+  real(rkind),intent(in)                          :: aJacScaled(:,:)   ! scaled jacobian matrix
+  real(rkind),intent(in)                          :: rVecScaled(:)     ! scaled residual vector
   ! output
-  real(rkind),intent(out)                       :: stateVecNew(:)    ! new state vector
-  real(rkind),intent(out)                       :: fluxVecNew(:)     ! new flux vector
-  real(qp),intent(out)                          :: resVecNew(:)      ! NOTE: qp  ! new residual vector
-  type(out_type_lineSearchRefinement)           :: out_TRR           ! object for scalar intent(in) arguments -- reusing line search class
+  real(rkind),intent(out)                         :: stateVecNew(:)    ! new state vector
+  real(rkind),intent(out)                         :: fluxVecNew(:)     ! new flux vector
+  real(qp),intent(out)                            :: resVecNew(:)      ! NOTE: qp  ! new residual vector
+  type(out_type_lineSearchRefinement),intent(out) :: out_TRR           ! object for scalar intent(in) arguments -- reusing line search class
   ! --------------------------------------------------------------------------------------------------------
   ! local variables
 
