@@ -94,7 +94,7 @@ subroutine computJacob(&
                        deriv_data,                 & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
                        dBaseflow_dMatric,          & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
                        ! input-output: Jacobian and its diagonal
-                       dMat,                       & ! intent(inout): diagonal of the Jacobian matrix
+                       dMat0,                      & ! intent(in):    diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
                        aJac,                       & ! intent(out):   Jacobian matrix
                        ! output: error control
                        out_computJacob)              ! intent(out):   error code and error message
@@ -109,13 +109,14 @@ subroutine computJacob(&
   type(var_dlength),intent(in)           :: deriv_data      ! derivatives in model fluxes w.r.t. relevant state variables
   real(rkind),intent(in)                 :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
   ! input-output: Jacobian and its diagonal
-  real(rkind),intent(inout)              :: dMat(:)         ! diagonal of the Jacobian matrix
+  real(rkind),intent(in)                 :: dMat0(:)        ! diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
   real(rkind),intent(out)                :: aJac(:,:)       ! Jacobian matrix
   ! output variables
   type(out_type_computJacob),intent(out) :: out_computJacob ! error control
   ! --------------------------------------------------------------
   ! * local variables
   ! --------------------------------------------------------------
+  real(rkind),allocatable                :: dMat(:)         ! diagonal of the Jacobian matrix excluding fluxes, depending on the state vector
   ! indices of model state variables
   integer(i4b)                           :: nrgState        ! energy state variable
   integer(i4b)                           :: watState        ! hydrology state variable
@@ -205,16 +206,16 @@ subroutine computJacob(&
     ! * PART 0: PRELIMINARIES (INITIALIZE JACOBIAN AND COMPUTE TIME-VARIABLE DIAGONAL TERMS)
     ! *********************************************************************************************************************************************************
     ! get the number of state variables
-    nState = size(dMat)
+    nState = size(dMat0)
 
-    ! initialize the Jacobian
-    ! NOTE: this needs to be done every time, since Jacobian matrix is modified in the solver
+    ! initialize the Jacobian and diagonal
+    ! NOTE: this needs to be done every time, since Jacobian matrix is modified in the solver and dMat is modified below
     aJac(:,:) = 0._rkind  ! analytical Jacobian matrix
+    allocate(dMat(nState)) 
+    dMat = dMat0 ! dMat0(ixCasNrg) = Cp_air*iden_air and dMat0(Wat states) = 1.0
 
     if(computeVegFlux)then
       ! compute terms in the Jacobian for vegetation (excluding fluxes)
-      ! NOTE: dMat(ixCasNrg) = Cp_air*iden_air, dMat(ixVegHyd) = 1.0 (no change)
-      ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
       if(ixVegNrg/=integerMissing)&
           dMat(ixVegNrg) = scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy &
                           + dVolHtCapBulk_dTkCanopy * scalarCanopydTemp_dt &
@@ -223,8 +224,6 @@ subroutine computJacob(&
     endif
 
     ! compute terms for the Jacobian for the snow-soil domain (excluding fluxes)
-    ! NOTE: dMat(ixSnowSoilHyd(iLayer)) = 1.0 (no change)
-    ! NOTE: energy for snow+soil is computed *within* the iteration loop as it includes phase change
     do iLayer=1,nLayers
       if(ixSnowSoilNrg(iLayer)/=integerMissing)&
           dMat(ixSnowSoilNrg(iLayer)) = mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) &
@@ -238,8 +237,6 @@ subroutine computJacob(&
       if(ixSoilOnlyHyd(iLayer)/=integerMissing)& ! writes over dMat(ixSoilOnlyHyd(iLayer) = 1.0
           dMat(ixSoilOnlyHyd(iLayer)) = dVolTot_dPsi0(iLayer) + dCompress_dPsi(iLayer)
     end do
-
-    ! NOTE: dMat(ixAqWat) = 1.0 (no change)
 
     ! define the form of the matrix
     select case(ixMatrix)
@@ -332,6 +329,7 @@ subroutine computJacob(&
                     indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,&
                     dMat,aJac,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    deallocate(dMat)
     
     ! *********************************************************************************************************************************************************
     ! * PART 3: JACOBIAN PRINT (IF DESIRED)
