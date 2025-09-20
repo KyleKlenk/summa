@@ -583,7 +583,7 @@ function ixInd(jState,iState)
   if(fullMatrix) then
     ixInd = jState
   else
-    ixDiag + jState - iState
+    ixInd = ixDiag + jState - iState
   endif
 end function ixInd
 
