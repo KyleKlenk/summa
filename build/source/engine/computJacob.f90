@@ -616,7 +616,7 @@ subroutine fluxJacAdd(&
         aJac(ixInd(watState,watState),watState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot + dMat(watState)
 
         ! - sub-diagonal elements for snow, sub-diagonal only (water does not move upwards in snow)
-        if(iLayer<Snow)then
+        if(iLayer<nSnow)then
           denseLimit=iLayer ! if passing through a too dense snowpack, need to find bottom dense layer (always do bottom layer)
           do pLayer=iLayer+1,nSnow-1
             if(mLayerVolFracIce(pLayer)<=maxVolIceContent) exit
@@ -650,16 +650,14 @@ subroutine fluxJacAdd(&
         endif   ! (if both the energy and water states for the current layer are within the state subset)
 
         if(watState/=integerMissing)then
-          ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above
-          if(iLayer>1)then
+          ! - include derivatives of heat capacity w.r.t water for layer above
+          if(iLayer>1)then ! have layer above
             if(ixSnowOnlyNrg(iLayer-1)/=integerMissing) aJac(ixInd(ixSnowOnlyNrg(iLayer-1),watState),watState) = (dt/mLayerDepth(iLayer-1))*( dNrgFlux_dWatBelow(iLayer-1) )
           endif
 
-          ! (cross-derivative terms for the layer below)
-          if(iLayer<nSnow)then
-            if(ixSnowOnlyNrg(iLayer+1)/=integerMissing) aJac(ixInd(ixSnowOnlyNrg(iLayer+1),watState),watState) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dWatAbove(iLayer  ) )
-          elseif(iLayer==nSnow .and. nSoilOnlyNrg>0)then ! bottom snow layer and there is soil below
-            if(ixSoilOnlyNrg(1)/=integerMissing) aJac(ixInd(ixSoilOnlyNrg(1),watState),watState) = (dt/mLayerDepth(nSnow+1))*(-dNrgFlux_dWatAbove(nSnow) )
+          ! - include derivatives of heat capacity w.r.t water for layer below
+          if(iLayer<nSnow .or. (iLayer==nSnow .and. nSoilOnlyNrg>0))then ! have layer below
+            if(ixSnowSoilNrg(iLayer+1)/=integerMissing) aJac(ixInd(ixSnowSoilNrg(iLayer+1),watState),watState) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dWatAbove(iLayer) )
           endif
         endif   ! (if the water state for the current layer is within the state subset)
 
@@ -822,16 +820,14 @@ subroutine fluxJacAdd(&
             endif
           endif
 
-          ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above
-          if(iLayer>1)then
-            if(ixSoilOnlyNrg(iLayer-1)/=integerMissing) aJac(ixInd(ixSoilOnlyNrg(iLayer-1),watState),watState) = (dt/mLayerDepth(jLayer-1))*( dNrgFlux_dWatBelow(jLayer-1) )
-          elseif(iLayer==1 .and. nSnowOnlyNrg>0)then !top soil layer and there is snow above
-            if(ixSnowOnlyNrg(nSnow)/=integerMissing) aJac(ixInd(ixSnowOnlyNrg(nSnow),watState),watState) = (dt/mLayerDepth(nSnow))*( dNrgFlux_dWatBelow(nSnow) )
+          ! - include derivatives of heat capacity w.r.t water fluxes for layer above
+          if(iLayer>1 .or. (iLayer==1 .and. nSnowOnlyNrg>0))then ! have layer above
+            if(ixSnowSoilNrg(iLayer-1)/=integerMissing) aJac(ixInd(ixSnowSoilNrg(iLayer-1),watState),watState) = (dt/mLayerDepth(jLayer-1))*( dNrgFlux_dWatBelow(jLayer-1) )
           endif
 
-          ! (cross-derivative terms for the layer below)
-          if(iLayer<nSoil)then
-            if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixInd(ixSoilOnlyNrg(iLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
+          ! include derivatives of heat capacity w.r.t water fluxes for layer below
+          if(iLayer<nSoil)then ! have layer below
+            if(ixSoilOnlyNrg(iLayer+1)/=integerMissing) aJac(ixInd(ixSoilOnlyNrg(iLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer) )
           endif
         endif   ! (if the water state for the current layer is within the state subset)
 
