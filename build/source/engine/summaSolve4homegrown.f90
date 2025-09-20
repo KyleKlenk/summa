@@ -26,10 +26,6 @@ USE nrtype
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
-! domain types
-USE globalData,only:iname_snow       ! named variables for snow
-USE globalData,only:iname_soil       ! named variables for soil
-
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
@@ -43,16 +39,6 @@ USE globalData,only: kl             ! number of sub-diagonal bands
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
 USE globalData,only: iJac2          ! last layer of the Jacobian to print
-
-! named variables to describe the state variable type
-USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
-USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
-USE globalData,only:iname_watCanopy ! named variable defining the mass of water on the vegetation canopy
-USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
-USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
-USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
 
 ! indices of elements of data structure
 USE var_lookup,only:iLookFLUX       ! named variables for structure elements
@@ -211,7 +197,7 @@ contains
    associate(&
     err       => out_SS4HG % err      ,& 
     message   => out_SS4HG % message   &     
-   &)
+    &)
     ! initialize error control
     err=0; message='summaSolve4homegrown/'
     return_flag=.false. ! initialize return flag
@@ -265,7 +251,7 @@ contains
    associate(&
     err       => out_SS4HG % err      ,& 
     message   => out_SS4HG % message   &     
-   &)
+    &)
     call initialize_computJacob_summaSolve4homegrown
     call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computJacob)
     call finalize_computJacob_summaSolve4homegrown
@@ -282,7 +268,7 @@ contains
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     err            => out_SS4HG % err           ,& ! intent(out): error code
     message        => out_SS4HG % message        & ! intent(out): error message    
-   &)
+    &)
  
     ! scale the residual vector
     rVecScaled(1:nState) = fScale(:)*real(rVec(:), rkind)   ! NOTE: residual vector is in quadruple precision
@@ -323,7 +309,7 @@ contains
     nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
-   &)   
+    &)   
     call in_computJacob % initialize(dt_cur,nSnow,nSoil,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
    end associate
   end subroutine initialize_computJacob_summaSolve4homegrown
@@ -401,11 +387,11 @@ contains
 
   associate(&
    fOld      => in_SS4HG  % fOld     ,&
-   fnew      => out_SS4HG % fnew     ,& 
+   fNew      => out_SS4HG % fNew     ,& 
    converged => out_SS4HG % converged,&
    err       => out_SS4HG % err      ,& 
    message   => out_SS4HG % message   &     
-  &)  
+   &)  
    if (size(stateVecTrial)>1) then
 
     ! try to backtrack
@@ -525,7 +511,7 @@ contains
    converged => out_LSR % converged             ,& ! convergence flag
    err       => out_LSR % err                   ,& ! error code
    message   => out_LSR % message                & ! error message
-  &)
+   &)
    ! initialize error control
    err=0; message='lineSearchRefinement/'
    converged = .false.
@@ -554,9 +540,8 @@ contains
 
     ! re-scale the iteration increment
     xInc(:) = xInc(:)*xScale(:)
-
     ! if enthalpy, then need to convert the iteration increment to temperature
-    !if (nrgFormulation==ix_enthalpy) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
+    !if (nrgFormulation==ix_enthalpy .and. dMat(ixNrgOnly)/=0._rkind) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
 
     ! state vector with proposed iteration increment
     stateVecNew = stateVecTrial + xInc
@@ -579,7 +564,7 @@ contains
     if (globalPrintFlag) then
      write(*,'(a,1x,i4,1x,e17.10)' ) 'iLine, xLambda                 = ', iLine, xLambda
      write(*,'(a,1x,10(e17.10,1x))') 'fOld,fNew                      = ', fOld,fNew
-     write(*,'(a,1x,10(e17.10,1x))') 'fold + alpha*slopeInit*xLambda = ', fold + alpha*slopeInit*xLambda
+     write(*,'(a,1x,10(e17.10,1x))') 'fOld + alpha*slopeInit*xLambda = ', fOld + alpha*slopeInit*xLambda
      write(*,'(a,1x,10(e17.10,1x))') 'resVecNew                      = ', resVecNew(min(iJac1,nState):min(iJac2,nState))
      write(*,'(a,1x,10(e17.10,1x))') 'xInc                           = ', xInc(min(iJac1,nState):min(iJac2,nState))
     end if
@@ -596,7 +581,7 @@ contains
     if (.not.doLineSearch) return
 
     ! check if the function is accepted
-    if (fNew < fold + alpha*slopeInit*xLambda) return
+    if (fNew < fOld + alpha*slopeInit*xLambda) return
 
     ! ***
     ! *** IF GET TO HERE WE BACKTRACK
@@ -691,7 +676,7 @@ contains
    converged => out_TRR % converged       ,&    ! convergence flag
    err       => out_TRR % err             ,&    ! error code
    message   => out_TRR % message          &    ! error message
-  &)
+   &)
 
    err=0; message='trustRegionRefinement/'
    converged =.false.
@@ -712,7 +697,7 @@ contains
     end if
 
     ! dummy check for the function
-    if (fold==realMissing) print*, 'missing fold in trustRegionRefinement'
+    if (fOld==realMissing) print*, 'missing fOld in trustRegionRefinement'
 
     ! dummy
     stateVecNew = realMissing
@@ -798,7 +783,7 @@ contains
    converged      => out_SRF % converged       ,& ! intent(out): convergence flag
    err            => out_SRF % err             ,& ! intent(out): error code
    message        => out_SRF % message          & ! intent(out): error message
-  &)
+   &)
 
    err=0; message='safeRootfinder/'
    converged = .false.
@@ -952,14 +937,14 @@ contains
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
     nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
     nState         => in_SS4HG % nState          & ! intent(in): total number of state variables
-   &)
+    &)
     call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecPrev,nState,nSoil,nSnow,cmessage,err)
    end associate
    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
    xIncrement = stateVecNew - stateVecPrev
 
    ! evaluate summa
-   associate(fnew => out_SS4HG % fnew)
+   associate(fNew => out_SS4HG % fNew)
     call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
                            &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
                            &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
@@ -1051,7 +1036,7 @@ contains
    scalarSolution => in_SS4HG % scalarSolution ,& ! intent(in): flag to denote if implementing the scalar solution
    firstFluxCall  => io_SS4HG % firstFluxCall  ,& ! intent(inout): flag to indicate if we are processing the first flux call  
    ixSaturation   => io_SS4HG % ixSaturation    & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)    
-  &)
+   &)
    ! compute the flux and the residual vector for a given state vector
    call eval8summa(&
                    ! input: model control
@@ -1140,7 +1125,7 @@ contains
   associate(&
    ! model control
    iter                    => in_SS4HG % iter                                   ,& ! intent(in): iteration index
-   nsnow                   => in_SS4HG % nsnow                                  ,& ! intent(in): number of snow layers
+   nSnow                   => in_SS4HG % nSnow                                  ,& ! intent(in): number of snow layers
    scalarSolution          => in_SS4HG % scalarSolution                         ,& ! intent(in): flag to denote if implementing the scalar solution
    ! convergence parameters
    absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
@@ -1157,8 +1142,8 @@ contains
    ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all hydrology states
    ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for matric head state variables in the state vector
    ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat        ,&  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
-   fnew                    => out_SS4HG % fnew                                   &  ! intent(in): [dp] new function evaluations
-  &) 
+   fNew                    => out_SS4HG % fNew                                   &  ! intent(in): [dp] new function evaluations
+   &) 
 
    ! check convergence based on the canopy water balance
    if (ixVegHyd/=integerMissing) then
@@ -1227,7 +1212,7 @@ contains
    ! print progress towards solution
    if (globalPrintFlag) then
     write(*,'(a,1x,i4,1x,7(e15.5,1x),7(L1,1x))') 'check convergence: ', iter, &
-     fnew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
+     fNew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
    end if
 
   end associate ! end associations with variables in the data structures
