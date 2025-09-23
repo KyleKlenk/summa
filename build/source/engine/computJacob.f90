@@ -625,7 +625,7 @@ subroutine fluxJacAdd(&
           if(ixSnowOnlyHyd(denseLimit+1)/=integerMissing)then
             if((mLayerVolFracIce(iLayer)>maxVolIceContent .and. denseLimit>iLayer) .or. denseLimit==iLayer)then ! layers including this one ice locked, or layer below not ice locked
               if(ixSnowOnlyHyd(denseLimit+1) - watState <= kl .or. fullMatrix) &
-                  aJac(ixInd(ixSnLaSoGlHyd(denseLimit+1),watState),watState) = -(dt/mLayerDepth(denseLimit+1))*iLayerLiqFluxSnLaGlDeriv(iLayer)*convLiq2tot  ! dVol(below)/dLiq(above)
+                  aJac(ixInd(ixSnowOnlyHyd(denseLimit+1),watState),watState) = -(dt/mLayerDepth(denseLimit+1))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot  ! dVol(below)/dLiq(above)
             endif
           endif
         endif
@@ -672,7 +672,7 @@ subroutine fluxJacAdd(&
             if(ixSnowOnlyHyd(denseLimit+1)/=integerMissing)then
               if((mLayerVolFracIce(iLayer)>maxVolIceContent .and. denseLimit>iLayer) .or. denseLimit==iLayer)then ! layers including this one ice locked, or layer below not ice locked
                 if(ixSnowOnlyHyd(denseLimit+1) - nrgState <= kl .or. fullMatrix) &
-                    aJac(ixInd(ixSnowOnlyHyd(denseLimit+1),nrgState),nrgState) = -(dt/mLayerDepth(denseLimit+1))*iLayerLiqFluxSnLaGlDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! dVol(below)/dT(above)
+                    aJac(ixInd(ixSnowOnlyHyd(denseLimit+1),nrgState),nrgState) = -(dt/mLayerDepth(denseLimit+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! dVol(below)/dT(above)
               endif
             endif
           endif 
