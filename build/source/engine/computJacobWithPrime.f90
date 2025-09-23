@@ -265,8 +265,8 @@ subroutine computJacobWithPrime(&
                           + dVolHtCapBulk_dTkCanopy * scalarCanopyTempPrime &
                           + dCm_dTkCanopy * scalarCanopyWatPrime/canopyDepth &
                           + LH_fus*iden_water * scalarCanopyTempPrime * d2Theta_dTkCanopy2 &
-                          + LH_fus            * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime/canopyDepth           
-    endif
+                          + LH_fus * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime/canopyDepth   
+      endif
 
     ! compute terms for the Jacobian for the snow and soil domains (excluding fluxes)
     do iLayer=1,nLayers
@@ -274,7 +274,7 @@ subroutine computJacobWithPrime(&
           dMat(ixSnowSoilNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
                                        + dVolHtCapBulk_dTk(iLayer) * mLayerTempPrime(iLayer) &
                                        + dCm_dTk(iLayer) * mLayerVolFracWatPrime(iLayer) &
-                                       + LH_fus*iden_water * mLayerTempPrime(iLayer)  * mLayerd2Theta_dTk2(iLayer) &
+                                       + LH_fus*iden_water * mLayerTempPrime(iLayer) * mLayerd2Theta_dTk2(iLayer) &
                                        + LH_fus*iden_water * dFracLiqWat_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
     end do
 

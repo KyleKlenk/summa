@@ -616,18 +616,8 @@ subroutine fluxJacAdd(&
         aJac(ixInd(watState,watState),watState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot + dMat(watState)
 
         ! - sub-diagonal elements for snow, sub-diagonal only (water does not move upwards in snow)
-        if(iLayer<nSnow)then
-          denseLimit=iLayer ! if passing through a too dense snowpack, need to find bottom dense layer (always do bottom layer)
-          do pLayer=iLayer+1,nSnow-1
-            if(mLayerVolFracIce(pLayer)<=maxVolIceContent) exit
-            denseLimit=pLayer
-          end do
-          if(ixSnowOnlyHyd(denseLimit+1)/=integerMissing)then
-            if((mLayerVolFracIce(iLayer)>maxVolIceContent .and. denseLimit>iLayer) .or. denseLimit==iLayer)then ! layers including this one ice locked, or layer below not ice locked
-              if(ixSnowOnlyHyd(denseLimit+1) - watState <= kl .or. fullMatrix) &
-                  aJac(ixInd(ixSnowOnlyHyd(denseLimit+1),watState),watState) = -(dt/mLayerDepth(denseLimit+1))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot  ! dVol(below)/dLiq(above)
-            endif
-          endif
+        if(iLayer<nSnow .and. mLayerVolFracIce(iLayer+1)<=maxVolIceContent)then
+          aJac(ixInd(ixSnowOnlyHyd(iLayer+1),watState),watState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot  ! dVol(below)/dLiq(above)
         endif
 
       end do  ! (looping through liquid water states in the snow domain)
@@ -663,18 +653,8 @@ subroutine fluxJacAdd(&
 
         if(nrgState/=integerMissing)then
           ! - sub-diagonal elements for snow, sub-diagonal only (water does not move upwards in snow)
-          if(iLayer<nSnow)then
-            denseLimit=iLayer ! if passing through a too dense snowpack, need to find bottom dense layer (always do bottom layer)
-            do pLayer=iLayer+1,nSnow-1
-              if(mLayerVolFracIce(pLayer)<=maxVolIceContent) exit
-              denseLimit=pLayer
-            end do
-            if(ixSnowOnlyHyd(denseLimit+1)/=integerMissing)then
-              if((mLayerVolFracIce(iLayer)>maxVolIceContent .and. denseLimit>iLayer) .or. denseLimit==iLayer)then ! layers including this one ice locked, or layer below not ice locked
-                if(ixSnowOnlyHyd(denseLimit+1) - nrgState <= kl .or. fullMatrix) &
-                    aJac(ixInd(ixSnowOnlyHyd(denseLimit+1),nrgState),nrgState) = -(dt/mLayerDepth(denseLimit+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! dVol(below)/dT(above)
-              endif
-            endif
+          if(iLayer<nSnow .and. mLayerVolFracIce(iLayer+1)<=maxVolIceContent)then
+            aJac(ixInd(ixSnowOnlyHyd(iLayer+1),nrgState),nrgState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! dVol(below)/dT(above)
           endif 
         endif   ! (if the energy state for the current layer is within the state subset)
 
@@ -727,10 +707,10 @@ subroutine fluxJacAdd(&
 
       ! - include derivatives for surface infiltration above surface if there is snow (vegetation handled already)
       if(nSnow>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then ! have snow above first soil layer
-        denseLimit=nSnow ! if passed through a too dense snowpack, need to find top dense layer (bottom layer always included, dense or not)
-        do pLayer=nSnow-1,1,-1
+        denseLimit = nSnow ! if passed through a too dense snowpack, need to find top dense layer (bottom layer always included, dense or not)
+        do pLayer=nSnow,1,-1
           if(mLayerVolFracIce(pLayer)<=maxVolIceContent) exit
-          denseLimit=pLayer
+          denseLimit = pLayer
         end do
         do pLayer=denseLimit,nSnow
           if(ixSnowOnlyHyd(pLayer)/=integerMissing)then
@@ -851,10 +831,10 @@ subroutine fluxJacAdd(&
 
       ! - include derivatives for surface infiltration above surface if there is snow (vegetation handled already)
       if(nSnow>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then ! have snow above first soil layer
-        denseLimit=nSnow ! if passed through a too dense snowpack, need to find top dense layer (bottom layer always included, dense or not)
-        do pLayer=nSnow-1,1,-1
+        denseLimit = nSnow ! if passed through a too dense snowpack, need to find top dense layer (bottom layer always included, dense or not)
+        do pLayer=nSnow,1,-1
           if(mLayerVolFracIce(pLayer)<=maxVolIceContent) exit
-          denseLimit=pLayer
+          denseLimit = pLayer
         end do
         do pLayer=denseLimit,nSnow
           if(ixSnowOnlyNrg(pLayer)/=integerMissing)then
