@@ -124,8 +124,6 @@ contains
    end if
    ! (put data in the structure)
    parFallback(ivar)=parTemp
-   !write(*,'(a,1x,i4,1x,a30,1x,f20.10,1x)') 'ivar, trim(varname), parFallback(ivar)%default_val = ', &
-   !                                          ivar, trim(varname), parFallback(ivar)%default_val
   else
    err=40; message=trim(message)//"variable in parameter file not present in data structure [var="//trim(varname)//"]"; return
   end if
@@ -272,11 +270,14 @@ contains
   if (parFallback(iLookPARAM%FUSE_mu)%default_val == realMissing) then       ! FUSE TOPMODEL gamma distribution mu     parameter
    parFallback(iLookPARAM%FUSE_mu)%default_val=3._rkind; warning_flag=.true.
   end if
+  if (parFallback(iLookPARAM%FUSE_n)%default_val == realMissing) then        ! FUSE TOPMODEL exponent
+   parFallback(iLookPARAM%FUSE_n)%default_val=4._rkind; warning_flag=.true.
+  end if
 
   ! issue a warning if FUSE model decision choices used but default parameters not found in local parameters file
-  if ((model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision == FUSEPRMS).or.&
-     &(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision == FUSEAVIC).or.&
-     &(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision == FUSETOPM)) then
+  if ((model_decisions(iLookDECISIONS%surfRun_SE)%iDecision == FUSEPRMS).or.&
+     &(model_decisions(iLookDECISIONS%surfRun_SE)%iDecision == FUSEAVIC).or.&
+     &(model_decisions(iLookDECISIONS%surfRun_SE)%iDecision == FUSETOPM)) then
      if (warning_flag) then
       print '(a136)', " WARNING: some FUSE parameters required by model decisions but are not in the local parameters file&
                       & -- default values have been assumed."

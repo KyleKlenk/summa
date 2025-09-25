@@ -95,7 +95,6 @@ contains
  real(rkind)                           :: vGn_m                 ! van Genutchen "m" parameter (-)
  real(rkind)                           :: scalarTheta           ! liquid water equivalent of total water [liquid water + ice] (-)
  real(rkind)                           :: h1,h2                 ! used to check depth and height are consistent
- real(rkind)                           :: d1,d2                 ! used to check rooting depth is reasonable
  real(rkind)                           :: kappa                 ! constant in the freezing curve function (m K-1)
  integer(i4b)                          :: nSoil                 ! number of soil layers
  integer(i4b)                          :: nSnow                 ! number of snow layers
@@ -156,7 +155,7 @@ contains
    mLayerVolFracLiq     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat        ,& ! volumetric fraction of liquid water in each snow layer (-)
    mLayerVolFracIce     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat        ,& ! volumetric fraction of ice in each snow layer (-)
    mLayerMatricHead     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat        ,& ! matric head (m)
-   mLayerLayerType      => indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat              ,& ! type of layer (ix_soil or ix_snow)
+   layerType            => indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat              ,& ! type of layer (ix_soil or ix_snow)
    ! depth varying soil properties
    soil_dens_intr       => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%soil_dens_intr)%dat         ,& ! intrinsic soil density             (kg m-3)
    vGn_alpha            => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_alpha)%dat              ,& ! van Genutchen "alpha" parameter (m-1)
@@ -210,24 +209,14 @@ contains
    ! loop through all layers
    do iLayer=1,nLayers
 
-    ! compute liquid water equivalent of total water (liquid plus ice)
-    if (iLayer>nSnow) then ! soil layer = no volume expansion
-     iSoil       = iLayer - nSnow
-     vGn_m       = 1._rkind - 1._rkind/vGn_n(iSoil)
-     scalarTheta = mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)
-    else ! snow layer = volume expansion allowed
-     iSoil       = integerMissing
-     vGn_m       = realMissing
-     scalarTheta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
-    end if
-
     ! *****
     ! * check that the initial volumetric fraction of liquid water and ice is reasonable...
     ! *************************************************************************************
-    select case(mlayerLayerType(iLayer))
+    select case(layerType(iLayer))
 
-     ! ***** snow
+     ! ***** snow, volume expansion allowed
      case(iname_snow)
+      scalarTheta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
       ! (check liquid water)
       if(mLayerVolFracLiq(iLayer) < 0._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < 0: layer = ',iLayer; err=20; return; end if
       if(mLayerVolFracLiq(iLayer) > 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > 1: layer = ',iLayer; err=20; return; end if
@@ -238,8 +227,13 @@ contains
       if(scalarTheta > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 0.80: layer = ',iLayer; err=20; return; end if
       if(scalarTheta < 0.05_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < 0.05: layer = ',iLayer; err=20; return; end if
 
-     ! ***** soil
+     ! ***** soil, no volume expansion
      case(iname_soil)
+      iSoil       = iLayer - nSnow
+      if(vGn_n(iSoil) <= 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot have van Genutchen n <= 1: soil layer = ',iSoil; err=20; return; end if
+      if(vGn_alpha(iSoil) >= 0._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot have van Genutchen alpha >= 0: soil layer = ',iSoil; err=20; return; end if
+      vGn_m       = 1._rkind - 1._rkind/vGn_n(iSoil)
+      scalarTheta = mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)
       ! (check liquid water)
       if(mLayerVolFracLiq(iLayer) < theta_res(iSoil)-xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res: layer = ',iLayer; err=20; return; end if
       if(mLayerVolFracLiq(iLayer) > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > theta_sat: layer = ',iLayer; err=20; return; end if
@@ -251,14 +245,14 @@ contains
       if(scalarTheta > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > theta_sat: layer = ',iLayer; err=20; return; end if
 
      case default
-      write(*,*) 'Cannot recognize case in initial vol water/ice check: type=', mlayerLayerType(iLayer)
+      write(*,*) 'Cannot recognize case in initial vol water/ice check: type=', layerType(iLayer)
       err=20; message=trim(message)//'cannot identify layer type'; return
     end select
 
     ! *****
     ! * check that the initial conditions are consistent with the constitutive functions...
     ! *************************************************************************************
-    select case(mLayerLayerType(iLayer))
+    select case(layerType(iLayer))
 
      ! ** snow
      case(iname_snow)
@@ -332,13 +326,6 @@ contains
     
    ! end association to variables in the data structures
    end associate
-
-   ! check rooting depth, a depth that is greater than the total soil depth is meaningless
-   d1 = sum(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers))
-   d2 = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%rootingDepth)%dat(1)
-   if (d2>d1) then
-    write(*,'(a,f5.3,a,f5.3,a)') 'Warning: rooting depth ', d2,' > total soil depth ',d1,', so rooting depth will be set to total soil depth'
-   end if
 
    ! if snow layers exist, compute snow depth and SWE
    if(nSnow > 0)then
