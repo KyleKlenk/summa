@@ -1045,8 +1045,8 @@ contains
  
      end select 
    else ! do not compute infiltration after first flux call in a splitting operation unless updateInfil is true
-     dq_dHydStateVec(:) = 0._rkind
-     dq_dNrgStateVec(:) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+     dq_dHydStateVec(:) = realMissing ! do not compute derivatives
+     dq_dNrgStateVec(:) = realMissing ! do not compute derivatives
    end if 
 
   end associate
