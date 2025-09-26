@@ -706,7 +706,7 @@ subroutine fluxJacAdd(&
       end do ! (looping through hydrology states in the soil domain)
 
       ! - include derivatives for surface infiltration above surface if there is snow (vegetation handled already)
-      if(nSnow>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then ! have snow above first soil layer
+      if(nSnow>0 .and. ixSoilOnlyHyd(1)/=integerMissing .and. dq_dHydStateLayerSurfVec(1)/=0._rkind)then ! have snow above first soil layer
         denseLimit = nSnow ! if passed through a too dense snowpack, need to find top dense layer (bottom layer always included, dense or not)
         do pLayer=nSnow,1,-1
           if(mLayerVolFracIce(pLayer)<=maxVolIceContent) exit
@@ -830,7 +830,7 @@ subroutine fluxJacAdd(&
       end do ! (looping through energy states in the soil domain)
 
       ! - include derivatives for surface infiltration above surface if there is snow (vegetation handled already)
-      if(nSnow>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then ! have snow above first soil layer
+      if(nSnow>0 .and. ixSoilOnlyHyd(1)/=integerMissing .and. dq_dNrgStateLayerSurfVec(1)/=0._rkind)then ! have snow above first soil layer
         denseLimit = nSnow ! if passed through a too dense snowpack, need to find top dense layer (bottom layer always included, dense or not)
         do pLayer=nSnow,1,-1
           if(mLayerVolFracIce(pLayer)<=maxVolIceContent) exit
