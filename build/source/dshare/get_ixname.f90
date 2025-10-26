@@ -100,6 +100,7 @@ contains
   case('infRateMax'      ); get_ixdecisions=iLookDECISIONS%infRateMax  ! choice of maximum infiltration rate method
   case('surfRun_IE'      ); get_ixdecisions=iLookDECISIONS%surfRun_IE  ! choice of parameterization for infiltration excess surface runoff
   case('surfRun_SE'      ); get_ixdecisions=iLookDECISIONS%surfRun_SE  ! choice of parameterization for saturation excess surface runoff
+  case('read_force'      ); get_ixdecisions=iLookDECISIONS%read_force  ! method used to read forcing data (per step or full read)
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
