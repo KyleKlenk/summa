@@ -1182,7 +1182,7 @@ module summabmi
       forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
       progStruct           => this%model%summa1_struc(n)%progStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
       diagStruct           => this%model%summa1_struc(n)%diagStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-      fluxStruct           => this%model%summa1_struc(n)%fluxStruct    & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
+      fluxStruct           => this%model%summa1_struc(n)%fluxStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
       bvarStruct           => this%model%summa1_struc(n)%bvarStruct    & ! x%gru(:)%var(:)%dat        -- model basin (GRU) variables
       )
       target_arr = -999.0
