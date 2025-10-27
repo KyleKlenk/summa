@@ -52,6 +52,7 @@ module summabmi
   USE globalData, only: dJulianFinsh                          ! julian day of end time of simulation
   USE globalData, only: data_step                             ! length of time steps for the outermost timeloop
   USE globalData, only: gru_struc                             ! gru-hru mapping structures
+  USE globalData, only: startGRU                              ! index of the starting GRU for parallelization run
   USE multiconst, only: secprday                              ! number of seconds in a day
   ! provide access to the named variables that describe elements of parent model structures
   USE var_lookup, only: iLookTIME                             ! named variables for time data structure
@@ -60,6 +61,7 @@ module summabmi
   USE var_lookup, only: iLookFLUX                             ! named variables for local flux variables
   USE var_lookup, only: iLookDIAG                             ! named variables for local diagnostic variables
   USE var_lookup, only: iLookPROG                             ! named variables for local prognostic variables
+  USE var_lookup, only: iLookBVAR                             ! named variables for basin (GRU) variables
 
   implicit none
 
@@ -179,6 +181,7 @@ module summabmi
      integer(i4b)                       :: err=0                      ! error code
      character(len=1024)                :: message=''                 ! error message
      character(len=1024)                :: file_manager
+     character(len=20)                  :: attrib_file_HRU_order
      integer  :: bmi_status, i,fu,rc
      ! namelist definition
      namelist /parameters/ file_manager
@@ -198,6 +201,7 @@ module summabmi
        open (action='read', file=config_file, iostat=rc, newunit=fu)
        read (nml=parameters, iostat=rc, unit=fu)
        this%model%summa1_struc(n)%summaFileManagerFile=trim(file_manager)
+       startGRU = int(trim(attrib_file_HRU_order)) ! need to read the correct HRU from input files
        print "(A)", "file_master is '"//trim(file_manager)//"'."
 #else
        ! without NGEN the argument gives the file manager file directly
@@ -617,7 +621,7 @@ module summabmi
      end select
    end function summa_grid_node_count
 
-   ! Get the number of edges in an unstructured grid, points is 0 BUT COULD BE USED FOR GRUs
+   ! Get the number of edges in an unstructured grid, points is 0 BUT USED FOR ROUTING FLOW BETWEEN GRUs
    function summa_grid_edge_count(this, grid, count) result(bmi_status)
      class(summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
@@ -640,12 +644,12 @@ module summabmi
 
      select case(grid)
      case default
-       count = 0
+       count = 0 ! could be this%model%summa1_struc(n)%nGRU
        bmi_status = BMI_SUCCESS
      end select
    end function summa_grid_face_count
 
-   ! Get the edge-node connectivity, points is 0 BUT COULD BE USED FOR GRUs
+   ! Get the edge-node connectivity, points is 0 BUT COULD BE USED FOR LATERAL FLOW BETWEEN HRUs
    function summa_grid_edge_nodes(this, grid, edge_nodes) result(bmi_status)
      class(summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
@@ -659,7 +663,7 @@ module summabmi
      end select
    end function summa_grid_edge_nodes
 
-   ! Get the face-edge connectivity, points is 0 BUT COULD BE USED FOR GRUs
+  ! Get the face-edge connectivity, points is 0 BUT  COULD BE USED FOR LATERAL FLOW TO GRU
    function summa_grid_face_edges(this, grid, face_edges) result(bmi_status)
      class(summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
@@ -673,7 +677,7 @@ module summabmi
      end select
    end function summa_grid_face_edges
 
-   ! Get the face-node connectivity, points is 0 BUT COULD BE USED FOR GRUs
+   ! Get the face-node connectivity, points is 0 BUT COULD BE USED FOR HRU FLOW TO GRU
    function summa_grid_face_nodes(this, grid, face_nodes) result(bmi_status)
      class(summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
@@ -682,7 +686,7 @@ module summabmi
 
      select case(grid)
      case default
-       face_nodes(:) = -1
+       face_nodes(:) = -1 !gru_struc(iGRU)%hruInfo(iHRU)%hru_id for iHRU=1,hruCount
        bmi_status = BMI_FAILURE
      end select
    end function summa_grid_face_nodes
@@ -696,7 +700,7 @@ module summabmi
 
      select case(grid)
      case default
-       nodes_per_face(:) = -1
+       nodes_per_face(:) = -1 ! could be gru_struc(iGRU)%hruCount
        bmi_status = BMI_SUCCESS
      end select
    end function summa_grid_nodes_per_face
@@ -1179,6 +1183,7 @@ module summabmi
       progStruct           => this%model%summa1_struc(n)%progStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
       diagStruct           => this%model%summa1_struc(n)%diagStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
       fluxStruct           => this%model%summa1_struc(n)%fluxStruct    & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
+      bvarStruct           => this%model%summa1_struc(n)%bvarStruct    & ! x%gru(:)%var(:)%dat        -- model basin (GRU) variables
       )
       target_arr = -999.0
       itarget_arr = -999
@@ -1216,7 +1221,8 @@ module summabmi
 
             ! output
             case('land_surface_water__runoff_volume_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)
+              target_arr(i) = bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
+              !target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)
             case('land_surface_water__evaporation_mass_flux')
               target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundEvaporation)%dat(1)
             case('land_vegetation_water__evaporation_mass_flux')

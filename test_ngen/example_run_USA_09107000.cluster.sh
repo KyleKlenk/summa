@@ -1,0 +1,1 @@
+cmake_build/ngen data/catchment_data.geojson "USA_09107000" ./data/nexus_data.geojson "USA_09107000" ./extern/summa/summa/test_ngen/example_realization_config_w_summa_bmi.json

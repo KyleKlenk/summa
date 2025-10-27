@@ -33,5 +33,8 @@
       "start_time": "2015-12-01 0:00:00",
       "end_time": "2015-12-30 23:00:00",
       "output_interval": 3600
+  },
+  "routing": {
+      "t_route_config_file_with_path": "./data/gauge_01073000/routing_config.yaml"
   }
 }

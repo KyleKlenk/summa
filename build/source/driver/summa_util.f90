@@ -84,15 +84,19 @@ contains
  ! initialize error control
  err=0; message='getCommandArguments/'
 
+#ifdef NGEN_ACTIVE
+  ! no command arguments with NGen
+  nArgument = 0
+  checkHRU = integerMissing
+  nGRU = 1; nHRU = integerMissing
+  newOutputFile = noNewFiles
+  iRunMode = iRunModeGRU
+#else
  ! check number of command-line arguments
  nArgument = command_argument_count()
-#ifdef NGEN_ACTIVE
-    !no command arguments with NGen
-#else
  if (nArgument < 1) then
   call printCommandHelp()
  end if
-#endif
 
  ! read command line arguments
  allocate(argString(nArgument))
@@ -265,6 +269,7 @@ contains
 
  ! set startGRU for full run
  if (iRunMode==iRunModeFull) startGRU=1
+#endif
 
  ! end associate statements
  end associate summaVars
