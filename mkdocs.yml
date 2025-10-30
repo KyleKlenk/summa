@@ -29,3 +29,6 @@ nav:
 google_analytics: ['UA-108421993-5', 'summa.readthedocs.org']
 markdown_extensions:
   - footnotes
+  - fenced_code
+  - codehilite
+  - pymdownx.superfences
