@@ -24,6 +24,7 @@ nav:
   - SUMMA Coding Conventions: 'development/SUMMA_coding_conventions.md'
   - SUMMA and Git: 'development/SUMMA_and_git.md'
   - SUMMA Git Workflow: 'development/SUMMA_git_workflow.md'
+  = SUMMA Modularity: 'development/SUMMA_modularity_guidelines.md'
 - References: 'references.md'
 google_analytics: ['UA-108421993-5', 'summa.readthedocs.org']
 markdown_extensions:
