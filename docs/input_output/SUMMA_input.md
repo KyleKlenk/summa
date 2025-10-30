@@ -226,6 +226,13 @@ Notes about forcing file format:
 
 SUMMA uses **adaptive time stepping** to solve the model equations. Atmospheric conditions are kept constant during the adaptive sub-steps that occur during a meteorological forcing time step.
 
+### Common pitfalls
+SUMMA requires complete timeseries in the meteorological forcing files; missing values such as `NaN` are not allowed. By design, SUMMA does not check the input files to limit the number of computations performed. The user is expected to ensure forcing files are completely and contain realistic. However, `NaN` values do have a tendency to slip in. In such cases SUMMA will usually abort a run early, with the following error message:
+
+```
+Note: The following floating-point exceptions are signalling: IEEE_INVALID_FLAG
+```
+
 <a id="infile_initial_conditions"></a>
 ## Initial conditions, restart or state file
 The initial conditions, restart, or state file is a [NetCDF file](#infile_format_nc) that specifies the model states at the start of the model simulation. This file is required. You will need to generate one before you run the model for the first time, but after that the model restart file can be the result from an earlier model simulation. The file is written by `build/source/netcdf/modelwrite.f90:writeRestart()` and read by `build/source/netcdf/read_icond.f90:read_icond_nlayers()` (number of snow and soil layers) and `build/source/netcdf/read_icond.f90:read_icond()` (actual model states).
