@@ -10,6 +10,19 @@ To compile SUMMA, you will need (longer descriptions at the bottom of this page)
 * The [LAPACK](http://www.netlib.org/lapack/) (Linear Algebra PACKage) library
 * A copy of the SUMMA source code
 
+Optional but highly recommended:
+
+* The [SUNDIALS](https://sundials.readthedocs.io/en/latest/index.html) library, to benefit from recent advances to SUMMA's numerical implementation. Without the SUNDIALS library, the modeling options `num_method = kinsol` and `num_method = ida` won't work. SUNDIALS requires specific install instructions because by default its fortran module won't be build. A typical install on macOS will look as follows:
+
+```bash
+git clone https://github.com/LLNL/sundials.git
+cd sundials
+mkdir build && cd build
+cmake ..   -DCMAKE_INSTALL_PREFIX=$HOME/local/sundials   -DBUILD_SHARED_LIBS=ON   -DBUILD_IDA=ON -DBUILD_IDAS=ON   -DBUILD_FORTRAN_MODULE_INTERFACE=ON
+make
+make install
+```
+
 ## Compilation
 To compile SUMMA there are two methods, each of which is described in detail below. The first method uses a `Makefile` and is the traditional way to compile SUMMA. The second method uses `CMake` and enables parallelization for faster builds.
 
