@@ -159,22 +159,22 @@ def main():
             arr = xr.DataArray(arr_vals, dims=var_dims, attrs=var.attrs)
 
         else:
-            # no hru or gru - add leading 'hru' dimension and broadcast
-            if vals.ndim == 0:
-                arr_vals = np.repeat(vals, n)
-                arr = xr.DataArray(arr_vals, dims=("hru",), attrs=var.attrs)
-            else:
-                arr_vals = np.repeat(vals[np.newaxis, ...], n, axis=0)
-                new_dims = ("hru",) + var_dims
-                arr = xr.DataArray(arr_vals, dims=new_dims, attrs=var.attrs)
+            # keep same, no additional dimensions
+            arr = xr.DataArray(var.values, dims=var_dims, attrs=var.attrs)
 
         data_vars[vn] = arr
 
-    tiled = xr.Dataset(data_vars=data_vars, attrs=file_ds.attrs)
+    # preserve coordinate variables from original file_ds
+    coords = {}
+    for k, v in file_ds.coords.items():
+        coords[k] = (tuple(str(d) for d in v.dims), v.values)
 
-    # remove all coordinate variables (no coords desired)
-    for c in list(tiled.coords):
-        tiled = tiled.drop_vars(c)
+    tiled = xr.Dataset(data_vars=data_vars, coords=coords, attrs=file_ds.attrs)
+
+    # remove all coordinate variables except 'time' (if any)
+    to_drop = [c for c in list(tiled.coords) if c != 'time']
+    if to_drop:
+        tiled = tiled.drop_vars(to_drop)
 
     # make hruId and gruId be ids from forcing file
     if "hruId" in tiled:

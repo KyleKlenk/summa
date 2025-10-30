@@ -251,9 +251,11 @@ module summabmi
      call summa_runPhysics(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
+#ifndef NGEN_ACTIVE
      ! write the model output
      call summa_writeOutputFiles(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
+#endif
 
      ! start, advance time, as model uses this time step throughout
      this%model%timeStep = this%model%timeStep + 1
