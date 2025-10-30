@@ -70,12 +70,7 @@ This is an extended description of the shorter list described above. To compile 
     * If you just want to use the latest stable release of SUMMA, then simply look for the [latest release](https://github.com/NCAR/summa/releases);
     * If you want the latest and greatest (and potentially erroneous), download a copy of the [development branch](https://github.com/ncar/summa/tree/develop) (or clone it);
     * If you may want to do SUMMA development, then fork the repo on github and start editing your own copy.
-
-    Note that you will not be able to contribute to the main SUMMA repo directly. If you are seriously interested in contributing, spend a little time learning git. It will be useful anyway. For more information about working with the SUMMA code, please see the following documents:
-
-    * [SUMMA and Git](../development/SUMMA_and_git.md)
-    * [Git Workflow for SUMMA](../development/SUMMA_git_workflow.md)
-    * [SUMMA Coding Conventions](../development/SUMMA_coding_conventions.md)
+    
     
 ### Legacy Makefile instructions
 These instructions have been included here for legacy users. If possible, use the CMake instructions for an easier install experience. 
