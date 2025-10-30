@@ -84,6 +84,26 @@ def _ensure_hru_var(ds, name, n, fill=np.nan, dtype=float):
         ds[name] = xr.DataArray(arr, dims=("hru",), attrs={})
     return ds
 
+def _fixSoilVar(ds,var_name):
+    """Fix soil variable to have midSoil dimension instead of midToto."""
+    da = ds[var_name]
+
+    if 'midToto' in da.dims:
+        # rename the existing dimension
+        ds['mLayerMatricHead'] = da.rename({'midToto': 'midSoil'})
+    else:
+        # create a new midSoil dim of the same length as midToto (fallback to 1 if missing)
+        size = ds.dims.get('midToto', 1)
+        ds[var_name] = da.expand_dims({'midSoil': size})
+    return ds
+
+def _fixWaterContentVar(ds):
+    """Fix water content variable to be small enough."""
+    # if mLayerVolFracLiq is close to default value then lower it
+    default_water_content = 0.45 # assumed default
+    ds['mLayerVolFracLiq'].values[ds['mLayerVolFracLiq'].values > default_water_content-0.] = default_water_content - 0.15
+    return ds
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("old_file", help="old_file.nc")
@@ -98,6 +118,10 @@ def main():
     typeOfInput = args.typeOfInput.lower()
     if typeOfInput not in ("param", "attrib", "init"):
         raise RuntimeError(f"typeOfInput must be 'param' or 'attrib' or 'init', got '{typeOfInput}'")
+    
+    if typeOfInput == "init":
+        file_ds = _fixSoilVar(file_ds, 'mLayerMatricHead')
+        file_ds = _fixWaterContentVar(file_ds)
     
     out_path = args.old_file.replace(".nc", f"_tiled_by_hru.nc")
 
@@ -152,7 +176,6 @@ def main():
     for c in list(tiled.coords):
         tiled = tiled.drop_vars(c)
 
-
     # make hruId and gruId be ids from forcing file
     if "hruId" in tiled:
         tiled['hruId'].values = f_ids
@@ -168,7 +191,6 @@ def main():
     PET_folder = os.path.join(other_folder, "PET")
     CFE_folder = os.path.join(other_folder, "CFE")
             
-
     # default NOAH decisions
     #  precip_phase_option               = 1 # Jordan (1991) SNTHERM equation
     #  snow_albedo_option                = 1 # 1 is BATS==varDecay
@@ -230,7 +252,7 @@ def main():
                 #tiled['zpdFraction'].values[idx] = kvs['zero_plane_displacement_height_m']/kvs['vegetation_height'] # seems too small
             elif typeOfInput == "attrib":
                 tiled['elevation'].values[idx] = kvs['site_elevation_m']
-                
+
     # CFE
     for fn in os.listdir(CFE_folder):
         file_path = os.path.join(CFE_folder, fn)
@@ -244,12 +266,13 @@ def main():
             idx = np.where(f_ids == fid)[0][0]
             kvs = _parse_kv_text(open(file_path, 'r').read())
             if typeOfInput == "param":
-                tiled = _ensure_hru_var(tiled, 'theta_sat', n, fill=np.nan)
-                tiled = _ensure_hru_var(tiled, 'k_soil', n, fill=np.nan)
-                tiled = _ensure_hru_var(tiled, 'critSoilWilting', n, fill=np.nan)
-                tiled['theta_sat'].values[idx] = kvs['soil_params.smcmax'] # effective porosity [V/V]
-                tiled['k_soil'].values[idx] = kvs['soil_params.satdk'] # saturated hydraulic conductivity [m s-1]
-                tiled['critSoilWilting'].values[idx] = kvs['soil_params.wltsmc'] #  wilting point soil moisture content [V/V]
+                continue # no parameters to set from CFE files, these available but contradict NOAH table values
+                #tiled = _ensure_hru_var(tiled, 'theta_sat', n, fill=np.nan)
+                #tiled = _ensure_hru_var(tiled, 'k_soil', n, fill=np.nan)
+                #tiled = _ensure_hru_var(tiled, 'critSoilWilting', n, fill=np.nan)
+                #tiled['theta_sat'].values[idx] = kvs['soil_params.smcmax'] # effective porosity [V/V]
+                #tiled['k_soil'].values[idx] = kvs['soil_params.satdk'] # saturated hydraulic conductivity [m s-1]
+                #tiled['critSoilWilting'].values[idx] = kvs['soil_params.wltsmc'] #  wilting point soil moisture content [V/V]
 
     if typeOfInput == "init":
         tiled['dt_init'].values = np.full(tiled['dt_init'].shape, 3600.0) # default 1 hour time step for initialization files
