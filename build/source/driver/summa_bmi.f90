@@ -181,11 +181,10 @@ module summabmi
      integer(i4b)                       :: err=0                      ! error code
      character(len=1024)                :: message=''                 ! error message
      character(len=1024)                :: file_manager
-     character(len=20)                  :: attrib_file_HRU_order
-     character(len=256) :: tmp_str
-     integer  :: bmi_status,i,fu,rc, ios
+     integer(i4b)                       :: attrib_file_HRU_order
+     integer  :: bmi_status,i,fu,rc
      ! namelist definition
-     namelist /parameters/ file_manager
+     namelist /parameters/ file_manager, attrib_file_HRU_order
 
      ! initialize time steps
      this%model%timeStep = 0
@@ -202,13 +201,9 @@ module summabmi
        open (action='read', file=config_file, iostat=rc, newunit=fu)
        read (nml=parameters, iostat=rc, unit=fu)
        this%model%summa1_struc(n)%summaFileManagerFile=trim(file_manager)
+       startGRU = attrib_file_HRU_order
        print "(A)", "file_master is '"//trim(file_manager)//"'."
-       tmp_str = trim(adjustl(attrib_file_HRU_order)) ! need to read the correct HRU from input files
-       read(tmp_str, *, iostat=ios) startGRU
-       if (ios /= 0) then
-         print *, 'Error reading startGRU from attribute_file_HRU_order: ', trim(attrib_file_HRU_order)
-         stop
-       end if
+       print *, "startGRU = ", startGRU
 #else
        ! without NGEN the argument gives the file manager file directly
        ! Note, if this is more than 80 characters the pre-built BMI libraries will fail
