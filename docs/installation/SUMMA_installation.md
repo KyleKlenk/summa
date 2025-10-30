@@ -26,25 +26,52 @@ make install
 ## Compilation
 The preferred method to compile SUMMA is with `CMake`. This enables parallelization for faster builds and is generally easier than the [legacy approach using a Makefile](#legacy-makefile-instructions). CMake instructions can be found below.
 
-## CMake
+### CMake
 
-Most users will be able to compile SUMMA using the following steps, even on Digital Alliance of Canada machines (loaded modules usually automatically set the necessary CMake variables):
-```bash
-cd summa/build/cmake
-./compile_script.sh
-```
-If the compilation is successful, you will see the help output from running `summa.exe` in `summa/bin/` as shown in the Makefile instructions above.
+The SUMMA repository contains a number of CMake scripts in the `summa/build/cmake` directory. These scripts use CMake to compile SUMMA using the general `CMakeLists.txt` file found in the `summa/build` directory. The scripts compile SUMMA with a number of different options and for different OSX scenarios. Briefly:
 
-If you encounter issues with dependencies, it is most likely because they are installed in a non-standard location. If this is the case, you can set the `CMAKE_PREFIX_PATH` variable in the `compile_script.sh` script to the location of the dependencies. For example, if the NetCDF libraries are installed in `/home/some_user/netcdf`, you would modify the `compile_script.sh` script as follows:
+- `FindNetCDF.cmake`: used to find the location (i.e., system path) for the Fortran NetCDF library. This path is needed in the actual compile scripts. 
+- `FindOpenBLAS.cmake`: used to find the location (i.e., system path) for the OpenBLAS library. This path is needed in the actual compile scripts.
+- `build.cluster.bash`:  compile SUMMA with SUNDIALS support on Digital Research Alliance Canada (DRAC) or similar infrastructure (e.g. Graham, Fir).
+- `build.mac.bash`:  compile SUMMA with SUNDIALS support on macOS. Assumes MacPorts as local library manager (see example below).
+- `build.pc.bash`:  compile SUMMA with SUNDIALS support on Windows. Experimental.
+- `build_actors.cluster.bash`:  compile SUMMA with SUNDIALS and Actors support on Digital Research Alliance Canada or similar infrastructure (e.g. Graham, Fir). Key difference: addition of `caf` library and `-DUSE_ACTORS=ON` flag.
+- `build_actors.mac.bash`:  compile SUMMA with SUNDIALS and Actors support on macOS. Assumes MacPorts as local library manager (see example below). Key difference: addition of `-DUSE_ACTORS=ON` flag.
+- `build_ngen.cluster.bash`: compile SUMMA with SUNDIALS support and NextGen integration on DRAC or similar. See specific instructions inside script.
+- `build_ngen.mac.bash`: compile SUMMA with SUNDIALS support and NextGen integration on macOS. See specific instructions inside script.
+- `summabmi.pc.in`: support file for NextGen integration.
+
+Most users will be able to compile SUMMA using one of the scripts above, after ensuring the paths in the scripts are set appropriately. As an example, imagine you're compiling on macOS but use Homebrew to manage your libraries, and that you installed SUNDIALS somewhere that's not the top-level summa folder. In this case, the default (MacPorts) path to the `gfortran` compiler, as well as the path to the SUNDIALS install directory, in the `build.mac.bash` script are not correct. You would need to update the script as follows:
+
 ```bash
 #!/bin/bash
+export FC=/opt/homebrew/bin/gfortran                             # Fortran compiler family
+export LIBRARY_LINKS='-llapack'                               # list of library links
+export SUNDIALS_DIR=/your/path/to/sundials/instdir/
 
-export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH:/home/some_user/netcdf"
-
-cmake -B cmake_build -S ../. 
-cmake --build cmake_build --target all -j 
+cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build ../cmake_build --target all -j
 ```
 
+You can test if SUMMA was compiled successfully by navigating to the new `bin` directory and running the newly created executable without any command line arguments. If the compilation is successful, you will see the help output as shown below:
+
+```bash
+> cd ~/path/to/summa/bin
+> ./summa_sundials.exe
+
+Usage: summa.exe -m master_file [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress] [-c]
+ summa.exe          summa executable
+
+Running options:
+ -m --master        Define path/name of master file (required)
+ -n --newFile       Define frequency [noNewFiles,newFileEveryOct1] of new output files
+ -s --suffix        Add fileSuffix to the output files
+ -g --gru           Run a subset of countGRU GRUs starting from index startGRU
+ -h --hru           Run a single HRU with index of iHRU
+ -r --restart       Define frequency [y,m,d,e,never] to write restart files
+ -p --progress      Define frequency [m,d,h,never] to print progress
+ -v --version       Display version information of the current build
+```
 
 Continue reading [SUMMA configuration](../configuration/SUMMA_configuration.md) to learn more about how to configure SUMMA for your application. We strongly recommend that you get the [test applications](SUMMA_test_cases.md) to help you get started.
 
