@@ -116,8 +116,8 @@ def main():
     other_folder = args.other_folder
     f_ds = xr.open_dataset(args.forcing)
     typeOfInput = args.typeOfInput.lower()
-    if typeOfInput not in ("param", "attrib", "init"):
-        raise RuntimeError(f"typeOfInput must be 'param' or 'attrib' or 'init', got '{typeOfInput}'")
+    if typeOfInput not in ("param", "attrib", "init", "force"):
+        raise RuntimeError(f"typeOfInput must be 'param' or 'attrib' or 'init' or 'force', got '{typeOfInput}'")
     
     if typeOfInput == "init":
         file_ds = _fixSoilVar(file_ds, 'mLayerMatricHead')
@@ -232,6 +232,9 @@ def main():
                 tiled['vegTypeIndex'].values[idx] = nml['structure']['vegtyp']
                 tiled['soilTypeIndex'].values[idx] = nml['structure']['isltyp']
                 #tiled['tan_slope'].values[idx] = np.tan(np.deg2rad(nml['location']['terrain_slope'])) # compute tan_slope from slope in degrees, seems to be always 0
+            elif typeOfInput == "force":
+                tiled['latitude'].values[idx] = nml['location']['lat']
+                tiled['longitude'].values[idx] = nml['location']['lon']
 
     # PET 
     # uses logBelowCanopy wind decision
