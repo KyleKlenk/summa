@@ -436,7 +436,6 @@ Choice of equation to calculate saturation excess runoff.
 | Option | Description |
 |---|---|
 | homegrown_SE | **(default) Original SUMMA implementation for saturation excess** |
-| GreenAmpt | **Green-Ampt infiltration rate** |
 | FUSEPRMS | **PRMS saturation excess runoff as implemented in FUSE**|
 | FUSEAVIC | **ARNO/VIC saturation excess runoff as implemented in FUSE**|
 | FUSETOPM | **Topmodel saturation excess runoff as implemented in FUSE**|
