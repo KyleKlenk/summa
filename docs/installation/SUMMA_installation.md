@@ -147,8 +147,6 @@ This is an extended description of the shorter list described above. To compile 
 
  * the [LAPACK](http://www.netlib.org/lapack/) (Linear Algebra PACKage) library provides a series of routines for linear algebra operations, including matrix solvers. How to install the library depends on your \*nix variant and is not covered here. For example, on OS X you will get all the necessary LAPACK routines by installing the ATLAS software (again, this is easiest using a package manager; note that ATLAS can take many hours to build the first time when you install it).
 
- * the [ATLAS](http://math-atlas.sourceforge.net/) (Automatically Tuned Linear Algebra Software) library. Note that this is required on OS X using the gfortran compiler to be able to use LAPACK. It's not clear that this is used on other \*nix machines.
-
  * a copy of the SUMMA source code from [this repo](https://github.com/NCAR/summa). You have a number of options:
 
     * If you just want to use the latest stable release of SUMMA, then simply look for the [latest release](https://github.com/NCAR/summa/releases);
