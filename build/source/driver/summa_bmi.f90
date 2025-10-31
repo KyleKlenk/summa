@@ -52,6 +52,7 @@ module summabmi
   USE globalData, only: dJulianFinsh                          ! julian day of end time of simulation
   USE globalData, only: data_step                             ! length of time steps for the outermost timeloop
   USE globalData, only: gru_struc                             ! gru-hru mapping structures
+  USE globalData, only: index_map                             ! hru-gru mapping structures
   USE globalData, only: startGRU                              ! index of the starting GRU for run
   USE multiconst, only: secprday                              ! number of seconds in a day
   ! provide access to the named variables that describe elements of parent model structures
@@ -68,6 +69,8 @@ module summabmi
   ! Define the attributes of the model.
   type :: summa_model
      integer(i4b) :: timeStep      ! index of model time step
+     type(gru2hru_map), allocatable :: gru_struc
+     type(hru2gru_map), allocatable :: index_map
      type(summa1_type_dec), allocatable :: summa1_struc(:)
   end type summa_model
 
@@ -202,6 +205,8 @@ module summabmi
        read (nml=parameters, iostat=rc, unit=fu)
        this%model%summa1_struc(n)%summaFileManagerFile=trim(file_manager)
        startGRU = attrib_file_HRU_order
+       this%model%gru_struc = gru_struc
+       this%model%index_map = index_map
        print*, 'INFO: NGEN detected, using file manager file ', trim(file_manager), ' and starting GRU id ', startGRU
 #else
        ! without NGEN the argument gives the file manager file directly
@@ -236,6 +241,10 @@ module summabmi
      integer(i4b)                       :: err=0                      ! error code
      character(len=1024)                :: message=''                 ! error message
      integer :: bmi_status
+
+     ! get structures
+      gru_struc = this%model%gru_struc
+      index_map = this%model%index_map
 
      ! read model forcing data
      call summa_readForcing(this%model%timeStep, this%model%summa1_struc(n), err, message)
