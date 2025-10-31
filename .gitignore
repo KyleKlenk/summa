@@ -46,4 +46,5 @@ build/source/openwq/openwq
 utils/pre-processing/*.nc
 # vscode related files
 .vscode
-test_ngen/gauge_01073000/simulations/*.nc
+test_ngen/gauge_01073000/simulations/run_1/SUMMA/*.nc
+
