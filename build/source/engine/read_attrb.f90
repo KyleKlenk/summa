@@ -127,8 +127,13 @@ contains
  hru_ix=arth(1,1,fileHRU)
 
 ! check that the mappings are not alreaday allocated
+#ifdef NGEN_ACTIVE
+if (allocated(gru_struc)) deallocate(gru_struc) ! free existing mapping possibly from previous GRU run
+if (allocated(index_map)) deallocate(index_map) ! free existing mapping possibly from previous GRU run
+#else
 if (allocated(gru_struc)) then; err=20; message=trim(message)//'gru_struc is unexpectedly allocated'; return; end if
 if (allocated(index_map)) then; err=20; message=trim(message)//'index_map is unexpectedly allocated'; return; end if
+#endif
 
 ! allocate first level of gru to hru mapping
 allocate(gru_struc(nGRU))
