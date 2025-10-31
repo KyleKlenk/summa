@@ -211,7 +211,7 @@ contains
   call summa_defineOutputFiles(modelTimeStep, summa1_struc, err, cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! re-initalize the indices for model writing
+  ! re-initialize the indices for model writing
   outputTimeStep(:)=1
 
  end if  ! if defining a new file
