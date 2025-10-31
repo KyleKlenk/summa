@@ -181,7 +181,6 @@ module summabmi
      character(len=1024)                :: message=''                 ! error message
      character(len=1024)                :: file_manager
      integer(i4b)                       :: attrib_file_HRU_order
-     integer(i4b)                       :: startGRU
      integer  :: bmi_status,i,fu,rc
      ! namelist definition
      namelist /parameters/ file_manager, attrib_file_HRU_order
@@ -552,13 +551,20 @@ module summabmi
      class (summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
      double precision, dimension(:), intent(out) :: x
-     integer :: bmi_status, iGRU, jHRU
+     integer :: bmi_status, iGRU, jHRU, iGRU_start, iGRU_end
 
      summaVars: associate(attrStruct => this%model%summa1_struc(n)%attrStruct    & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
       )
       select case(grid)
       case default
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+#ifdef NGEN_ACTIVE
+        iGRU_start = this%model%iGRU
+        iGRU_end   = this%model%iGRU
+#else
+        iGRU_start = 1
+        iGRU_end   = this%model%summa1_struc(n)%nGRU
+#endif
+        do iGRU = iGRU_start, iGRU_end
           do jHRU = 1, gru_struc(iGRU)%hruCount
             x((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%longitude)
           end do
@@ -573,13 +579,20 @@ module summabmi
      class (summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
      double precision, dimension(:), intent(out) :: y
-     integer :: bmi_status, iGRU, jHRU
+     integer :: bmi_status, iGRU, jHRU, iGRU_start, iGRU_end
 
      summaVars: associate(attrStruct => this%model%summa1_struc(n)%attrStruct    & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
       )
       select case(grid)
       case default
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+#ifdef NGEN_ACTIVE
+        iGRU_start = this%model%iGRU
+        iGRU_end   = this%model%iGRU
+#else
+        iGRU_start = 1
+        iGRU_end   = this%model%summa1_struc(n)%nGRU
+#endif
+        do iGRU = iGRU_start, iGRU_end
           do jHRU = 1, gru_struc(iGRU)%hruCount
             y((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%latitude)
           end do
@@ -594,13 +607,20 @@ module summabmi
      class (summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
      double precision, dimension(:), intent(out) :: z
-     integer :: bmi_status, iGRU, jHRU
+     integer :: bmi_status, iGRU, jHRU, iGRU_start, iGRU_end
 
      summaVars: associate(attrStruct => this%model%summa1_struc(n)%attrStruct    & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
       )
       select case(grid)
       case default
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+#ifdef NGEN_ACTIVE
+        iGRU_start = this%model%iGRU
+        iGRU_end   = this%model%iGRU
+#else
+        iGRU_start = 1
+        iGRU_end   = this%model%summa1_struc(n)%nGRU
+#endif
+        do iGRU = iGRU_start, iGRU_end
           do jHRU = 1, gru_struc(iGRU)%hruCount
             z((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%elevation)
           end do
@@ -1125,7 +1145,7 @@ module summabmi
      character (len=*), intent(in) :: name
      real, intent(in)    :: src_arr(sum(gru_struc(:)%hruCount))
      integer, intent(in) :: isrc_arr
-     integer ::  iGRU, jHRU, i
+     integer ::  iGRU, jHRU, i, iGRU_start, iGRU_end
 
      summaVars: associate(&
       timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                   -- model time data
@@ -1140,7 +1160,14 @@ module summabmi
           timeStruct%var(iLookTIME%iyyy) = isrc_arr
         end select
       else
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+#ifdef NGEN_ACTIVE
+        iGRU_start = this%model%iGRU
+        iGRU_end   = this%model%iGRU
+#else
+        iGRU_start = 1
+        iGRU_end   = this%model%summa1_struc(n)%nGRU
+#endif
+        do iGRU = iGRU_start, iGRU_end
           do jHRU = 1, gru_struc(iGRU)%hruCount
             i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
             select case (name)
@@ -1178,7 +1205,7 @@ module summabmi
      character (len=*), intent(in) :: name
      real, target, intent(out)    :: target_arr(sum(gru_struc(:)%hruCount))
      integer, target, intent(out) :: itarget_arr
-     integer ::  iGRU, jHRU, i
+     integer ::  iGRU, jHRU, i, iGRU_start, iGRU_end
 
      summaVars: associate(&
       timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                   -- model time data
@@ -1197,7 +1224,14 @@ module summabmi
           itarget_arr = timeStruct%var(iLookTIME%iyyy)
         end select
       else
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+#ifdef NGEN_ACTIVE
+        iGRU_start = this%model%iGRU
+        iGRU_end   = this%model%iGRU
+#else
+        iGRU_start = 1
+        iGRU_end   = this%model%summa1_struc(n)%nGRU
+#endif
+        do iGRU = iGRU_start, iGRU_end
           do jHRU = 1, gru_struc(iGRU)%hruCount
             i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
             if (i > do_nHRU) return
