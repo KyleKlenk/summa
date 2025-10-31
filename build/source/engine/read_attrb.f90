@@ -171,7 +171,8 @@ end if ! not checkHRU
 
 ! set hru to gru mapping
 nHRU = sum(gru_struc%hruCount)                                                                 ! total number of HRUs
-allocate(index_map(nHRU))                                                                      ! allocate first level of hru to gru mapping
+allocate(index_map(nHRU))     
+print*, nGRU, nHRU, 'nGRU nHRU'                                                                 ! allocate first level of hru to gru mapping
 
 if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
  if (nHRU/=1) then; err=-20; message=trim(message)//'wrong # of HRUs for checkHRU run'; return; end if

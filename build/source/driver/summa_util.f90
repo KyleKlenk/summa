@@ -272,6 +272,7 @@ contains
  ! set startGRU for full run
  if (iRunMode==iRunModeFull) startGRU=1
 #endif
+ print*, ' Running mode = ', iRunMode, ', startGRU = ', startGRU, ', nGRU = ', nGRU, ', nHRU = ', nHRU
 
  ! end associate statements
  end associate summaVars
