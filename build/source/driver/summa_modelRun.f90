@@ -43,7 +43,7 @@ public::summa_runPhysics
 contains
 
  ! calls the model physics
- subroutine summa_runPhysics(modelTimeStep, summa1_struc, err, message)
+ subroutine summa_runPhysics(modelTimeStep, summa1_struc, iRunGRU, first_NGEN_run, err, message)
  ! ---------------------------------------------------------------------------------------
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
@@ -67,6 +67,8 @@ contains
  ! dummy variables
  integer(i4b),intent(in)               :: modelTimeStep         ! time step index
  type(summa1_type_dec),intent(inout)   :: summa1_struc          ! master summa data structure
+ integer(i4b),intent(in), optional     :: iRunGRU               ! index of the GRU being run (for NGEN)
+ logical(lgt),intent(in), optional     :: first_NGEN_run        ! flag to indicate if this is the first NGEN run for this time step
  integer(i4b),intent(out)              :: err                   ! error code
  character(*),intent(out)              :: message               ! error message
  ! ---------------------------------------------------------------------------------------
@@ -74,7 +76,9 @@ contains
  character(LEN=256)                    :: cmessage              ! error message of downwind routine
  integer(i4b)                          :: iHRU                  ! HRU index
  integer(i4b)                          :: iGRU,jGRU,kGRU        ! GRU indices
+ integer(i4b)                          :: iGRU_start,iGRU_end   ! start and end GRU indices for loop
  ! local variables: veg phenology
+ logical(lgt)                          :: do_outer              ! flag to indicate if we are doing the outer loop
  logical(lgt)                          :: computeVegFluxFlag    ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  real(rkind)                           :: notUsed_canopyDepth   ! NOT USED: canopy depth (m)
  real(rkind)                           :: notUsed_exposedVAI    ! NOT USED: exposed vegetation area index (m2 m-2)
@@ -118,79 +122,91 @@ contains
  ! initialize error control
  err=0; message='summa_runPhysics/'
 
+ !initialize the outer loop flag
+#ifdef NGEN_ACTIVE 
+  do_outer = .false.
+  if (first_NGEN_run) then
+    do_outer = .true.
+  end if
+#else
+  do_outer = .true.
+#endif
+
  ! *******************************************************************************************
  ! *** initialize computeVegFlux (flag to indicate if we are computing fluxes over vegetation)
  ! *******************************************************************************************
  ! if computeVegFlux changes, then the number of state variables changes, and we need to reorganize the data structures
- if(modelTimeStep==1)then
-  do iGRU=1,nGRU
-   do iHRU=1,gru_struc(iGRU)%hruCount
-
-    ! get vegetation phenology
-    ! (compute the exposed LAI and SAI and whether veg is buried by snow)
-    call vegPhenlgy(&
-                    ! model control
-                    gru_struc(iGRU)%hruInfo(iHRU)%nSnow, & ! intent(in):    number of snow layers in the HRU
-                    model_decisions,                     & ! intent(in):    model decisions
-                    fracJulDay,                          & ! intent(in):    fractional julian days since the start of year
-                    yearLength,                          & ! intent(in):    number of days in the current year
-                    ! input/output: data structures      
-                    typeStruct%gru(iGRU)%hru(iHRU),      & ! intent(in):    type of vegetation and soil
-                    attrStruct%gru(iGRU)%hru(iHRU),      & ! intent(in):    spatial attributes
-                    mparStruct%gru(iGRU)%hru(iHRU),      & ! intent(in):    model parameters
-                    progStruct%gru(iGRU)%hru(iHRU),      & ! intent(inout): model prognostic variables for a local HRU
-                    diagStruct%gru(iGRU)%hru(iHRU),      & ! intent(inout): model diagnostic variables for a local HRU
-                    ! output
-                    computeVegFluxFlag,                  & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                    notUsed_canopyDepth,                 & ! intent(out): NOT USED: canopy depth (m)
-                    notUsed_exposedVAI,                  & ! intent(out): NOT USED: exposed vegetation area index (m2 m-2)
-                    err,cmessage)                          ! intent(out): error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! save the flag for computing the vegetation fluxes
-    if(computeVegFluxFlag)      computeVegFlux%gru(iGRU)%hru(iHRU) = yes
-    if(.not.computeVegFluxFlag) computeVegFlux%gru(iGRU)%hru(iHRU) = no
-
-   end do  ! looping through HRUs
-  end do  ! looping through GRUs
- end if  ! if the first time step
-
- ! ****************************************************************************
- ! *** model simulation
- ! ****************************************************************************
-
- ! initialize the start of the physics
- call date_and_time(values=startPhysics)
-
- ! ----- rank the GRUs in terms of their anticipated computational expense -----
-
- ! estimate computational expense based on persistence
- !  -- assume that that expensive GRUs from a previous time step are also expensive in the current time step
-
- ! allocate space for GRU timing
- allocate(totalFluxCalls(nGRU), timeGRU(nGRU), timeGRUstart(nGRU), timeGRUcompleted(nGRU), ixExpense(nGRU), stat=err)
- if(err/=0)then; message=trim(message)//'unable to allocate space for GRU timing'; return; endif
- timeGRU(:) = realMissing ! initialize because used for ranking
-
- ! compute the total number of flux calls from the previous time step
- do jGRU=1,nGRU
-  totalFluxCalls(jGRU) = 0._rkind
-  do iHRU=1,gru_struc(jGRU)%hruCount
-   totalFluxCalls(jGRU) = totalFluxCalls(jGRU) + indxStruct%gru(jGRU)%hru(iHRU)%var(iLookINDEX%numberFluxCalc)%dat(1)
-  end do
- end do
-
- ! get the indices that can rank the computational expense
- call indexx(timeGRU, ixExpense) ! ranking of each GRU w.r.t. computational expense
- ixExpense=ixExpense(nGRU:1:-1)  ! reverse ranking: now largest to smallest
-
- ! initialize the GRU count
- ! NOTE: this needs to be outside the parallel section so it is not reinitialized by different threads
- kGRU=0
+ if(do_outer)then
+   if(modelTimeStep==1)then
+    do iGRU=1,nGRU
+     do iHRU=1,gru_struc(iGRU)%hruCount
+  
+      ! get vegetation phenology
+      ! (compute the exposed LAI and SAI and whether veg is buried by snow)
+      call vegPhenlgy(&
+                      ! model control
+                      gru_struc(iGRU)%hruInfo(iHRU)%nSnow, & ! intent(in):    number of snow layers in the HRU
+                      model_decisions,                     & ! intent(in):    model decisions
+                      fracJulDay,                          & ! intent(in):    fractional julian days since the start of year
+                      yearLength,                          & ! intent(in):    number of days in the current year
+                      ! input/output: data structures      
+                      typeStruct%gru(iGRU)%hru(iHRU),      & ! intent(in):    type of vegetation and soil
+                      attrStruct%gru(iGRU)%hru(iHRU),      & ! intent(in):    spatial attributes
+                      mparStruct%gru(iGRU)%hru(iHRU),      & ! intent(in):    model parameters
+                      progStruct%gru(iGRU)%hru(iHRU),      & ! intent(inout): model prognostic variables for a local HRU
+                      diagStruct%gru(iGRU)%hru(iHRU),      & ! intent(inout): model diagnostic variables for a local HRU
+                      ! output
+                      computeVegFluxFlag,                  & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                      notUsed_canopyDepth,                 & ! intent(out): NOT USED: canopy depth (m)
+                      notUsed_exposedVAI,                  & ! intent(out): NOT USED: exposed vegetation area index (m2 m-2)
+                      err,cmessage)                          ! intent(out): error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  
+      ! save the flag for computing the vegetation fluxes
+      if(computeVegFluxFlag)      computeVegFlux%gru(iGRU)%hru(iHRU) = yes
+      if(.not.computeVegFluxFlag) computeVegFlux%gru(iGRU)%hru(iHRU) = no
+  
+     end do  ! looping through HRUs
+    end do  ! looping through GRUs
+   end if  ! if the first time step
+  
+   ! ****************************************************************************
+   ! *** model simulation
+   ! ****************************************************************************
+  
+   ! initialize the start of the physics
+   call date_and_time(values=startPhysics)
+  
+   ! ----- rank the GRUs in terms of their anticipated computational expense -----
+  
+   ! estimate computational expense based on persistence
+   !  -- assume that that expensive GRUs from a previous time step are also expensive in the current time step
+  
+   ! allocate space for GRU timing
+   allocate(totalFluxCalls(nGRU), timeGRU(nGRU), timeGRUstart(nGRU), timeGRUcompleted(nGRU), ixExpense(nGRU), stat=err)
+   if(err/=0)then; message=trim(message)//'unable to allocate space for GRU timing'; return; endif
+   timeGRU(:) = realMissing ! initialize because used for ranking
+  
+   ! compute the total number of flux calls from the previous time step
+   do jGRU=1,nGRU
+    totalFluxCalls(jGRU) = 0._rkind
+    do iHRU=1,gru_struc(jGRU)%hruCount
+     totalFluxCalls(jGRU) = totalFluxCalls(jGRU) + indxStruct%gru(jGRU)%hru(iHRU)%var(iLookINDEX%numberFluxCalc)%dat(1)
+    end do
+   end do
+  
+   ! get the indices that can rank the computational expense
+   call indexx(timeGRU, ixExpense) ! ranking of each GRU w.r.t. computational expense
+   ixExpense=ixExpense(nGRU:1:-1)  ! reverse ranking: now largest to smallest
+  
+   ! initialize the GRU count
+   ! NOTE: this needs to be outside the parallel section so it is not reinitialized by different threads
+   kGRU=0
+  
+   ! initialize the time that the openMP section starts
+   call system_clock(openMPstart)
+ endif ! end of outer loop
  end associate summaVars
-
- ! initialize the time that the openMP section starts
- call system_clock(openMPstart)
 
  ! ----- use openMP directives to run GRUs in parallel -------------------------
  ! start of parallel section: define shared and private structure elements
@@ -233,17 +249,24 @@ contains
  ) ! assignment to variables in the data structures
 
  !$omp do schedule(dynamic, 1)
- do jGRU=1,nGRU  ! loop through GRUs
-#ifdef NGEN_ACTIVE
-  write(*,'(A15,I0,A10,I0)' ) 'SUMMA gru nc = ',gru_struc(jGRU)%gru_nc,', gruId = ', gru_struc(jGRU)%gru_id
+#ifdef NGEN_ACTIVE 
+ iGRU_start = iRunGRU
+ iGRU_end   = iRunGRU
+#else
+ iGRU_start = 1
+ iGRU_end   = nGRU
 #endif
-  write(*,'(A15,I0,A10,I0)' ) 'SUMMA gru nc = ',gru_struc(jGRU)%gru_nc,', gruId = ', gru_struc(jGRU)%gru_id
-
+ do jGRU = iGRU_start, iGRU_end
   !----- process GRUs in order of computational expense -------------------------
   !$omp critical(setGRU)
   ! assign expensive GRUs to threads that enter first
   kGRU = kGRU+1
+#ifdef NGEN_ACTIVE 
+  iGRU = jGRU
+  write(*,'(A15,I0,A10,I0)' ) 'SUMMA gru nc = ',gru_struc(jGRU)%gru_nc,', gruId = ', gru_struc(jGRU)%gru_id
+#else
   iGRU = ixExpense(kGRU)
+#endif
   ! get the time that the GRU started
   call system_clock( timeGRUstart(iGRU) )
   !$omp end critical(setGRU)
@@ -287,17 +310,17 @@ contains
  end associate summaVars2
  !$omp end parallel
 
- ! identify the end of the physics
- call date_and_time(values=endPhysics)
-
- ! aggregate the elapsed time for the physics
- elapsedPhysics = elapsedPhysics + elapsedSec(startPhysics, endPhysics)
-
- ! deallocate space used to determine the GRU computational expense
- deallocate(totalFluxCalls, ixExpense, timeGRU, stat=err)
- if(err/=0)then; message=trim(message)//'unable to deallocate space for GRU timing'; return; endif
-
- ! end associate statements
+ if(do_outer)then
+   ! identify the end of the physics
+   call date_and_time(values=endPhysics)
+  
+   ! aggregate the elapsed time for the physics
+   elapsedPhysics = elapsedPhysics + elapsedSec(startPhysics, endPhysics)
+  
+   ! deallocate space used to determine the GRU computational expense
+   deallocate(totalFluxCalls, ixExpense, timeGRU, stat=err)
+   if(err/=0)then; message=trim(message)//'unable to deallocate space for GRU timing'; return; endif
+ endif
 
  end subroutine summa_runPhysics
 
