@@ -234,6 +234,9 @@ contains
 
  !$omp do schedule(dynamic, 1)
  do jGRU=1,nGRU  ! loop through GRUs
+#ifdef NGEN_ACTIVE
+  write(*,'(A15,I0,A10,I0)' ) 'SUMMA gru nc = ',gru_struc(jGRU)%gru_nc,', gruId = ', gru_struc(jGRU)%gru_id
+#endif
 
   !----- process GRUs in order of computational expense -------------------------
   !$omp critical(setGRU)

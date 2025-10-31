@@ -90,7 +90,7 @@ contains
   checkHRU = integerMissing
   nGRU = 1; nHRU = integerMissing
   newOutputFile = noNewFiles
-  iRunMode = iRunModeGRU
+  iRunMode = iRunModeFull
 #else
  ! check number of command-line arguments
  nArgument = command_argument_count()
@@ -256,7 +256,9 @@ contains
     call printCommandHelp
 
    case default
-    ! assume BMI, already set master control file
+    call printCommandHelp
+    message='unknown command line option'
+    err=1; return
 
   end select
  end do  ! looping through command line arguments
