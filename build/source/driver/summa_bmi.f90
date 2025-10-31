@@ -52,7 +52,6 @@ module summabmi
   USE globalData, only: dJulianFinsh                          ! julian day of end time of simulation
   USE globalData, only: data_step                             ! length of time steps for the outermost timeloop
   USE globalData, only: gru_struc                             ! gru-hru mapping structures
-  USE globalData, only: startGRU                              ! index of the starting GRU for parallelization run
   USE multiconst, only: secprday                              ! number of seconds in a day
   ! provide access to the named variables that describe elements of parent model structures
   USE var_lookup, only: iLookTIME                             ! named variables for time data structure
@@ -182,6 +181,7 @@ module summabmi
      character(len=1024)                :: message=''                 ! error message
      character(len=1024)                :: file_manager
      integer(i4b)                       :: attrib_file_HRU_order
+     integer(i4b)                       :: startGRU
      integer  :: bmi_status,i,fu,rc
      ! namelist definition
      namelist /parameters/ file_manager, attrib_file_HRU_order
@@ -244,9 +244,9 @@ module summabmi
      call summa_readForcing(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
-     if (mod(this%model%timeStep, print_step_freq) == 0)then
+     !if (mod(this%model%timeStep, print_step_freq) == 0)then
        print *, 'step ---> ', this%model%timeStep
-     endif
+     !endif
      ! run the summa physics for one time step
      call summa_runPhysics(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
