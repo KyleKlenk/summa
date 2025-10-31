@@ -182,7 +182,6 @@ module summabmi
      character(len=1024)                :: message=''                 ! error message
      character(len=1024)                :: file_manager
      integer(i4b)                       :: attrib_file_HRU_order
-     integer(i4b)                       :: startGRU
      integer  :: bmi_status,i,fu,rc
      ! namelist definition
      namelist /parameters/ file_manager, attrib_file_HRU_order
@@ -203,7 +202,7 @@ module summabmi
        read (nml=parameters, iostat=rc, unit=fu)
        this%model%summa1_struc(n)%summaFileManagerFile=trim(file_manager)
        startGRU = attrib_file_HRU_order
-       print*, 'INFO: NGEN detected, will run starting GRU id ', startGRU
+       print*, 'INFO: NGEN detected, using file manager file ', trim(file_manager), ' and starting GRU id ', startGRU
 #else
        ! without NGEN the argument gives the file manager file directly
        ! Note, if this is more than 80 characters the pre-built BMI libraries will fail
