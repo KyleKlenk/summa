@@ -90,7 +90,7 @@ contains
   checkHRU = integerMissing
   nGRU = 1; nHRU = integerMissing
   newOutputFile = noNewFiles
-  iRunMode = iRunModeFull
+  iRunMode = iRunModeGRU
 #else
  ! check number of command-line arguments
  nArgument = command_argument_count()

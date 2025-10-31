@@ -89,6 +89,7 @@ contains
  if     (present(startGRU)) then
   if (nGRU < 1) then; err=20; message=trim(message)//'nGRU < 1 for a startGRU run'; return; end if
   sGRU = startGRU
+  print*, 'INFO: NGEN detected, will run starting GRU id ', sGRU, nGRU
  elseif (present(checkHRU)) then
   nGRU = 1
  else

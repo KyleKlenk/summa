@@ -132,6 +132,7 @@ contains
 
  ! initialize error control
  err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru nc = ',gruInfo%gru_nc,', gruId = ',gruInfo%gru_id,')/'
+ write(*, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru nc = ',gruInfo%gru_nc,', gruId = ',gruInfo%gru_id,')/'
 
  ! ----- basin initialization --------------------------------------------------------------------------------------------
 
