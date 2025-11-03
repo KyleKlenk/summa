@@ -90,6 +90,7 @@ contains
   checkHRU = integerMissing
   nGRU = 1; nHRU = integerMissing
   newOutputFile = noNewFiles
+  ixProgress = ixProgress_never ! NGen prints own progress
   iRunMode = iRunModeGRU
 #else
  ! check number of command-line arguments

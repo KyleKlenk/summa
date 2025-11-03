@@ -58,19 +58,27 @@ module summabmi
   USE globalData, only: dJulianFinsh                          ! julian day of end time of simulation
   USE globalData, only: data_step                             ! length of time steps for the outermost timeloop
   USE globalData, only: startGRU                              ! index of the starting GRU for run
+  USE globalData, only:ixRestart_iy,ixRestart_im,ixRestart_id,ixRestart_end,ixRestart_never ! restart file frequency options
   USE globalData, only: gru_struc                             ! HRU information for given GRU
   USE globalData, only: index_map                             ! GRU information for given HRU
   USE globalData, only: model_decisions                       ! model decision structure 
   USE globalData, only: fileout, output_fileSuffix            ! output filename and suffix
   USE globalData, only: ncid                                  ! netcdf output file id
   USE globalData, only: maxLayers, maxSnowLayers              ! maximum number of layers and snow layers
+  USE globalData, only: ixProgress                            ! define frequency to write progress
+  USE globalData, only: ixRestart                             ! define frequency to write restart files
+  USE globalData, only: newOutputFile                         ! define option for new output files
   USE globalData, only: nHRUrun                               ! number of HRUs in the run domain
   USE globalData, only: urbanVegCategory                      ! vegetation category for urban areas
 #ifndef NGEN_FORCING_ACTIVE
   USE globalData, only: ixHRUfile_min, ixHRUfile_max          ! indices of the first and last HRUs in the forcing file
   USE globalData, only: nHRUfile                              ! number of HRUs in the forcing file
   USE globalData, only: forcFileInfo                          ! file info for model forcing data
+  USE globalData, only: iFile                                 ! index of current forcing file from forcing file list
+  USE globalData, only: forcingStep, forcNcid                 ! index of current time step in current forcing file and netcdf id
 #endif
+  USE globalData, only: statCounter, outputTimeStep           ! timestep in output files and time counter for stats
+  USE globalData, only: resetStats, finalizeStats             ! flags to reset and finalize statistics
   USE globalData, only: elapsedInit                           ! elapsed time for the initialization
   USE globalData, only: elapsedSetup                          ! elapsed time for the parameter setup
   USE globalData, only: elapsedRestart                        ! elapsed time to read restart data
@@ -101,13 +109,20 @@ module summabmi
      character(len=256)                 :: fileout, output_fileSuffix        ! output filename and suffix
      integer(i4b),dimension(maxvarFreq) :: ncid                              ! netcdf output file id
      integer(i4b)                       :: maxLayers, maxSnowLayers          ! maximum number of layers and snow layers, could be different for different GRUs
+     integer(i4b)                       :: ixProgress                        ! define frequency to write progress
+     integer(i4b)                       :: ixRestart                         ! define frequency to write restart files
+     integer(i4b)                       :: newOutputFile                     ! define option for new output files
      integer(i4b)                       :: nHRUrun                           ! number of HRUs in the run domain
      integer(i4b)                       :: urbanVegCategory                  ! vegetation category for urban areas
 #ifndef NGEN_FORCING_ACTIVE
      integer(i4b)                       :: ixHRUfile_min, ixHRUfile_max      ! indices of the first and last HRUs in the forcing file
      integer(i4b)                       :: nHRUfile                          ! number of HRUs in the forcing file
      type(file_info), allocatable       :: forcFileInfo(:)                   ! file info for model forcing data
+     integer(i4b)                       :: iFile                             ! index of current forcing file from forcing file list
+     integer(i4b)                       :: forcingStep, forcNcid             ! index of current time step in current forcing file and netcdf id
 #endif
+     integer(i4b),dimension(maxvarFreq) :: statCounter, outputTimeStep       ! time counter for stats and time step in output files
+     logical(lgt),dimension(maxvarFreq) :: resetStats, finalizeStats         ! flags to reset and finalize statistics
      real(rkind)                        :: elapsedInit                       ! elapsed time for the initialization
      real(rkind)                        :: elapsedSetup                      ! elapsed time for the parameter setup
      real(rkind)                        :: elapsedRestart                    ! elapsed time to read restart data
@@ -226,15 +241,26 @@ module summabmi
      integer(i4b)                       :: err=0                      ! error code
      character(len=1024)                :: message=''                 ! error message
      character(len=1024)                :: file_manager
+     character(len=16)                  :: restart_print_freq
      integer(i4b)                       :: attrib_file_HRU_order
+     character(len=16)                  :: ixRestart_str
      integer  :: bmi_status,i,fu,rc
      ! namelist definition
-     namelist /parameters/ file_manager, attrib_file_HRU_order
+     namelist /parameters/ file_manager, attrib_file_HRU_order, restart_print_freq
 
      ! initialize global variables
      this%model%timeStep = 0
-     fileout=''
-     output_fileSuffix=''
+     fileout = ''
+     output_fileSuffix = ''
+#ifndef NGEN_FORCING_ACTIVE
+     iFile = 1
+     forcingStep = integerMissing
+     forcNcid = integerMissing
+#endif
+     statCounter = 0
+     outputTimeStep = 0
+     resetStats = .true.
+     finalizeStats = .false.
 
      ! allocate space for the master summa structure
      allocate(this%model%summa1_struc(n), stat=err)
@@ -249,6 +275,15 @@ module summabmi
        read (nml=parameters, iostat=rc, unit=fu)
        this%model%summa1_struc(n)%summaFileManagerFile=trim(file_manager)
        startGRU = attrib_file_HRU_order
+       ixRestart_str = trim(restart_print_freq)
+       select case (ixRestart_str)
+        case ('y' , 'year');  ixRestart = ixRestart_iy
+        case ('m' , 'month'); ixRestart = ixRestart_im
+        case ('d' , 'day');   ixRestart = ixRestart_id
+        case ('e' , 'end');   ixRestart = ixRestart_end
+        case ('n' , 'never'); ixRestart = ixRestart_never
+        case default;  print*, 'unknown frequency to write restart files in NGEN parameters namelist'; err=1; return
+       end select
        print *
        print *, "INFO: NGEN detected, using file manager file ", trim(file_manager), " and GRU index in files ", startGRU
 #else
@@ -270,11 +305,6 @@ module summabmi
      call summa_readRestart(this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
-     ! update global variables in the model structure
-     this%model%timeStep = 1
-     this%model%elapsedInit = elapsedInit
-     this%model%elapsedSetup = elapsedSetup
-     this%model%elapsedRestart = elapsedRestart
      ! get global variables that are constants throughout the model simulation
      this%model%gru_struc = gru_struc
      this%model%index_map = index_map
@@ -283,13 +313,20 @@ module summabmi
      this%model%maxLayers = maxLayers
      this%model%maxSnowLayers = maxSnowLayers
      this%model%urbanVegCategory = urbanVegCategory
+     this%model%ixProgress = ixProgress
+     this%model%ixRestart = ixRestart
+     this%model%newOutputFile = newOutputFile
 #ifndef NGEN_FORCING_ACTIVE
      this%model%ixHRUfile_min = ixHRUfile_min
      this%model%ixHRUfile_max = ixHRUfile_max
-     !this%model%forcFileInfo = forcFileInfo
+     this%model%forcFileInfo = forcFileInfo
 #endif
-     ! initialize global variables that change during the model simulation
+     ! update global variables in the model structure that change during the model simulation
+     this%model%timeStep = 1
      this%model%ncid = ncid
+     this%model%elapsedInit = elapsedInit
+     this%model%elapsedSetup = elapsedSetup
+     this%model%elapsedRestart = elapsedRestart
      this%model%elapsedRead = elapsedRead
      this%model%elapsedWrite = elapsedWrite
      this%model%elapsedPhysics = elapsedPhysics
@@ -314,19 +351,28 @@ module summabmi
      maxLayers = this%model%maxLayers
      maxSnowLayers = this%model%maxSnowLayers
      urbanVegCategory = this%model%urbanVegCategory
+     ixProgress = this%model%ixProgress
+     ixRestart = this%model%ixRestart
+     newOutputFile = this%model%newOutputFile
 #ifndef NGEN_FORCING_ACTIVE
      ixHRUfile_min = this%model%ixHRUfile_min
      ixHRUfile_max = this%model%ixHRUfile_max
-     this%model%forcFileInfo = forcFileInfo
+     forcFileInfo = this%model%forcFileInfo
+     iFile = this%model%iFile
+     forcingStep = this%model%forcingStep
+     forcNcid = this%model%forcNcid
 #endif
-     ! get global variables that change during the model simulation
+     ! initialize global variables that change during the model simulation
      fileout = this%model%fileout
      ncid = this%model%ncid
      elapsedRead = this%model%elapsedRead
      elapsedWrite = this%model%elapsedWrite
      elapsedPhysics = this%model%elapsedPhysics
-
-     ! get global variables that change during the model simulation and are not initialized
+     statCounter = this%model%statCounter
+     outputTimeStep = this%model%outputTimeStep
+     resetStats = this%model%resetStats
+     finalizeStats = this%model%finalizeStats
+     ! initialize global variables that change during the model simulation and are not initialized before the first time step
      if(this%model%timeStep >1)then
        this%model%nHRUrun = nHRUrun
 #ifndef NGEN_FORCING_ACTIVE
@@ -361,7 +407,14 @@ module summabmi
      this%model%nHRUrun = nHRUrun
 #ifndef NGEN_FORCING_ACTIVE
      this%model%nHRUrun = nHRUfile
+     this%model%iFile = iFile
+     this%model%forcingStep = forcingStep
+     this%model%forcNcid = forcNcid
 #endif
+     this%model%statCounter = statCounter
+     this%model%outputTimeStep = outputTimeStep
+     this%model%resetStats = resetStats
+     this%model%finalizeStats = finalizeStats
      bmi_status = BMI_SUCCESS
    end function summa_update
 
