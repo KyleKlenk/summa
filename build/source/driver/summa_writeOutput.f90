@@ -155,7 +155,7 @@ contains
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message='summa_manageOutputFiles/'
+ err=0; message='summa_writeOutputFiles/'
 
  ! identify the start of the writing
  call date_and_time(values=startWrite)
@@ -257,6 +257,7 @@ contains
 
  ! write time information
  call writeTime(finalizeStats,outputTimeStep,time_meta,timeStruct%var,err,message)
+ print*, finalizeStats, outputTimeStep, timeStruct%var
 
  ! write the model output to the NetCDF file
  ! Passes the full metadata structure rather than the stats metadata structure because

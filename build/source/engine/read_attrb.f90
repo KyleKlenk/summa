@@ -160,7 +160,7 @@ else ! allocate space for anything except a single HRU run
   gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))                 ! number of HRUs in each GRU
 #ifdef NGEN_ACTIVE
   if (gru_struc(iGRU)%hruCount > 1) then; err=20; message=trim(message)//'NGEN currently only supports single-HRU per GRU'; return; end if
-  print *, 'INFO: NGEN detected, will run GRU id ', gru_id(iGRU+sGRU-1)
+  print *, 'GRU id is ', gru_id(iGRU+sGRU-1)
 #endif
   gru_struc(iGRU)%gru_id            = gru_id(iGRU+sGRU-1)                                      ! set gru id
   gru_struc(iGRU)%gru_nc            = iGRU+sGRU-1                                              ! set gru index in the netcdf file
