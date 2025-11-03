@@ -562,8 +562,8 @@ contains
  subroutine createForcingTimeData(currentJulDay,time_data,err,message)
  USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
  ! dummy variables
- real(rkind),intent(in)            :: currentJulDay    ! Julian day of current time step
- integer(i4b),intent(out)          :: time_data(:)     ! vector of time data for a given time step
+ real(rkind), intent(in)           :: currentJulDay    ! Julian day of current time step
+ integer(i4b), intent(out)         :: time_data(:)     ! vector of time data for a given time step
  integer(i4b) ,intent(out)         :: err              ! error code
  character(*) ,intent(out)         :: message          ! error message
  ! local variables
