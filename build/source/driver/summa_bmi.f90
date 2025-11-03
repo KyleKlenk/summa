@@ -34,6 +34,12 @@ module summabmi
   use bmif_2_0                                                ! BMI libraries standard
 #endif
   USE summa_type, only: summa1_type_dec                       ! master summa data type
+  USE data_types, only: gru2hru_map                           ! mapping between the GRUs and HRUs
+  USE data_types, only: hru2gru_map                           ! mapping between the GRUs and HRUs
+  USE data_types, only: model_options                         ! the model decision structure
+  USE data_types, only: var_info                              ! metadata for variables in each model structure
+  USE data_types, only: extended_info                         ! extended metadata for variables in each model structure  
+  USE data_types, only: file_info                             ! metadata for model forcing datafile
   ! subroutines and functions: model setup
   USE summa_init, only: summa_initialize                      ! used to allocate/initialize summa data structures
   USE summa_setup, only: summa_paramSetup                     ! used to initialize parameter data structures (e.g. vegetation and soil parameters)
@@ -51,9 +57,26 @@ module summabmi
   USE globalData, only: dJulianStart                          ! julian day of start time of simulation
   USE globalData, only: dJulianFinsh                          ! julian day of end time of simulation
   USE globalData, only: data_step                             ! length of time steps for the outermost timeloop
-  USE globalData, only: gru_struc                             ! gru-hru mapping structures
-  USE globalData, only: index_map                             ! hru-gru mapping structures
   USE globalData, only: startGRU                              ! index of the starting GRU for run
+  USE globalData, only: gru_struc                             ! HRU information for given GRU
+  USE globalData, only: index_map                             ! GRU information for given HRU
+  USE globalData, only: model_decisions                       ! model decision structure 
+  USE globalData, only: fileout, output_fileSuffix            ! output filename and suffix
+  USE globalData, only: ncid                                  ! netcdf output file id
+  USE globalData, only: maxLayers, maxSnowLayers              ! maximum number of layers and snow layers
+  USE globalData, only: nHRUrun                               ! number of HRUs in the run domain
+  USE globalData, only: urbanVegCategory                      ! vegetation category for urban areas
+#ifndef NGEN_FORCING_ACTIVE
+  USE globalData, only: ixHRUfile_min, ixHRUfile_max          ! indices of the first and last HRUs in the forcing file
+  USE globalData, only: nHRUfile                              ! number of HRUs in the forcing file
+  USE globalData, only: forcFileInfo                          ! file info for model forcing data
+#endif
+  USE globalData, only: elapsedInit                           ! elapsed time for the initialization
+  USE globalData, only: elapsedSetup                          ! elapsed time for the parameter setup
+  USE globalData, only: elapsedRestart                        ! elapsed time to read restart data
+  USE globalData, only: elapsedRead                           ! elapsed time for the forcing data read
+  USE globalData, only: elapsedWrite                          ! elapsed time for the stats/write
+  USE globalData, only: elapsedPhysics                        ! elapsed time for the physics
   USE multiconst, only: secprday                              ! number of seconds in a day
   ! provide access to the named variables that describe elements of parent model structures
   USE var_lookup, only: iLookTIME                             ! named variables for time data structure
@@ -63,15 +86,34 @@ module summabmi
   USE var_lookup, only: iLookDIAG                             ! named variables for local diagnostic variables
   USE var_lookup, only: iLookPROG                             ! named variables for local prognostic variables
   USE var_lookup, only: iLookBVAR                             ! named variables for basin (GRU) variables
+  USE var_lookup, only: maxvarDecisions                       ! maximum number of decisions
+  USE var_lookup, only: maxvarFreq                            ! maximum number of output files
 
   implicit none
 
   ! Define the attributes of the model.
   type :: summa_model
-     integer(i4b) :: timeStep      ! index of model time step
-     type(gru2hru_map), allocatable :: gru_struc
-     type(hru2gru_map), allocatable :: index_map
-     type(summa1_type_dec), allocatable :: summa1_struc(:)
+     integer(i4b)                       :: timeStep                          ! index of model time step
+     type(summa1_type_dec), allocatable :: summa1_struc(:)                   ! master summa data structure
+     type(gru2hru_map), allocatable     :: gru_struc(:)                      ! HRU information for given GRU
+     type(hru2gru_map), allocatable     :: index_map(:)                      ! GRU information for given HRU
+     type(model_options)                :: model_decisions(maxvarDecisions)  ! the model decisions, could change if different decisions for different GRUs
+     character(len=256)                 :: fileout, output_fileSuffix        ! output filename and suffix
+     integer(i4b),dimension(maxvarFreq) :: ncid                              ! netcdf output file id
+     integer(i4b)                       :: maxLayers, maxSnowLayers          ! maximum number of layers and snow layers, could be different for different GRUs
+     integer(i4b)                       :: nHRUrun                           ! number of HRUs in the run domain
+     integer(i4b)                       :: urbanVegCategory                  ! vegetation category for urban areas
+#ifndef NGEN_FORCING_ACTIVE
+     integer(i4b)                       :: ixHRUfile_min, ixHRUfile_max      ! indices of the first and last HRUs in the forcing file
+     integer(i4b)                       :: nHRUfile                          ! number of HRUs in the forcing file
+     type(file_info), allocatable       :: forcFileInfo(:)                   ! file info for model forcing data
+#endif
+     real(rkind)                        :: elapsedInit                       ! elapsed time for the initialization
+     real(rkind)                        :: elapsedSetup                      ! elapsed time for the parameter setup
+     real(rkind)                        :: elapsedRestart                    ! elapsed time to read restart data
+     real(rkind)                        :: elapsedRead                       ! elapsed time for the forcing data read
+     real(rkind)                        :: elapsedWrite                      ! elapsed time for the stats/write
+     real(rkind)                        :: elapsedPhysics                    ! elapsed time for the physics
   end type summa_model
 
   type, extends (bmi) :: summa_bmi
@@ -189,10 +231,12 @@ module summabmi
      ! namelist definition
      namelist /parameters/ file_manager, attrib_file_HRU_order
 
-     ! initialize time steps
+     ! initialize global variables
      this%model%timeStep = 0
+     fileout=''
+     output_fileSuffix=''
 
-     ! allocate space for the master summa structure, could happen outside of BMI function
+     ! allocate space for the master summa structure
      allocate(this%model%summa1_struc(n), stat=err)
      if(err/=0) call stop_program(1, 'problem allocating master summa structure')
 
@@ -205,9 +249,8 @@ module summabmi
        read (nml=parameters, iostat=rc, unit=fu)
        this%model%summa1_struc(n)%summaFileManagerFile=trim(file_manager)
        startGRU = attrib_file_HRU_order
-       this%model%gru_struc = gru_struc
-       this%model%index_map = index_map
-       print*, 'INFO: NGEN detected, using file manager file ', trim(file_manager), ' and starting GRU id ', startGRU
+       print *
+       print *, "INFO: NGEN detected, using file manager file ", trim(file_manager), " and GRU index in files ", startGRU
 #else
        ! without NGEN the argument gives the file manager file directly
        ! Note, if this is more than 80 characters the pre-built BMI libraries will fail
@@ -227,8 +270,29 @@ module summabmi
      call summa_readRestart(this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
-     ! done with initialization
+     ! update global variables in the model structure
      this%model%timeStep = 1
+     this%model%elapsedInit = elapsedInit
+     this%model%elapsedSetup = elapsedSetup
+     this%model%elapsedRestart = elapsedRestart
+     ! get global variables that are constants throughout the model simulation
+     this%model%gru_struc = gru_struc
+     this%model%index_map = index_map
+     this%model%model_decisions = model_decisions
+     this%model%output_fileSuffix = output_fileSuffix
+     this%model%maxLayers = maxLayers
+     this%model%maxSnowLayers = maxSnowLayers
+     this%model%urbanVegCategory = urbanVegCategory
+#ifndef NGEN_FORCING_ACTIVE
+     this%model%ixHRUfile_min = ixHRUfile_min
+     this%model%ixHRUfile_max = ixHRUfile_max
+     !this%model%forcFileInfo = forcFileInfo
+#endif
+     ! initialize global variables that change during the model simulation
+     this%model%ncid = ncid
+     this%model%elapsedRead = elapsedRead
+     this%model%elapsedWrite = elapsedWrite
+     this%model%elapsedPhysics = elapsedPhysics
      bmi_status = BMI_SUCCESS
    end function summa_bmi_initialize
 
@@ -242,31 +306,62 @@ module summabmi
      character(len=1024)                :: message=''                 ! error message
      integer :: bmi_status
 
-     ! get structures
-      gru_struc = this%model%gru_struc
-      index_map = this%model%index_map
+     ! get global variables that are constants throughout the model simulation
+     gru_struc = this%model%gru_struc
+     index_map = this%model%index_map
+     model_decisions = this%model%model_decisions
+     output_fileSuffix = this%model%output_fileSuffix
+     maxLayers = this%model%maxLayers
+     maxSnowLayers = this%model%maxSnowLayers
+     urbanVegCategory = this%model%urbanVegCategory
+#ifndef NGEN_FORCING_ACTIVE
+     ixHRUfile_min = this%model%ixHRUfile_min
+     ixHRUfile_max = this%model%ixHRUfile_max
+     this%model%forcFileInfo = forcFileInfo
+#endif
+     ! get global variables that change during the model simulation
+     fileout = this%model%fileout
+     ncid = this%model%ncid
+     elapsedRead = this%model%elapsedRead
+     elapsedWrite = this%model%elapsedWrite
+     elapsedPhysics = this%model%elapsedPhysics
+
+     ! get global variables that change during the model simulation and are not initialized
+     if(this%model%timeStep >1)then
+       this%model%nHRUrun = nHRUrun
+#ifndef NGEN_FORCING_ACTIVE
+       this%model%nHRUrun = nHRUfile
+#endif
+     end if
 
      ! read model forcing data
      call summa_readForcing(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
-     !if (mod(this%model%timeStep, print_step_freq) == 0)then
+     if (mod(this%model%timeStep, print_step_freq) == 0)then
        print *, 'step ---> ', this%model%timeStep
-     !endif
+     endif
      ! run the summa physics for one time step
      call summa_runPhysics(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
-#ifndef NGEN_ACTIVE
      ! write the model output
+!#ifndef NGEN_OUTPUT_ACTIVE
      call summa_writeOutputFiles(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
-#endif
+!#endif
 
-     ! start, advance time, as model uses this time step throughout
+     ! update global variables that change during the model simulation
      this%model%timeStep = this%model%timeStep + 1
-
-     ! done with step
+     this%model%fileout = fileout
+     this%model%ncid = ncid
+     this%model%elapsedRead = elapsedRead
+     this%model%elapsedWrite = elapsedWrite
+     this%model%elapsedPhysics = elapsedPhysics
+     this%model%nHRUrun = nHRUrun
+#ifndef NGEN_FORCING_ACTIVE
+     this%model%nHRUrun = nHRUfile
+#endif
      bmi_status = BMI_SUCCESS
    end function summa_update
 
@@ -294,11 +389,20 @@ module summabmi
    end function summa_update_until
 
    ! *****************************************************************************
-   ! * successful end
+   ! * successful end (NOTE, NGEN does not call finalize)
    ! *****************************************************************************
    function summa_finalize(this) result (bmi_status)
      class (summa_bmi), intent(inout) :: this
      integer :: bmi_status
+
+     ! get global variables that change during the model simulation
+     ncid = this%model%ncid
+     elapsedInit = this%model%elapsedInit
+     elapsedSetup = this%model%elapsedSetup
+     elapsedRestart = this%model%elapsedRestart
+     elapsedRead = this%model%elapsedRead
+     elapsedWrite = this%model%elapsedWrite
+     elapsedPhysics = this%model%elapsedPhysics
 
      call stop_program(0, 'finished simulation successfully.')
      ! to prevent exiting before HDF5 has closed

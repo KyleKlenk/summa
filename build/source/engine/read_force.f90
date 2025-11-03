@@ -175,7 +175,6 @@ contains
   message=trim(message)//'expect the file to be open'
   err=20; return
  end if  ! end ncid open check
-
 #endif
 
  ! **********************************************************************************************
