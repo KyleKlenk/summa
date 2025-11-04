@@ -24,6 +24,7 @@ USE netcdf_util_module,only:netcdf_err        ! netcdf error handling function
 USE netcdf_util_module,only:nc_file_close     ! close NetCDF files
 USE f2008funcs_module,only:cloneStruc         ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
 USE nrtype, integerMissing=>nr_integerMissing ! top-level data types
+USE globalData, only: numtim
 USE globalData, only: outputPrecision         ! data structure for output precision
 USE globalData, only: chunkSize               ! size of chunks to write
 USE globalData, only: outputCompressionLevel  ! netcdf deflate level
@@ -314,10 +315,13 @@ contains
   if (metaData(iVar)%statIndex(iFreq)==integerMissing .and. metaData(iVar)%varName/='time') cycle
 
   ! ---------- get the dimension IDs (use cloneStruc, given source) ----------
-  gruChunk = min(nGRUrun, chunkSize)
-  hruChunk = min(nHRUrun, chunkSize)
+  gruChunk  = min(nGRUrun, chunkSize)
+  hruChunk  = min(nHRUrun, chunkSize)
   timeChunk = chunkSize
   layerChunk = 1
+
+  ! set the chunk size to the number of time steps for single basin runs
+  if(nGRUrun == 1) timeChunk = numtim
 
   ! special case of the time variable
   if(metaData(iVar)%varName == 'time')then

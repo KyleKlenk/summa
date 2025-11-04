@@ -37,7 +37,9 @@ MODULE globalData
   USE data_types,only:extended_info   ! extended metadata for variables in each model structure
   USE data_types,only:struct_info     ! summary information on all data structures
   USE data_types,only:var_i           ! vector of integers
+  USE data_types,only:gru_hru_int     ! x%gru(:)%hru(:)%var(:)     (i4b)
   USE data_types,only:gru_hru_double  ! x%gru(:)%hru(:)%var(:)     (rkind)
+  USE data_types,only:gru_double      ! x%gru(:)%var(:)            (rkind)
   ! number of variables in each data structure
   USE var_lookup,only:maxvarTime      ! time:                     maximum number variables
   USE var_lookup,only:maxvarForc      ! forcing data:             maximum number variables
@@ -233,10 +235,17 @@ MODULE globalData
   integer(i4b),save,public                       :: chunksize=1024                    ! chunk size for the netcdf read/write
   integer(i4b),save,public                       :: outputPrecision=nf90_double       ! variable type
   integer(i4b),save,public                       :: outputCompressionLevel=4          ! output netcdf file deflate level: 0-9. 0 is no compression.
-  ! define vectors for the buffered read
+  ! define data structures for the buffered read
   integer(i4b),save,public                       :: ixStartRead                       ! start index of the data read
   real(rkind),save,public,allocatable            :: fulltimeVec(:)                    ! full time vector in an input file (nRead)
   type(gru_hru_double),save,public,allocatable   :: fullforcingStruct(:)              ! x(:)%gru(:)%hru(:)%var(:)     -- full model forcing data
+  ! define data structures for the buffered write
+  type(gru_hru_int),   save,public,allocatable   :: fullIndxSave(:)                   ! x(:)%gru(:)%hru(:)%var(:) -- saved output for indices
+  type(gru_hru_double),save,public,allocatable   :: fullForcSave(:)                   ! x(:)%gru(:)%hru(:)%var(:) -- saved output for forcing
+  type(gru_hru_double),save,public,allocatable   :: fullProgSave(:)                   ! x(:)%gru(:)%hru(:)%var(:) -- saved output for prognostic variables
+  type(gru_hru_double),save,public,allocatable   :: fullDiagSave(:)                   ! x(:)%gru(:)%hru(:)%var(:) -- saved output for diagnostic variables
+  type(gru_hru_double),save,public,allocatable   :: fullFluxSave(:)                   ! x(:)%gru(:)%hru(:)%var(:) -- saved output for flux variables
+  type(gru_double),    save,public,allocatable   :: fullBvarSave(:)                   ! x(:)%gru(:)%var(:)        -- saved output for basin variables
   ! define result from the time calls
   integer(i4b),dimension(8),save,public          :: startInit,endInit                 ! date/time for the start and end of the initialization
   integer(i4b),dimension(8),save,public          :: startSetup,endSetup               ! date/time for the start and end of the parameter setup

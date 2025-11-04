@@ -13,5 +13,5 @@ export SUNDIALS_DIR=$HOME/local/sundials
 cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Release
 #cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Debug
 #cmake -B ../cmake_build -S ../. -DCMAKE_BUILD_TYPE=Debug \
-#  -DCMAKE_Fortran_FLAGS_DEBUG="-O0 -g -Wall -Wextra -Wuninitialized -Wmaybe-uninitialized -fcheck=all -finit-real=snan -finit-integer=2147483647"
+#  -DCMAKE_Fortran_FLAGS_DEBUG="-O0 -g -fbacktrace -fcheck=all -Wall -Wextra -Wuninitialized -Wmaybe-uninitialized -fcheck=all -finit-real=snan -finit-integer=2147483647"
 cmake --build ../cmake_build --target all -j
