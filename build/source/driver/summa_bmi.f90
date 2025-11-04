@@ -40,6 +40,7 @@ module summabmi
   USE data_types, only: var_info                              ! metadata for variables in each model structure
   USE data_types, only: extended_info                         ! extended metadata for variables in each model structure  
   USE data_types, only: file_info                             ! metadata for model forcing datafile
+  USE data_types, only: var_i                                 ! vector of integers
   ! subroutines and functions: model setup
   USE summa_init, only: summa_initialize                      ! used to allocate/initialize summa data structures
   USE summa_setup, only: summa_paramSetup                     ! used to initialize parameter data structures (e.g. vegetation and soil parameters)
@@ -58,11 +59,12 @@ module summabmi
   USE globalData, only: dJulianFinsh                          ! julian day of end time of simulation
   USE globalData, only: data_step                             ! length of time steps for the outermost timeloop
   USE globalData, only: startGRU                              ! index of the starting GRU for run
-  USE globalData, only:ixRestart_iy,ixRestart_im,ixRestart_id,ixRestart_end,ixRestart_never ! restart file frequency options
+  USE globalData, only: ixRestart_iy,ixRestart_im,ixRestart_id,ixRestart_end,ixRestart_never ! restart file frequency options
   USE globalData, only: gru_struc                             ! HRU information for given GRU
   USE globalData, only: index_map                             ! GRU information for given HRU
   USE globalData, only: model_decisions                       ! model decision structure 
   USE globalData, only: fileout, output_fileSuffix            ! output filename and suffix
+  USE globalData, only: outFreq                               ! output frequency flags
   USE globalData, only: ncid                                  ! netcdf output file id
   USE globalData, only: maxLayers, maxSnowLayers              ! maximum number of layers and snow layers
   USE globalData, only: ixProgress                            ! define frequency to write progress
@@ -79,6 +81,7 @@ module summabmi
 #endif
   USE globalData, only: statCounter, outputTimeStep           ! timestep in output files and time counter for stats
   USE globalData, only: resetStats, finalizeStats             ! flags to reset and finalize statistics
+  USE globalData, only: oldTime                               ! time for the previous model time step
   USE globalData, only: elapsedInit                           ! elapsed time for the initialization
   USE globalData, only: elapsedSetup                          ! elapsed time for the parameter setup
   USE globalData, only: elapsedRestart                        ! elapsed time to read restart data
@@ -107,6 +110,7 @@ module summabmi
      type(hru2gru_map), allocatable     :: index_map(:)                      ! GRU information for given HRU
      type(model_options)                :: model_decisions(maxvarDecisions)  ! the model decisions, could change if different decisions for different GRUs
      character(len=256)                 :: fileout, output_fileSuffix        ! output filename and suffix
+     logical(lgt),dimension(maxvarFreq) :: outFreq                           ! true if the output frequency is desired
      integer(i4b),dimension(maxvarFreq) :: ncid                              ! netcdf output file id
      integer(i4b)                       :: maxLayers, maxSnowLayers          ! maximum number of layers and snow layers, could be different for different GRUs
      integer(i4b)                       :: ixProgress                        ! define frequency to write progress
@@ -123,6 +127,7 @@ module summabmi
 #endif
      integer(i4b),dimension(maxvarFreq) :: statCounter, outputTimeStep       ! time counter for stats and time step in output files
      logical(lgt),dimension(maxvarFreq) :: resetStats, finalizeStats         ! flags to reset and finalize statistics
+     type(var_i)                        :: oldTime                           ! time for the previous model time step
      real(rkind)                        :: elapsedInit                       ! elapsed time for the initialization
      real(rkind)                        :: elapsedSetup                      ! elapsed time for the parameter setup
      real(rkind)                        :: elapsedRestart                    ! elapsed time to read restart data
@@ -323,6 +328,8 @@ module summabmi
 #endif
      ! update global variables in the model structure that change during the model simulation
      this%model%timeStep = 1
+     this%model%oldTime = oldTime
+     this%model%outFreq = outFreq
      this%model%ncid = ncid
      this%model%elapsedInit = elapsedInit
      this%model%elapsedSetup = elapsedSetup
@@ -348,12 +355,13 @@ module summabmi
      index_map = this%model%index_map
      model_decisions = this%model%model_decisions
      output_fileSuffix = this%model%output_fileSuffix
+     newOutputFile = this%model%newOutputFile
+     outFreq = this%model%outFreq
      maxLayers = this%model%maxLayers
      maxSnowLayers = this%model%maxSnowLayers
      urbanVegCategory = this%model%urbanVegCategory
      ixProgress = this%model%ixProgress
      ixRestart = this%model%ixRestart
-     newOutputFile = this%model%newOutputFile
 #ifndef NGEN_FORCING_ACTIVE
      ixHRUfile_min = this%model%ixHRUfile_min
      ixHRUfile_max = this%model%ixHRUfile_max
@@ -365,13 +373,14 @@ module summabmi
      ! initialize global variables that change during the model simulation
      fileout = this%model%fileout
      ncid = this%model%ncid
-     elapsedRead = this%model%elapsedRead
-     elapsedWrite = this%model%elapsedWrite
-     elapsedPhysics = this%model%elapsedPhysics
      statCounter = this%model%statCounter
      outputTimeStep = this%model%outputTimeStep
      resetStats = this%model%resetStats
      finalizeStats = this%model%finalizeStats
+     oldTime = this%model%oldTime
+     elapsedRead = this%model%elapsedRead
+     elapsedWrite = this%model%elapsedWrite
+     elapsedPhysics = this%model%elapsedPhysics
      ! initialize global variables that change during the model simulation and are not initialized before the first time step
      if(this%model%timeStep >1)then
        this%model%nHRUrun = nHRUrun
@@ -401,9 +410,6 @@ module summabmi
      this%model%timeStep = this%model%timeStep + 1
      this%model%fileout = fileout
      this%model%ncid = ncid
-     this%model%elapsedRead = elapsedRead
-     this%model%elapsedWrite = elapsedWrite
-     this%model%elapsedPhysics = elapsedPhysics
      this%model%nHRUrun = nHRUrun
 #ifndef NGEN_FORCING_ACTIVE
      this%model%nHRUrun = nHRUfile
@@ -415,6 +421,10 @@ module summabmi
      this%model%outputTimeStep = outputTimeStep
      this%model%resetStats = resetStats
      this%model%finalizeStats = finalizeStats
+     this%model%oldTime = oldTime
+     this%model%elapsedRead = elapsedRead
+     this%model%elapsedWrite = elapsedWrite
+     this%model%elapsedPhysics = elapsedPhysics
      bmi_status = BMI_SUCCESS
    end function summa_update
 

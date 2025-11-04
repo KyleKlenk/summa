@@ -257,7 +257,6 @@ contains
 
  ! write time information
  call writeTime(finalizeStats,outputTimeStep,time_meta,timeStruct%var,err,message)
- print*, finalizeStats, outputTimeStep, timeStruct%var
 
  ! write the model output to the NetCDF file
  ! Passes the full metadata structure rather than the stats metadata structure because
