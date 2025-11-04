@@ -54,7 +54,7 @@ contains
  character(256)                 :: cmessage         ! error message
  integer(i4b)                   :: iVar             ! index for varaiable loop
  integer(i4b)                   :: pVar             ! index into parent structure
- real(rkind)                       :: tdata            ! dummy for pulling info from dat structure
+ real(rkind)                    :: tdata            ! dummy for pulling info from dat structure
 
  ! initialize error control
  err=0; message='calcStats/'
@@ -205,6 +205,7 @@ contains
    select case(meta%statIndex(iFreq))                  ! act depending on the statistic
     ! -------------------------------------------------------------------------------------
     case (iLookSTAT%mean)                              ! * mean over period
+        print*, tstat(iFreq), statCounter(iFreq), " before mean calc"
      tstat(iFreq) = tstat(iFreq)/statCounter(iFreq)    !     - normalize sum into mean
     case (iLookSTAT%vari)                              ! * variance over period
      tstat(maxVarFreq+iFreq) = tstat(maxVarFreq+1)/statCounter(iFreq)            ! E[X] term

@@ -20,6 +20,9 @@ averageRoutedRunoff   | 1
 scalarTotalRunoff     | 24
 scalarSWE             | 24
 scalarGroundSnowFraction | 24
+!
+SWRadAtm              | 1
+scalarSWE             | 1
 
 
 
