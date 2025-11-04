@@ -68,6 +68,5 @@ cmake -S . -B cmake_build -DBoost_INCLUDE_DIR=/opt/local/libexec/boost/1.81/incl
 #    -DNGEN_QUIET:BOOL=ON             :  may want turn to this OFF, especially if debugging
 #    -DNGEN_WITH_EXTERN_ALL:BOOL=ON   :  these submodules are not used with SUMMA, you may turn this off you don't want to use them
 
-
 # make -j 8 -C cmake_build    # build w/ 8 parallel jobs, if uncomment then comment the next line and use DNGEN_WITH_MPI:BOOL=ON
 make -C cmake_build

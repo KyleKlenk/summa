@@ -8,7 +8,7 @@
                     "forcing_file": "",
                     "init_config": "",
                     "allow_exceed_end_time": true,
-                    "main_output_variable": "Q_OUT",
+                    "main_output_variable": "land_surface_water__runoff_volume_flux",
                     "modules": [
                         {
                             "name": "bmi_fortran",
@@ -38,13 +38,14 @@
             }
         ],
       "forcing": {
-          "path": "./data/gauge_01073000/forcing.nc",
-          "provider": "NetCDF"
+          "path": "./test/data/forcing/cat-10_2015-12-01 00_00_00_2015-12-30 23_00_00.csv",
+          "provider": "CsvPerFeature"
       }
   },
   "time": {
       "start_time": "2015-12-01 0:00:00",
       "end_time": "2015-12-30 23:00:00",
       "output_interval": 3600
-  }
+  },
+  "output_root": "./output_dir/"
 }
