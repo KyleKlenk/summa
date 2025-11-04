@@ -47,7 +47,7 @@
       "end_time": "2015-12-30 23:00:00",
       "output_interval": 3600
   },
-  "output_root": "./output_dir/",
+  "output_root": "./test/data/routing/",
   "routing": {
       "t_route_config_file_with_path": "./test/data/routing/ngen_routing_config_unit_test.yaml"
   }
