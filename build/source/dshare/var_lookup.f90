@@ -286,6 +286,14 @@ MODULE var_lookup
   integer(i4b)    :: f_impede              = integerMissing    ! ice impedence factor (-)
   integer(i4b)    :: soilIceScale          = integerMissing    ! scaling factor for depth of soil ice, used to get frozen fraction (m)
   integer(i4b)    :: soilIceCV             = integerMissing    ! CV of depth of soil ice, used to get frozen fraction (-)
+  ! conceptual parameters for surface runoff
+  integer(i4b)    :: FUSE_Ac_max           = integerMissing    ! FUSE PRMS max saturated area
+  integer(i4b)    :: FUSE_phi_tens         = integerMissing    ! FUSE PRMS tension storage fraction
+  integer(i4b)    :: FUSE_b                = integerMissing    ! FUSE ARNO/VIC exponent
+  integer(i4b)    :: FUSE_lambda           = integerMissing    ! FUSE TOPMODEL gamma distribution lambda parameter
+  integer(i4b)    :: FUSE_chi              = integerMissing    ! FUSE TOPMODEL gamma distribution chi    parameter
+  integer(i4b)    :: FUSE_mu               = integerMissing    ! FUSE TOPMODEL gamma distribution mu     parameter
+  integer(i4b)    :: FUSE_n                = integerMissing    ! FUSE TOPMODEL exponent
   ! algorithmic control parameters
   integer(i4b)    :: minwind               = integerMissing    ! minimum wind speed (m s-1)
   integer(i4b)    :: minstep               = integerMissing    ! minimum length of the time step
@@ -336,14 +344,6 @@ MODULE var_lookup
   integer(i4b)    :: zmaxLayer2_upper      = integerMissing    ! maximum layer depth for the 2nd layer when > 2 layers (m)
   integer(i4b)    :: zmaxLayer3_upper      = integerMissing    ! maximum layer depth for the 3rd layer when > 3 layers (m)
   integer(i4b)    :: zmaxLayer4_upper      = integerMissing    ! maximum layer depth for the 4th layer when > 4 layers (m)
-  ! FUSE surface runoff
-  integer(i4b)    :: FUSE_Ac_max           = integerMissing    ! FUSE PRMS max saturated area
-  integer(i4b)    :: FUSE_phi_tens         = integerMissing    ! FUSE PRMS tension storage fraction
-  integer(i4b)    :: FUSE_b                = integerMissing    ! FUSE ARNO/VIC exponent
-  integer(i4b)    :: FUSE_lambda           = integerMissing    ! FUSE TOPMODEL gamma distribution lambda parameter
-  integer(i4b)    :: FUSE_chi              = integerMissing    ! FUSE TOPMODEL gamma distribution chi    parameter
-  integer(i4b)    :: FUSE_mu               = integerMissing    ! FUSE TOPMODEL gamma distribution mu     parameter
-  integer(i4b)    :: FUSE_n                = integerMissing    ! FUSE TOPMODEL exponent
  endtype iLook_param
 
  ! ***********************************************************************************************************
