@@ -81,9 +81,8 @@ USE mDecisions_module,only:   &
   freeDrainage,               & ! free drainage
   liquidFlux,                 & ! liquid water flux
   zeroFlux,                   & ! zero flux
-  zero_IE,                    & ! zero infiltration excess surface runoff parameterization 
+  ! look-up values for the choice of saturation excesssurface runoff parameterization
   zero_SE,                    & ! zero saturation excess surface runoff parameterization 
-  homegrown_IE,               & ! homegrown infiltration excess surface runoff parameterization 
   homegrown_SE,               & ! homegrown saturation excess surface runoff parameterization 
   FUSEPRMS,                   & ! FUSE PRMS     surface runoff parameterization 
   FUSEAVIC,                   & ! FUSE ARNO/VIC surface runoff parameterization
@@ -987,7 +986,7 @@ contains
    ! input: model control
    firstSplitOper => in_surfaceFlx % firstSplitOper, & ! flag indicating if desire to compute infiltration
    bc_upper   => in_surfaceFlx % bc_upper,           & ! index defining the type of boundary conditions
-   surfRun_IE => in_surfaceFlx % surfRun_IE,         & ! index defining the infiltration excess surface runoff method
+   ixInfRateMax => in_surfaceFlx % ixInfRateMax,     & ! index defining the maximum infiltration rate method
    surfRun_SE => in_surfaceFlx % surfRun_SE,         & ! index defining the saturation excess surface runoff method
    ! output: derivatives in surface infiltration w.r.t. ...
    dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec, & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
@@ -1010,10 +1009,10 @@ contains
            case(zero_SE)         ! zero saturation excess surface runoff
              call update_surfaceFlx_zero_SE;        if (return_flag) return 
 
-           case(homegrown_SE)    ! homegrown saturation excess surface runoff
-             if (surfRun_IE /= homegrown_IE) then ! avoid repeating computations
-              call update_surfaceFlx_liquidFlux;     if (return_flag) return 
-             end if
+!           case(homegrown_SE)    ! homegrown saturation excess surface runoff
+!             if (surfRun_IE /= homegrown_IE) then ! avoid repeating computations
+!              call update_surfaceFlx_liquidFlux;     if (return_flag) return 
+!             end if
 
            case(FUSEPRMS)        ! FUSE PRMS surface runoff
              call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return 
@@ -1030,11 +1029,11 @@ contains
          end select
 
          ! Now do infiltration excess surface runoff
-         select case(surfRun_IE) ! infiltration excess surface runoff
-           case(zero_IE)         ! zero infiltration excess surface runoff
+         select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
+           case(noInfiltrationExcess)    ! zero infiltration excess surface runoff
              call update_surfaceFlx_zero_IE;        if (return_flag) return 
 
-           case(homegrown_IE)    ! homegrown infiltration excess surface runoff
+           case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible
              call update_surfaceFlx_liquidFlux;     if (return_flag) return
 
            case default
@@ -2157,11 +2156,11 @@ contains
   ! note: model decisions determine which surface runoff components are used 
   associate(&
    ! input: model control
-   surfRun_IE => in_surfaceFlx % surfRun_IE, & ! index defining the infiltration excess surface runoff method
+   ixInfRateMax => in_surfaceFlx % ixInfRateMax, & ! index defining the infiltration excess surface runoff method
    surfRun_SE => in_surfaceFlx % surfRun_SE  & ! index defining the saturation excess surface runoff method
   &)
-    select case(surfRun_IE) ! infiltration excess surface runoff
-      case(homegrown_IE) ! homegrown infiltration excess surface runoff
+    select case(ixInfRateMax) ! infiltration rate that controls infiltration excess surface runoff
+      case(GreenAmpt, topmodel_GA) ! options that are not zero infiltration excess surface runoff
         dq_dHydStateVec_IE = dq_dHyd_IE(:) 
         dq_dNrgStateVec_IE = dq_dNrg_IE(:) 
     end select
@@ -2223,11 +2222,11 @@ contains
   ! note: model decisions determine which surface runoff components are used 
   associate(&
    ! input: model control
-   surfRun_IE => in_surfaceFlx % surfRun_IE, & ! index defining the infiltration excess surface runoff method
+   ixInfRateMax => in_surfaceFlx % ixInfRateMax, & ! index defining the infiltration excess surface runoff method
    surfRun_SE => in_surfaceFlx % surfRun_SE  & ! index defining the saturation excess surface runoff method
   &)
-    select case(surfRun_IE) ! infiltration excess surface runoff
-      case(homegrown_IE); SR_IE = surfaceRunoff_IE ! homegrown infiltration excess surface runoff
+    select case(ixInfRateMax) ! infiltration rate that controls infiltration excess surface runoff
+      case(GreenAmpt, topmodel_GA) ! options that are not zero infiltration excess surface runoff
     end select
     select case(surfRun_SE) ! saturation excess surface runoff
       case(homegrown_SE); SR_SE = surfaceRunoff_SE ! homegrown saturation excess surface runoff
