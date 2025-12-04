@@ -1005,18 +1005,7 @@ contains
  
        case(liquidFlux)     ! flux condition
 
-         select case(surfRun_IE) ! infiltration excess surface runoff
-           case(zero_IE)         ! zero infiltration excess surface runoff
-             call update_surfaceFlx_zero_IE;        if (return_flag) return 
-
-           case(homegrown_IE)    ! homegrown infiltration excess surface runoff
-             call update_surfaceFlx_liquidFlux;     if (return_flag) return
-
-           case default
-             err=20; message=trim(message)//'unknown infiltration excess surface runoff method';
-             return_flag=.true.; return
-         end select
-
+         ! run saturation excess first, because this gives us the saturated area that we need to compute infiltration
          select case(surfRun_SE) ! saturation excess surface runoff
            case(zero_SE)         ! zero saturation excess surface runoff
              call update_surfaceFlx_zero_SE;        if (return_flag) return 
@@ -1034,15 +1023,29 @@ contains
 
            case(FUSETOPM)        ! FUSE TOPMODEL surface runoff
              call update_surfaceFlx_FUSE_TOPMODEL;  if (return_flag) return
+
            case default
              err=20; message=trim(message)//'unknown saturation excess surface runoff method';
              return_flag=.true.; return
          end select
 
+         ! Now do infiltration excess surface runoff
+         select case(surfRun_IE) ! infiltration excess surface runoff
+           case(zero_IE)         ! zero infiltration excess surface runoff
+             call update_surfaceFlx_zero_IE;        if (return_flag) return 
+
+           case(homegrown_IE)    ! homegrown infiltration excess surface runoff
+             call update_surfaceFlx_liquidFlux;     if (return_flag) return
+
+           case default
+             err=20; message=trim(message)//'unknown infiltration excess surface runoff method';
+             return_flag=.true.; return
+         end select
+
+         ! Tie everything together
          call update_gather_runoff_components;  if (return_flag) return 
 
        case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
- 
      end select 
    else ! do not compute infiltration after first flux call in a splitting operation unless updateInfil is true
      dq_dHydStateVec(:) = realMissing ! not used, so cause problems
