@@ -1010,7 +1010,7 @@ contains
              call update_surfaceFlx_zero_IE;        if (return_flag) return 
 
            case(homegrown_IE)    ! homegrown infiltration excess surface runoff
-             call update_surfaceFlx_liquidFlux;     if (return_flag) return 
+             call update_surfaceFlx_liquidFlux;     if (return_flag) return
 
            case default
              err=20; message=trim(message)//'unknown infiltration excess surface runoff method';
@@ -1165,6 +1165,7 @@ contains
   SR_IE              = 0._rkind ! surface runoff
   dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
   dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
+  io_surfaceFlx % scalarSaturatedArea = 0._rkind ! fraction of area that is considered saturated (-)
  end subroutine update_surfaceFlx_zero_IE 
 
  subroutine update_surfaceFlx_zero_SE
@@ -1245,6 +1246,9 @@ contains
 
   ! compute saturated area
   Ac = (S1_T/S1_T_max)*Ac_max
+
+  ! retain Ac for infiltration computations
+  io_surfaceFlx % scalarSaturatedArea = Ac
 
   ! compute surface runoff
   associate(&
@@ -1397,7 +1401,10 @@ contains
   end associate
  
   ! compute saturated area
-  Ac = 1._rkind - base**b  
+  Ac = 1._rkind - base**b
+
+  ! retain Ac for infiltration computations
+  io_surfaceFlx % scalarSaturatedArea = Ac
 
   ! compute surface runoff
   associate(&
@@ -1619,6 +1626,9 @@ contains
    Ac = 0._rkind
   end if
 
+  ! retain Ac for infiltration computations
+  io_surfaceFlx % scalarSaturatedArea = Ac
+
   ! compute surface runoff
   associate(&
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt & ! rain plus melt  (m s-1)
@@ -1778,9 +1788,11 @@ contains
    ! * additional assignment statements for surfaceFlx input-output object based on presribed head values *
    ! the infiltration is always constrained by the prescribed head so the maximum infiltration rate is set to missing
    io_surfaceFlx % xMaxInfilRate    = realMissing ! maximum infiltration rate (m s-1)
-   ! no soil ice assumed for FUSE PRMS
-   io_surfaceFlx % scalarInfilArea  = 1._rkind ! fraction of unfrozen area where water can infiltrate (-)
+   ! no soil ice assumed for prescribed head condition
    io_surfaceFlx % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
+   ! all area is available for infiltration, and to complement this saturated area (i.e., part where saturation excess runoff occurs) is set to zero
+   io_surfaceFlx % scalarInfilArea  = 1._rkind ! fraction of unfrozen area where water can infiltrate (-)
+   io_surfaceFlx % scalarSaturatedArea = 0._rkind ! fraction of area that is considered saturated (-)
 
   end associate
  end subroutine update_surfaceFlx_prescribedHead

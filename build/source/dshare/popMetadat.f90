@@ -440,6 +440,7 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%mLayerMeltFreeze)                = var_info('mLayerMeltFreeze'               , 'ice content change from melt/freeze in each layer'                , 'kg m-3'          , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! soil hydrology
   diag_meta(iLookDIAG%scalarInfilArea)                 = var_info('scalarInfilArea'                , 'fraction of unfrozen area where water can infiltrate'             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarSaturatedArea)             = var_info('scalarSaturatedArea'            , 'fraction of area that is considered saturated'                    , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarFrozenArea)                = var_info('scalarFrozenArea'               , 'fraction of area that is considered impermeable due to soil ice'  , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarSoilControl)               = var_info('scalarSoilControl'              , 'soil control on infiltration for derivative'                      , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%mLayerVolFracAir)                = var_info('mLayerVolFracAir'               , 'volumetric fraction of air in each layer'                         , '-'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)

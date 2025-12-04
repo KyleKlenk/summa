@@ -589,6 +589,7 @@ contains
   case('mLayerMeltFreeze'               ); get_ixDiag = iLookDIAG%mLayerMeltFreeze                 ! ice content change from melt/freeze in each layer (kg m-3)
   ! soil hydrology
   case('scalarInfilArea'                ); get_ixDiag = iLookDIAG%scalarInfilArea                  ! fraction of unfrozen area where water can infiltrate (-)
+  case('scalarSaturatedArea'            ); get_ixDiag = iLookDIAG%scalarSaturatedArea              ! fraction of area that is considered saturated (-)
   case('scalarFrozenArea'               ); get_ixDiag = iLookDIAG%scalarFrozenArea                 ! fraction of area that is considered impermeable due to soil ice (-)
   case('scalarSoilControl'              ); get_ixDiag = iLookDIAG%scalarSoilControl                ! soil control on infiltration for derivative
   case('mLayerVolFracAir'               ); get_ixDiag = iLookDIAG%mLayerVolFracAir                 ! volumetric fraction of air in each layer (-)

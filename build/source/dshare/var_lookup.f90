@@ -470,6 +470,7 @@ MODULE var_lookup
   integer(i4b)    :: mLayerMeltFreeze                = integerMissing ! change in ice content due to melt/freeze in each layer (kg m-3)
   ! soil hydrology
   integer(i4b)    :: scalarInfilArea                 = integerMissing ! fraction of unfrozen area where water can infiltrate (-)
+  integer(i4b)    :: scalarSaturatedArea             = integerMissing ! fraction of area that is considered saturated (-)
   integer(i4b)    :: scalarFrozenArea                = integerMissing ! fraction of area that is considered impermeable due to soil ice (-)
   integer(i4b)    :: scalarSoilControl               = integerMissing ! soil control on infiltration for derivative
   integer(i4b)    :: mLayerVolFracAir                = integerMissing ! volumetric fraction of air in each layer (-)
@@ -952,7 +953,8 @@ MODULE var_lookup
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
-                                                                        101,102,103,104,105,106,107,108,109,110)
+                                                                        101,102,103,104,105,106,107,108,109,110,&
+                                                                        111)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
