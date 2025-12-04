@@ -1802,7 +1802,7 @@ contains
   ! -- main computations
   call update_surfaceFlx_liquidFlux_computation_root_layers 
   call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return 
-  call update_surfaceFlx_liquidFlux_computation_wetting_front
+  call update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
   call update_surfaceFlx_liquidFlux_computation_infiltrating_area
   call update_surfaceFlx_liquidFlux_computation_validate_infiltration
   call update_surfaceFlx_liquidFlux_computation_impermeable_area
@@ -1918,8 +1918,8 @@ contains
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_available_capacity 
 
- subroutine update_surfaceFlx_liquidFlux_computation_wetting_front
-  ! **** Update operations for surfaceFlx: flux condition -- main computations (wetting front and derivatives) ****
+ subroutine update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
+  ! **** Update operations for surfaceFlx: flux condition -- main computations (max infiltration rate and derivatives) ****
   associate(&
    ! input: model control
    ixInfRateMax => in_surfaceFlx % ixInfRateMax , & ! index defining the maximum infiltration rate method (GreenAmpt, topmodel_GA, noInfiltrationExcess)
@@ -1981,7 +1981,7 @@ contains
       xMaxInfilRate = veryBig ! If maximum infiltration is very big we'll never have a rainfall rate that exceeds it, so no infiltration excess
    end select
   end associate
- end subroutine update_surfaceFlx_liquidFlux_computation_wetting_front
+ end subroutine update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
 
  subroutine update_surfaceFlx_liquidFlux_computation_infiltrating_area
   ! **** Update operations for surfaceFlx: flux condition -- main computations (infiltrating area) ****
