@@ -1010,9 +1010,7 @@ contains
              call update_surfaceFlx_zero_SE;        if (return_flag) return 
 
 !           case(homegrown_SE)    ! homegrown saturation excess surface runoff
-!             if (surfRun_IE /= homegrown_IE) then ! avoid repeating computations
-!              call update_surfaceFlx_liquidFlux;     if (return_flag) return 
-!             end if
+!              call update_surfaceFlx_homegrown_SE;     if (return_flag) return 
 
            case(FUSEPRMS)        ! FUSE PRMS surface runoff
              call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return 
@@ -1799,20 +1797,51 @@ contains
   end associate
  end subroutine update_surfaceFlx_prescribedHead
 
- subroutine update_surfaceFlx_liquidFlux 
-  ! **** Update operations for surfaceFlx: flux condition ****
-  ! -- main computations
+ subroutine update_surfaceFlx_homegrown_SE
+  ! **** Update operations for surfaceFlx: homegrown saturation excess runoff condition ****
   call update_surfaceFlx_liquidFlux_computation_root_layers 
   call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return 
-  call update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
-  call update_surfaceFlx_liquidFlux_computation_infiltrating_area
+  call update_surfaceFlx_liquidFlux_computation_infiltrating_area  ! this calcualtes infiltration area and saturated area is simply 1-infiltration area
   call update_surfaceFlx_liquidFlux_computation_validate_infiltration
+
+ end subroutine update_surfaceFlx_homegrown_SE
+
+ subroutine update_surfaceFlx_liquidFlux 
+  ! **** Update operations for surfaceFlx: flux condition ****
+  ! -- get the required variables from saturation excess runoff computations 
+  associate(&
+   ! input: model control
+   surfRun_SE => in_surfaceFlx % surfRun_SE         & ! index defining the saturation excess surface runoff method
+  &)
+   if (surfRun_SE /= homegrown_SE) then
+     write(*,*) "pretending to run some stuff for infiltration excess runoff"
+     ! run everything we need to get the variables needed for infiltration computations 
+     ! note that we don't run _infiltrating_area() and validate_infiltration() here because those specifically calculate infiltration area for the homegrown_SE method
+     call update_surfaceFlx_liquidFlux_computation_root_layers 
+     call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return
+     ! set the correct value for scalarInfilArea using scalarSaturatedArea (Ac) from the non-homegrown_SE methods
+     call update_surfaceFlx_liquidFlux_computation_scalarInfilArea_update
+   end if
+  end associate
+  ! -- main computations - these always need to run
+  call update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
   call update_surfaceFlx_liquidFlux_computation_impermeable_area
   if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
-  ! -- put it all together
   call update_surfaceFlx_liquidFlux_infiltration
 
  end subroutine update_surfaceFlx_liquidFlux
+
+ subroutine update_surfaceFlx_liquidFlux_computation_scalarInfilArea_update
+    ! **** Update operations for surfaceFlx: flux condition -- set scalarInfilArea from scalarSaturatedArea ****
+  associate(&
+   ! input: saturated area
+   scalarSaturatedArea => io_surfaceFlx % scalarSaturatedArea , & ! fraction of area that is considered saturated (-)
+   ! output: infiltration area
+   scalarInfilArea     => io_surfaceFlx % scalarInfilArea      & ! fraction of unfrozen area where water can infiltrate (-)
+  &)
+   scalarInfilArea = 1._rkind - scalarSaturatedArea
+  end associate
+ end subroutine update_surfaceFlx_liquidFlux_computation_scalarInfilArea_update
 
  subroutine update_surfaceFlx_liquidFlux_computation_root_layers 
   ! **** Update operations for surfaceFlx: flux condition -- main computations (root layers) ****
@@ -1989,11 +2018,12 @@ contains
   ! **** Update operations for surfaceFlx: flux condition -- main computations (infiltrating area) ****
   associate(&
    ! input: model control
-   nSoil          => in_surfaceFlx % nSoil           , & ! number of soil layers
+   nSoil          => in_surfaceFlx % nSoil                  , & ! number of soil layers
    ! input: soil parameters
-   qSurfScale       => in_surfaceFlx % qSurfScale    , & ! scaling factor in the surface runoff parameterization (-)
+   qSurfScale       => in_surfaceFlx % qSurfScale           , & ! scaling factor in the surface runoff parameterization (-)
    ! input-output: surface runoff and infiltration flux (m s-1)
-   scalarInfilArea  => io_surfaceFlx % scalarInfilArea & ! fraction of unfrozen area where water can infiltrate (-)
+   scalarInfilArea  => io_surfaceFlx % scalarInfilArea      , & ! fraction of unfrozen area where water can infiltrate (-)
+   scalarSaturatedArea => io_surfaceFlx % scalarSaturatedArea & ! fraction of area that is considered saturated (-)
   &)
    ! define the infiltrating area and derivatives for the non-frozen part of the cell/basin, first initialize
    dInfilArea_dWat(:) = 0._rkind
@@ -2016,6 +2046,8 @@ contains
    else
      scalarInfilArea = 1._rkind ! derivatives are zero
    end if
+   ! retain saturated area as well
+   scalarSaturatedArea = 1._rkind - scalarInfilArea  ! Ac = 1 - scalarInfilArea
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_infiltrating_area
 
@@ -2032,11 +2064,15 @@ contains
    ! input: soil parameters
    theta_sat           => in_surfaceFlx % theta_sat, & ! soil porosity (-)
    ! input-output: surface runoff and infiltration flux (m s-1)
-   scalarInfilArea  => io_surfaceFlx % scalarInfilArea & ! fraction of unfrozen area where water can infiltrate (-)
+   scalarInfilArea  => io_surfaceFlx % scalarInfilArea, & ! fraction of unfrozen area where water can infiltrate (-)
+   scalarSaturatedArea => io_surfaceFlx % scalarSaturatedArea & ! fraction of area that is considered saturated (-)
   &)
    ! check to ensure we are not infiltrating into a fully saturated column
    if (ixIce<nRoots) then
-     if (sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) > 0.9999_rkind*theta_sat*sum(mLayerDepth(ixIce+1:nRoots))) scalarInfilArea=0._rkind
+     if (sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) > 0.9999_rkind*theta_sat*sum(mLayerDepth(ixIce+1:nRoots))) then 
+      scalarInfilArea=0._rkind
+      scalarSaturatedArea=1._rkind  ! defined in update_surfaceFlx_liquidFlux_computation_infiltrating_area() as 1-scalarInfilArea so needs update here too
+     end if
    end if
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_validate_infiltration
@@ -2184,14 +2220,16 @@ contains
   ! compute infiltration and runoff
   associate(&
    ! input: flux at the upper boundary
-   scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt , & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
+   scalarRainPlusMelt   => in_surfaceFlx % scalarRainPlusMelt, & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
    ! input-output: surface runoff and infiltration flux (m s-1)
-   xMaxInfilRate     => io_surfaceFlx % xMaxInfilRate    , & ! maximum infiltration rate (m s-1)
-   scalarInfilArea   => io_surfaceFlx % scalarInfilArea  , & ! fraction of unfrozen area where water can infiltrate (-)
-   scalarSoilControl => io_surfaceFlx % scalarSoilControl, & ! soil control on infiltration for derivative
-   scalarFrozenArea  => io_surfaceFlx % scalarFrozenArea   & ! fraction of area that is considered impermeable due to soil ice (-)
+   xMaxInfilRate       => io_surfaceFlx % xMaxInfilRate    ,   & ! maximum infiltration rate (m s-1)
+   scalarInfilArea     => io_surfaceFlx % scalarInfilArea  ,   & ! fraction of unfrozen area where water can infiltrate (-)
+   scalarSaturatedArea => io_surfaceFlx % scalarSaturatedArea, & ! fraction of area that is saturated (-)
+   scalarSoilControl   => io_surfaceFlx % scalarSoilControl,   & ! soil control on infiltration for derivative
+   scalarFrozenArea    => io_surfaceFlx % scalarFrozenArea     & ! fraction of area that is considered impermeable due to soil ice (-)
   &)
    ! unfrozen infiltration area
+   write(*,*) "checking scalarSaturatedArea, scalarInfilArea before infil calc: ", scalarSaturatedArea, scalarInfilArea
    scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
    if (xMaxInfilRate > scalarRainPlusMelt) then
      scalarSoilControl = scalarInfilArea_unfrozen
@@ -2203,7 +2241,7 @@ contains
    end if
 
    ! compute infiltration (m s-1)
-   surfaceInfiltration = scalarInfilArea_unfrozen*min(scalarRainPlusMelt,xMaxInfilRate)
+   surfaceInfiltration = scalarInfilArea_unfrozen*min(scalarRainPlusMelt,xMaxInfilRate)  ! rain+melt falling on unfrozen unsaturated area, and smaller than max infiltration rate
  
    ! compute surface runoff (m s-1)
    surfaceRunoff = scalarRainPlusMelt - surfaceInfiltration
@@ -2226,7 +2264,7 @@ contains
    surfRun_SE => in_surfaceFlx % surfRun_SE  & ! index defining the saturation excess surface runoff method
   &)
     select case(ixInfRateMax) ! infiltration rate that controls infiltration excess surface runoff
-      case(GreenAmpt, topmodel_GA) ! options that are not zero infiltration excess surface runoff
+      case(GreenAmpt, topmodel_GA); SR_IE = surfaceRunoff_IE ! options that are not zero infiltration excess surface runoff
     end select
     select case(surfRun_SE) ! saturation excess surface runoff
       case(homegrown_SE); SR_SE = surfaceRunoff_SE ! homegrown saturation excess surface runoff
