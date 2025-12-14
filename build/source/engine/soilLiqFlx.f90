@@ -1088,7 +1088,6 @@ contains
       
       case(homegrown_SE)    ! homegrown saturation excess surface runoff + SE derivatives
         ! todo
-
       case(FUSEPRMS)        ! FUSE PRMS surface runoff + SE derivatives
         call update_surfaceFlx_FUSE_PRMS_derivatives;
       case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff + SE derivatives
@@ -1227,9 +1226,9 @@ contains
   ! set saturation excess components
   ! note: it is assumed that rain plus melt does not depend on state variables for infiltration derivatives
   SR_SE              = 0._rkind ! surface runoff
-  dq_dHydStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
-  dq_dNrgStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
- end subroutine update_surfaceFlx_zero_SE 
+  !dq_dHydStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
+  !dq_dNrgStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
+ end subroutine update_surfaceFlx_zero_SE
 
  subroutine update_surfaceFlx_FUSE_PRMS
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- PRMS ****
@@ -1954,7 +1953,7 @@ contains
 
  end subroutine update_surfaceFlx_FUSE_TOPMODEL
 
-subroutine update_surfaceFlx_FUSE_TOPMODEL_derivatives
+ subroutine update_surfaceFlx_FUSE_TOPMODEL_derivatives
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- TOPMODEL ****
   ! note: this parameterization utilizes saturation excess surface runoff only
   ! * local variables *
