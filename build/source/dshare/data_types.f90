@@ -1777,7 +1777,7 @@ contains
   end associate
 
   associate(&
-   ! depth of upper-most soil layer (m)
+   ! depth of each soil layer (m)
    mLayerDepth         => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend) & ! depth of the layer (m)
   &)
    ! intent(in): depth of each soil layer (m)
