@@ -1031,13 +1031,13 @@ contains
 
          ! run saturation excess first, because this gives us the saturated area that we need to compute infiltration
          select case(surfRun_SE) ! saturation excess surface runoff
-           case(zero_SE)         ! zero saturation excess surface runoff
+           case(zero_SE)         ! zero saturation excess surface runoff. Sets SR_SE.
              call update_surfaceFlx_zero_SE;        if (return_flag) return 
 
            case(homegrown_SE)    ! homegrown saturation excess surface runoff + SE derivatives
               call update_surfaceFlx_homegrown_SE;     if (return_flag) return
 
-           case(FUSEPRMS)        ! FUSE PRMS surface runoff + SE derivatives
+           case(FUSEPRMS)        ! FUSE PRMS surface runoff. Set SR_SE and Ac.
              call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return 
 
            case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff + SE derivatives
@@ -1066,6 +1066,7 @@ contains
 
          ! tie everything together
          if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives  ! provides the derivatives for any combination of SE and IE parametrization options
+         ! to do: add infiltration estimate so we can keep the correct order currently in update_surfaceFlx_liquidFlux()?
          call update_gather_runoff_components;  if (return_flag) return
 
        case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
@@ -1112,12 +1113,13 @@ contains
   ! Select the correct case based on computed maximum infiltration rate and rainPlusMelt rate
   if (surfRun_SE == homegrown_SE) then
     !call update_surfaceFlx_liquidFlux_computation_flux_derivatives; ! internally accounts for all combinations of IE and homegrown_SE
-    ! do nothing for the moment
+    ! do nothing for the moment, we're already doing this in update_surfaceFlx_liquidFlux()
   else 
     
-    ! zero infiltration excess surface runoff
+    ! FUSE & zero-SE cases, assume zero infiltration excess surface runoff
     dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
     dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
+
     if (surfRun_SE /= zero_SE) then ! FUSE cases
       ! process liquid derivatives, first initialize
       dVolFracLiq_dWat(:) = 0._rkind
@@ -1142,8 +1144,8 @@ contains
       case(zero_SE)         ! zero saturation excess surface runoff
         dq_dHydStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
         dq_dNrgStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
-!      case(homegrown_SE)    ! homegrown saturation excess surface runoff + SE derivatives
-!        call update_surfaceFlx_liquidFlux_computation_flux_derivatives_SE
+      case(homegrown_SE)    ! homegrown saturation excess surface runoff + SE derivatives
+        !call update_surfaceFlx_liquidFlux_computation_flux_derivatives_SE
       case(FUSEPRMS)        ! FUSE PRMS surface runoff + SE derivatives
         call update_surfaceFlx_FUSE_PRMS_derivatives;
       case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff + SE derivatives
@@ -1152,26 +1154,7 @@ contains
         call update_surfaceFlx_FUSE_TOPMODEL_derivatives;
       end select
     end if
-  
-!   else
-!     ! infiltration excess surface runoff exists -- derivatives need to account for this
-!     select case(surfRun_SE)
-!       case(zero_SE)
-!         message=trim(message)//'derivatives for infiltration excess surface runoff with zero saturation excess surface runoff method currently undefined';
-!         err=20; return_flag=.true.; return
-! !      case(homegrown_SE)    ! homegrown saturation excess surface runoff + SE derivatives
-! !        call update_surfaceFlx_liquidFlux_computation_flux_derivatives_SE_IE;  ! currently same as the no IE case because it has internal branching for this
-!       case(FUSEPRMS)        ! FUSE PRMS surface runoff + SE derivatives
-!         message=trim(message)//'derivatives for infiltration excess surface runoff with FUSE PRMS saturation excess surface runoff method currently undefined';
-!         err=20; return_flag=.true.; return
-!       case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff + SE derivatives
-!         message=trim(message)//'derivatives for infiltration excess surface runoff with FUSE ARNO/VIC saturation excess surface runoff method currently undefined';
-!         err=20; return_flag=.true.; return
-!       case(FUSETOPM)        ! FUSE TOPMODEL surface runoff + SE derivatives
-!         message=trim(message)//'derivatives for infiltration excess surface runoff with FUSE TOPMODEL saturation excess surface runoff method currently undefined';
-!         err=20; return_flag=.true.; return
-!     end select
-    end if  
+   end if
   end associate
  end subroutine update_surfaceFlx_liquidFlux_derivatives
 
@@ -1287,6 +1270,7 @@ contains
   !dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
   !dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
   io_surfaceFlx % scalarSaturatedArea = 0._rkind ! fraction of area that is considered saturated (-)
+  ! TO DO: should we set saturated area here or should that go into saturation excess? Seems oddly placed here
  end subroutine update_surfaceFlx_zero_IE 
 
  subroutine update_surfaceFlx_zero_SE
@@ -1411,7 +1395,7 @@ contains
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- ARNO/VIC ****
   ! note: this parameterization utilizes saturation excess surface runoff only
   use soil_utils_module,only:LogSumExp  ! smooth max/min
-  use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
+  !use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
 
   ! validation of input parameters
   b_arnovic = in_surfaceFlx % FUSE_b ! interface ARNO/VIC exponent
@@ -1816,7 +1800,7 @@ contains
   call update_surfaceFlx_liquidFlux_computation_root_layers 
   call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return 
   call update_surfaceFlx_liquidFlux_computation_infiltrating_area  ! this calculates infiltration area and saturated area is simply 1-infiltration area
-  call update_surfaceFlx_liquidFlux_computation_validate_infiltration
+  call update_surfaceFlx_liquidFlux_computation_validate_inf_area
   call update_surfaceFlx_liquidFlux_computation_frozen_area
   if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
   call update_surfaceFlx_liquidFlux_computation_homegrown_SE
@@ -2017,6 +2001,7 @@ contains
         dxMaxInfilRate_dTk(:)  = -hydCondWettingFront*wettingFrontSuction*dDepthWettingFront_dTk(:)/depthWettingFront**2_i4b
       endif
     case(noInfiltrationExcess)
+      ! TO DO: we're currently doubling up on the no-IE decision - it's already set in the main routine
       ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
       !hydCondWettingFront =  surfaceSatHydCond ! this is not needed for this calculation, but keeping it here in case not setting this will cause unanticipated problems down the line
       ! define the maximum infiltration rate (m s-1), derivatives are zero
@@ -2062,7 +2047,7 @@ contains
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_infiltrating_area
 
- subroutine update_surfaceFlx_liquidFlux_computation_validate_infiltration
+ subroutine update_surfaceFlx_liquidFlux_computation_validate_inf_area
   ! **** Update operations for surfaceFlx: flux condition -- main computations (validate infiltration) ****
   associate(&
    ! input: model control
@@ -2088,7 +2073,7 @@ contains
      end if
    end if
   end associate
- end subroutine update_surfaceFlx_liquidFlux_computation_validate_infiltration
+ end subroutine update_surfaceFlx_liquidFlux_computation_validate_inf_area
 
  subroutine update_surfaceFlx_liquidFlux_computation_frozen_area
   ! **** Update operations for surfaceFlx: flux condition -- main computations (impermeable area due to soil freezing) ****
