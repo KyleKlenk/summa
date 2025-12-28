@@ -2152,8 +2152,8 @@ contains
    ! input: state and diagnostic variables
    scalarMatricHeadLiq => in_surfaceFlx % scalarMatricHeadLiq , & ! liquid matric head in the upper-most soil layer (m)
    scalarVolFracLiq    => in_surfaceFlx % scalarVolFracLiq    , & ! volumetric liquid water content in the upper-most soil layer (-)
-   ! input: depth of upper-most soil layer (m)
-   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of upper-most soil layer (m)
+   ! input: depth of each soil layer (m)
+   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of each soil layer (m)
    ! input: diriclet boundary conditions
    upperBoundHead   => in_surfaceFlx % upperBoundHead  , & ! upper boundary condition for matric head (m)
    upperBoundTheta  => in_surfaceFlx % upperBoundTheta , & ! upper boundary condition for volumetric liquid water content (-)
@@ -2298,7 +2298,7 @@ contains
    dTheta_dPsi            => in_surfaceFlx % dTheta_dPsi            , & ! ... the soil water characteristic w.r.t. psi (m-1)
    mLayerdPsi_dTheta      => in_surfaceFlx % mLayerdPsi_dTheta      , & ! ... the soil water characteristic w.r.t. theta (m)
    ! input: depth of soil layers (m)
-   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of upper-most soil layer (m)
+   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of each soil layer (m)
    iLayerHeight => in_surfaceFlx % iLayerHeight , & ! height at the interface of each layer for soil layers only (m)
    ! input: soil parameters
    rootingDepth        => in_surfaceFlx % rootingDepth & ! rooting depth (m)
@@ -2496,8 +2496,8 @@ contains
    ixIce          => in_surfaceFlx % ixIce , & ! index of lowest ice layer
    ! input: state and diagnostic variables
    mLayerVolFracLiq    => in_surfaceFlx % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
-   ! input: depth of upper-most soil layer (m)
-   mLayerDepth  => in_surfaceFlx % mLayerDepth, & ! depth of upper-most soil layer (m)
+   ! input: depth of each soil layer (m)
+   mLayerDepth  => in_surfaceFlx % mLayerDepth, & ! depth of each soil layer (m)
    ! input: soil parameters
    theta_sat           => in_surfaceFlx % theta_sat, & ! soil porosity (-)
    ! input-output: surface runoff and infiltration flux (m s-1)
