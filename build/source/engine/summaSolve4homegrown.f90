@@ -439,8 +439,11 @@ contains
                        &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,& ! input-output
                        &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SRF)             ! output
     call out_SRF % finalize(fNew,converged,err,cmessage)
-    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
    end if
+
+   ! final check for errors
+    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
+   
   end associate
  end subroutine refine_Newton_step  
 
