@@ -655,8 +655,8 @@ MODULE data_types
    real(rkind),allocatable :: dTheta_dTk(:)          ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
    real(rkind),allocatable :: dTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. psi (m-1)
    real(rkind),allocatable :: mLayerdPsi_dTheta(:)   ! derivative in the soil water characteristic w.r.t. theta (m)
-   ! input: depth of upper-most soil layer (m)
-   real(rkind),allocatable :: mLayerDepth(:)         ! depth of upper-most soil layer (m)
+   ! input: depth of each soil layer (m)
+   real(rkind),allocatable :: mLayerDepth(:)         ! depth of each soil layer (m)
    real(rkind),allocatable :: iLayerHeight(:)        ! height at the interface of each layer (m)
    ! input: diriclet boundary conditions
    real(rkind) :: upperBoundHead      ! upper boundary condition for matric head (m)
@@ -1335,7 +1335,7 @@ contains
   type(var_dlength),intent(in)          :: diag_data                   ! diagnostic variables for a local HRU
   type(var_dlength),intent(in)          :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
 
-  ! intent(inout) arguments: max infiltration rate, frozen area, saturated area, and surface runoff
+  ! intent(inout) arguments: max infiltration rate, frozen area, and surface runoff
   associate(&
    scalarMaxInfilRate     => flux_data%var(iLookFLUX%scalarMaxInfilRate)%dat(1),     & ! intent(out): [dp] maximum infiltration rate (m s-1)
    scalarInfilArea        => diag_data%var(iLookDIAG%scalarInfilArea   )%dat(1),     & ! intent(out): [dp] fraction of unfrozen area where water can infiltrate (-)
@@ -1783,10 +1783,10 @@ contains
   end associate
 
   associate(&
-   ! depth of upper-most soil layer (m)
+   ! depth of each soil layer (m)
    mLayerDepth         => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend) & ! depth of the layer (m)
   &)
-   ! intent(in): depth of upper-most soil layer (m)
+   ! intent(in): depth of each soil layer (m)
    in_surfaceFlx % mLayerDepth     = mLayerDepth  ! depth of each soil layer (m)
    in_surfaceFlx % iLayerHeight    = iLayerHeight ! height at the interface of each layer (m)
   end associate
@@ -1921,11 +1921,11 @@ contains
   end associate
  end subroutine finalize_io_surfaceFlx
 
- subroutine finalize_out_surfaceFlx(out_surfaceFlx,io_soilLiqFlx,err,cmessage)
+ subroutine finalize_out_surfaceFlx(out_surfaceFlx,io_soilLiqFlx,err,message)
   class(out_type_surfaceFlx),intent(in)  :: out_surfaceFlx ! output object for surfaceFlx
   type(io_type_soilLiqFlx),intent(inout) :: io_soilLiqFlx  ! input-output class object for soilLiqFlx
   integer(i4b),intent(out)  :: err       ! error code
-  character(*),intent(out)  :: cmessage  ! error message
+  character(*),intent(out)  :: message   ! error message
 
   associate(&
    ! intent(out): surface runoff and infiltration
@@ -1948,7 +1948,7 @@ contains
   end associate
   ! intent(out): error control
   err      = out_surfaceFlx % err     ! error code
-  cmessage = out_surfaceFlx % message ! error message
+  message  = out_surfaceFlx % message ! error message
  end subroutine finalize_out_surfaceFlx
  ! **** end surfaceFlx ****
 
