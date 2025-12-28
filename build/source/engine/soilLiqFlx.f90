@@ -895,7 +895,32 @@ subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
   ! fraction of impermeable area associated with frozen ground
   real(rkind)                      :: alpha                               ! shape parameter in the Gamma distribution
   real(rkind)                      :: xLimg                               ! upper limit of the integral
-  ! derivatives in ...
+  ! FUSE
+  real(rkind),parameter            :: alpha_LSE=1.e3_rkind                ! smoothness parameter for LSE smoother function
+  real(rkind),parameter            :: roundoff_tolerance = 1.e2_rkind * epsilon(1._rkind) ! tolerance for round-off error is near machine epsilon 
+  real(rkind)                      :: Ac                                  ! saturated area (-)
+  real(rkind)                      :: S1                                  ! total water content in upper soil layer (m)
+  real(rkind)                      :: S1_max                              ! Maximum storage in the upper layer (m)
+  ! FUSE PRMS variables
+  real(rkind)                      :: phi_tens                            ! fraction of total storage as tension storage (m)
+  real(rkind)                      :: Ac_max                              ! maximum saturated area (-)
+  real(rkind)                      :: S1_T                                ! tension water content in upper soil layer (m)
+  real(rkind)                      :: S1_T_max                            ! maximum tension water content in upper soil layer (m)
+  ! FUSE ARNO/VIC variables
+  logical(lgt),parameter :: smoother = .true.                             ! control for optional smoothing in base variable
+  real(rkind)                      :: base                                ! base used in saturated area formula (-) ARNO/VIC 
+  real(rkind)                      :: b_arnovic                           ! ARNO/VIC exponent (-) 
+  real(rkind)                      :: S1_star                             ! total water content in upper FUSE layer computed with a smoothed min (m)
+  ! FUSE TOPMODEL variables
+  real(rkind)                      :: alpha_topmodel                      ! gamma shape
+  real(rkind)                      :: chi_topmodel                        ! gamma scale
+  real(rkind)                      :: x_crit                              ! critical x (random variable) value
+  real(rkind)                      :: zeta_crit_n                         ! critical topographic index value (power-transfomred)
+  complex(rkind)                   :: lambda_n                            ! mean of the power-transformed topographic index
+  real(rkind)                      :: S2_max                              ! max storage in lower FUSE layer (m)
+  real(rkind)                      :: S2                                  ! total water content in lower FUSE layer (m)
+  real(rkind)                      :: n_topmodel                          ! TOPMODEL exponent exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
+  ! derivatives
   real(rkind) :: dVolFracLiq_dWat(1:in_surfaceFlx % nSoil)  ! ... vol fraction of liquid w.r.t. water state variable in root layers
   real(rkind) :: dVolFracIce_dWat(1:in_surfaceFlx % nSoil)  ! ... vol fraction of ice w.r.t. water state variable in root layers
   real(rkind) :: dVolFracLiq_dTk(1:in_surfaceFlx % nSoil)   ! ... vol fraction of liquid w.r.t. temperature in root layers
@@ -1075,7 +1100,7 @@ contains
 
   ! Select the correct case based on computed maximum infiltration rate and rainPlusMelt rate
   if (surfRun_SE == homegrown_SE) then
-    !call update_surfaceFlx_liquidFlux_computation_flux_derivatives; ! internally accounts for both IE and SE components
+    !call update_surfaceFlx_liquidFlux_computation_flux_derivatives; ! internally accounts for all combinations of IE and homegrown_SE
     ! do nothing for the moment
   else 
     
@@ -1250,22 +1275,6 @@ contains
   ! note: this parameterization utilizes saturation excess surface runoff only
   use soil_utils_module,only:LogSumExp  ! smooth max/min
   !use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
-
-  ! local variables
-  real(rkind),parameter :: alpha_LSE=1.e3_rkind                ! smoothness parameter for LSE smoother function
-  real(rkind)           :: Ac_max                              ! maximum saturated area (-)
-  real(rkind)           :: phi_tens                            ! fraction of total storage as tension storage (m)
-  real(rkind)           :: Ac                                  ! saturated area (-)
-  real(rkind)           :: S1                                  ! total water content in upper soil layer (m)
-  real(rkind)           :: S1_max                              ! Maximum storage in the upper layer (m)
-  real(rkind)           :: S1_T                                ! tension water content in upper soil layer (m)
-  real(rkind)           :: S1_T_max                            ! maximum tension water content in upper soil layer (m)
-  !real(rkind)           :: dS1_dWat(1:in_surfaceFlx % nSoil)   ! derivative of S1 w.r.t. water content
-  !real(rkind)           :: S1_T_derivatives(1:2)               ! array of derivatives for S1_T
-  !real(rkind)           :: dS1_T_dS1                           ! derivative of S1_T w.r.t S1
-  !real(rkind)           :: dS1_T_dWat(1:in_surfaceFlx % nSoil) ! derivative of S1_T w.r.t water content
-  !real(rkind)           :: dAc_dWat(1:in_surfaceFlx % nSoil)   ! derivative of Ac w.r.t water content 
-
   ! validation of parameters
   associate(&
    ! output: error control
@@ -1338,13 +1347,6 @@ contains
   use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
 
   ! local variables
-  real(rkind),parameter :: alpha_LSE=1.e3_rkind                ! smoothness parameter for LSE smoother function
-  real(rkind)           :: Ac_max                              ! maximum saturated area (-)
-  real(rkind)           :: phi_tens                            ! fraction of total storage as tension storage (m)  
-  real(rkind)           :: S1                                  ! total water content in upper soil layer (m)
-  real(rkind)           :: S1_max                              ! Maximum storage in the upper layer (m)
-  real(rkind)           :: S1_T                                ! tension water content in upper soil layer (m)
-  real(rkind)           :: S1_T_max                            ! maximum tension water content in upper soil layer (m)
   real(rkind)           :: dS1_dWat(1:in_surfaceFlx % nSoil)   ! derivative of S1 w.r.t. water content
   real(rkind)           :: S1_T_derivatives(1:2)               ! array of derivatives for S1_T
   real(rkind)           :: dS1_T_dS1                           ! derivative of S1_T w.r.t S1
@@ -1444,29 +1446,13 @@ contains
   use soil_utils_module,only:LogSumExp  ! smooth max/min
   use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
 
-  ! local variables
-  logical(lgt),parameter :: smoother = .true.                 ! control for optional smoothing in base variable  
-  real(rkind) ,parameter :: alpha_LSE= 1.e3_rkind             ! smoothness parameter for LSE smoother function
-  real(rkind)            :: b                                 ! ARNO/VIC exponent (-) 
-  real(rkind)            :: S1                                ! total water content in upper FUSE layer (m)
-  real(rkind)            :: dS1_dWat(1:in_surfaceFlx % nSoil) ! derivative of S1 w.r.t. water content
-  real(rkind)            :: S1_max                            ! Maximum storage in the FUSE layer (m)
-  real(rkind)            :: S1_star                           ! total water content in upper FUSE layer computed with a smoothed min (m)
-  real(rkind)            :: dS1_star_dS1                      ! derivative in S1_star w.r.t S1
-  real(rkind)            :: base                              ! base used in saturated area formula
-  real(rkind)            :: dbase_dS1                         ! derivative of base w.r.t S1
-  real(rkind)            :: Ac                                ! saturated area (-)
-  real(rkind)            :: dAc_dWat(1:in_surfaceFlx % nSoil) ! derivative of Ac w.r.t water content 
-  real(rkind)            :: S1_star_derivatives(1:2)          ! array of derivatives for S1_star from SoftArgMax function
-  real(rkind)            :: roundoff_tolerance                ! tolerance for round-off error
-
   ! validation of input parameters
-  b = in_surfaceFlx % FUSE_b ! interface ARNO/VIC exponent
+  b_arnovic = in_surfaceFlx % FUSE_b ! interface ARNO/VIC exponent
   associate(&
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   if ((b < 0.001_rkind).or.(b > 3._rkind)) then
+   if ((b_arnovic < 0.001_rkind).or.(b_arnovic > 3._rkind)) then
     err=10; message=trim(message)//"FUSE ARNO/VIC exponent must be between 0.001 and 3"; return_flag=.true.; return
    end if
   end associate
@@ -1484,9 +1470,9 @@ contains
   end associate
 
   ! compute saturated area
-  ! Original FUSE: Ac = 1 - (1-S1/S1_max)**b
+  ! Original FUSE: Ac = 1 - (1-S1/S1_max)**b_arnovic
   ! Optional: - smoothed to prevent negative bases using a smooth approximation of S1_star = min(S1,S1_max)
-  !           - (Smoothed Ac) = 1 - (1-S1_star/S1_max)**b 
+  !           - (Smoothed Ac) = 1 - (1-S1_star/S1_max)**b_arnovic 
   associate(&
    err     => out_surfaceFlx % err,    & ! error code
    message => out_surfaceFlx % message & ! error message
@@ -1510,7 +1496,6 @@ contains
    base = 1._rkind - S1_star/S1_max
 
    ! validate base value and add tolerance for round-off error
-   roundoff_tolerance = 1.e2_rkind * epsilon(1._rkind) ! tolerance for round-off error is near machine epsilon 
    if (base < -roundoff_tolerance) then ! if below zero outside of tolerance
     err=10; message=trim(message)//"FUSE ARNO/VIC base value is negative"; return_flag=.true.; return
    else if (base < 0._rkind) then       ! if below zero within tolerance
@@ -1520,7 +1505,7 @@ contains
   end associate
  
   ! compute saturated area
-  Ac = 1._rkind - base**b
+  Ac = 1._rkind - base**b_arnovic
 
   ! retain Ac for infiltration computations
   io_surfaceFlx % scalarSaturatedArea = Ac
@@ -1606,28 +1591,19 @@ contains
   use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
 
   ! local variables
-  logical(lgt),parameter :: smoother = .true.                 ! control for optional smoothing in base variable  
-  real(rkind) ,parameter :: alpha_LSE= 1.e3_rkind             ! smoothness parameter for LSE smoother function
-  real(rkind)            :: b                                 ! ARNO/VIC exponent (-) 
-  real(rkind)            :: S1                                ! total water content in upper FUSE layer (m)
   real(rkind)            :: dS1_dWat(1:in_surfaceFlx % nSoil) ! derivative of S1 w.r.t. water content
-  real(rkind)            :: S1_max                            ! Maximum storage in the FUSE layer (m)
-  real(rkind)            :: S1_star                           ! total water content in upper FUSE layer computed with a smoothed min (m)
   real(rkind)            :: dS1_star_dS1                      ! derivative in S1_star w.r.t S1
-  real(rkind)            :: base                              ! base used in saturated area formula
   real(rkind)            :: dbase_dS1                         ! derivative of base w.r.t S1
-  real(rkind)            :: Ac                                ! saturated area (-)
   real(rkind)            :: dAc_dWat(1:in_surfaceFlx % nSoil) ! derivative of Ac w.r.t water content 
   real(rkind)            :: S1_star_derivatives(1:2)          ! array of derivatives for S1_star from SoftArgMax function
-  real(rkind)            :: roundoff_tolerance                ! tolerance for round-off error
-
+  
   ! validation of input parameters
-  b = in_surfaceFlx % FUSE_b ! interface ARNO/VIC exponent
+  b_arnovic = in_surfaceFlx % FUSE_b ! interface ARNO/VIC exponent
   associate(&
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   if ((b < 0.001_rkind).or.(b > 3._rkind)) then
+   if ((b_arnovic < 0.001_rkind).or.(b_arnovic > 3._rkind)) then
     err=10; message=trim(message)//"FUSE ARNO/VIC exponent must be between 0.001 and 3"; return_flag=.true.; return
    end if
   end associate
@@ -1671,7 +1647,6 @@ contains
    base = 1._rkind - S1_star/S1_max
 
    ! validate base value and add tolerance for round-off error
-   roundoff_tolerance = 1.e2_rkind * epsilon(1._rkind) ! tolerance for round-off error is near machine epsilon 
    if (base < -roundoff_tolerance) then ! if below zero outside of tolerance
     err=10; message=trim(message)//"FUSE ARNO/VIC base value is negative"; return_flag=.true.; return
    else if (base < 0._rkind) then       ! if below zero within tolerance
@@ -1710,7 +1685,7 @@ contains
     dS1_star_dS1 = 1._rkind                                   ! S1_star = S1 if no smoothing
    end if
    dbase_dS1 = -1._rkind/S1_max * dS1_star_dS1                ! derivative of base w.r.t S1
-   dAc_dWat  = -b*base**(b-1._rkind)*dbase_dS1*dS1_dWat(:)    ! derivative of Ac w.r.t water content 
+   dAc_dWat  = -b_arnovic*base**(b_arnovic-1._rkind)*dbase_dS1*dS1_dWat(:)    ! derivative of Ac w.r.t water content 
 
    ! process liquid derivatives
    dVolFracLiq_dWat(:) = 0._rkind
@@ -1747,44 +1722,19 @@ contains
  subroutine update_surfaceFlx_FUSE_TOPMODEL
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- TOPMODEL ****
   ! note: this parameterization utilizes saturation excess surface runoff only
-  ! * local variables *
-  ! runoff and infiltration variables
-  real(rkind) :: Ac     ! saturated area (-)
-  ! FUSE parameters and variables
-  real(rkind) :: lambda ! mean
-  real(rkind) :: chi    ! scale
-  real(rkind) :: mu     ! offset
-  real(rkind) :: phi    ! shape (computed from other parameters)
-  ! Gamma distribution parameters and variables
-  real(rkind) :: alpha  ! shape
-  real(rkind) :: theta  ! scale
-  real(rkind) :: x_crit ! critical x (random variable) value
-  ! topographic index variables
-  real(rkind),parameter :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
-  real(rkind) :: zeta_crit_n ! critical topographic index value (power-transfomred)
-  real(rkind) :: zeta_crit   ! critical topographic index value (log space)
-  complex(rkind) :: F1,F2    ! temporary storage for regularized lower incomplete gamma function values
-  complex(rkind) :: lambda_n ! mean of the power-transformed topographic index
-  ! lower FUSE layer variables
-  real(rkind) :: S2_max ! max storage in lower FUSE layer (m)
-  real(rkind) :: S2     ! total water content in lower FUSE layer (m)
-  real(rkind) :: n      ! TOPMODEL exponent exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
-  ! derivative variables
-  real(rkind) :: dS2_dWat(1:in_surfaceFlx % nSoil) ! derivative in S2 w.r.t water content 
-  real(rkind) :: dAc_dWat(1:in_surfaceFlx % nSoil) ! derivative of Ac w.r.t water content 
-  real(rkind) :: dzeta_crit_n_dS2                  ! derivative of zeta_crit_n w.r.t S2
-  real(rkind) :: dzeta_crit_dzeta_crit_n           ! derivative of zeta_crit w.r.t zeta_crit_n
-  real(rkind) :: dx_crit_dzeta_crit                ! derivative of x_crit w.r.t zeta_crit
-  real(rkind) :: dx_crit_dS2                       ! derivative of x_crit w.r.t S2
-  real(rkind) :: dgammp_dx_crit                    ! derivative of gammp function in Ac w.r.t x_crit
-  ! tolerance variables
-  real(rkind) :: roundoff_tolerance                ! tolerance for round-off error
+  ! local variables
+  real(rkind)                      :: lambda                ! mean
+  real(rkind)                      :: chi_topmodel          ! scale
+  real(rkind)                      :: mu                    ! offset
+  real(rkind),parameter            :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
+  real(rkind)                      :: zeta_crit             ! critical topographic index value (log space)
+  complex(rkind)                   :: F1,F2                 ! temporary storage for regularized lower incomplete gamma function values
 
   ! interface FUSE input parameters
-  lambda = in_surfaceFlx % FUSE_lambda
-  chi    = in_surfaceFlx % FUSE_chi
-  mu     = in_surfaceFlx % FUSE_mu
-  n      = in_surfaceFlx % FUSE_n
+  lambda       = in_surfaceFlx % FUSE_lambda
+  chi_topmodel = in_surfaceFlx % FUSE_chi
+  mu           = in_surfaceFlx % FUSE_mu
+  n_topmodel   = in_surfaceFlx % FUSE_n
 
   ! compute water content in lower FUSE layer
   ! note: the entire soil column is used
@@ -1812,14 +1762,14 @@ contains
    if (lambda <= mu) then
     err=10; message=trim(message)//"FUSE TOPMODEL lambda value must be greater than mu value"; return_flag=.true.; return
    end if
-   if ((chi < 2._rkind ).or.(chi > 5._rkind)) then
-    err=10; message=trim(message)//"FUSE TOPMODEL chi value must be between 2 and 5"; return_flag=.true.; return
+   if ((chi_topmodel < 2._rkind ).or.(chi_topmodel > 5._rkind)) then
+    err=10; message=trim(message)//"FUSE TOPMODEL chi_topmodel value must be between 2 and 5"; return_flag=.true.; return
    end if
    if ((mu < 2.5_rkind ).or.(mu > 3.5_rkind)) then
     err=10; message=trim(message)//"FUSE TOPMODEL mu value must be between 2.5 and 3.5"; return_flag=.true.; return
    end if
 
-   if ((n < 3.5_rkind).or.(n > 10._rkind)) then ! validate TOPMODEL exponent to avoid divergence of lambda_n
+   if ((n_topmodel < 3.5_rkind).or.(n_topmodel > 10._rkind)) then ! validate TOPMODEL exponent to avoid divergence of lambda_n
     err=10; message=trim(message)//"FUSE TOPMODEL exponent must be between 3.5 and 10"; return_flag=.true.; return
    end if
    if (S2 < 0._rkind) then ! check for negative water content values in the lower FUSE layer
@@ -1833,22 +1783,18 @@ contains
   ! check water content in lower FUSE layer 
   if (S2 > 0._rkind) then ! if some water is stored in lower FUSE layer
 
-   ! set FUSE parameters - input parameters are lambda, chi, and mu
-   phi=(lambda-mu)/chi
-
-   ! set Gamma distribution parameters
-   alpha=phi
-   theta=chi
+   ! set FUSE parameters - input parameters are lambda, chi_topmodel, and mu
+   alpha_topmodel=(lambda-mu)/chi_topmodel
 
    ! * compute the mean power-transformed topographic index *
    ! compute regularized lower incomplete Gamma function values
-   F1=gammp_complex(alpha,(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta)
-   F2=gammp_complex(alpha,(-(mu*n - mu*theta)/n)/theta)
+   F1=gammp_complex(alpha_topmodel,(-(mu*n_topmodel - mu*chi_topmodel - (n_topmodel - chi_topmodel)*zeta_upper)/n_topmodel)/chi_topmodel)
+   F2=gammp_complex(alpha_topmodel,(-(mu*n_topmodel - mu*chi_topmodel)/n_topmodel)/chi_topmodel)
 
    ! mean power-transformed topographic index (translated to Fortran from SageMath)
-   lambda_n=(cmplx(-mu + zeta_upper,0._rkind,rkind)**alpha*(F1 - 1)*exp(mu/n)*gamma(alpha)/cmplx(-(mu*n - mu*theta - &
-           &(n - theta)*zeta_upper)/(n*theta),0._rkind,rkind)**alpha - cmplx(-mu,0._rkind,rkind)**alpha*(F2 - 1)*exp(mu/n)*gamma(alpha)/&
-           &cmplx(-(mu*n - mu*theta)/(n*theta),0._rkind,rkind)**alpha)/(cmplx(theta,0._rkind,rkind)**alpha*gamma(alpha))
+   lambda_n=(cmplx(-mu + zeta_upper,0._rkind,rkind)**alpha_topmodel*(F1 - 1)*exp(mu/n_topmodel)*gamma(alpha_topmodel)/cmplx(-(mu*n_topmodel - mu*chi_topmodel - &
+           &(n_topmodel - chi_topmodel)*zeta_upper)/(n_topmodel*chi_topmodel),0._rkind,rkind)**alpha_topmodel - cmplx(-mu,0._rkind,rkind)**alpha_topmodel*(F2 - 1)*exp(mu/n_topmodel)*gamma(alpha_topmodel)/&
+           &cmplx(-(mu*n_topmodel - mu*chi_topmodel)/(n_topmodel*chi_topmodel),0._rkind,rkind)**alpha_topmodel)/(cmplx(chi_topmodel,0._rkind,rkind)**alpha_topmodel*gamma(alpha_topmodel))
 
    ! compute critical zeta value
    ! note: to obtain physical topography values, only the real part of lambda_n is used 
@@ -1864,11 +1810,10 @@ contains
     end associate
    end if
 
-   zeta_crit=n*log(zeta_crit_n) ! critical topographic index in log space
+   zeta_crit=n_topmodel*log(zeta_crit_n) ! critical topographic index in log space
 
    ! transform to x random variable and validate result
    x_crit=zeta_crit-mu
-   roundoff_tolerance = 1.e2_rkind * epsilon(1._rkind) ! tolerance for round-off error is near machine epsilon 
    if (x_crit < -roundoff_tolerance) then ! less than zero outside tolerance
     associate(&
      ! output: error control
@@ -1884,7 +1829,7 @@ contains
    end if
 
    ! compute saturated area
-   Ac = 1._rkind-gammp(alpha,x_crit/theta)
+   Ac = 1._rkind-gammp(alpha_topmodel,x_crit/chi_topmodel)
 
   else ! if no water is stored in lower FUSE layer (based on asymptotic behaviour of integral in eq. 9c of Clark et al. (2008))
    Ac = 0._rkind
@@ -1972,28 +1917,7 @@ contains
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- TOPMODEL ****
   ! note: this parameterization utilizes saturation excess surface runoff only
   ! * local variables *
-  ! runoff and infiltration variables
-  real(rkind) :: Ac     ! saturated area (-)
-  ! FUSE parameters and variables
-  real(rkind) :: lambda ! mean
-  real(rkind) :: chi    ! scale
-  real(rkind) :: mu     ! offset
-  real(rkind) :: phi    ! shape (computed from other parameters)
-  ! Gamma distribution parameters and variables
-  real(rkind) :: alpha  ! shape
-  real(rkind) :: theta  ! scale
-  real(rkind) :: x_crit ! critical x (random variable) value
-  ! topographic index variables
-  real(rkind),parameter :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
-  real(rkind) :: zeta_crit_n ! critical topographic index value (power-transfomred)
-  real(rkind) :: zeta_crit   ! critical topographic index value (log space)
-  complex(rkind) :: F1,F2    ! temporary storage for regularized lower incomplete gamma function values
-  complex(rkind) :: lambda_n ! mean of the power-transformed topographic index
-  ! lower FUSE layer variables
-  real(rkind) :: S2_max ! max storage in lower FUSE layer (m)
-  real(rkind) :: S2     ! total water content in lower FUSE layer (m)
-  real(rkind) :: n      ! TOPMODEL exponent exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
-  ! derivative variables
+    ! derivative variables
   real(rkind) :: dS2_dWat(1:in_surfaceFlx % nSoil) ! derivative in S2 w.r.t water content 
   real(rkind) :: dAc_dWat(1:in_surfaceFlx % nSoil) ! derivative of Ac w.r.t water content 
   real(rkind) :: dzeta_crit_n_dS2                  ! derivative of zeta_crit_n w.r.t S2
@@ -2001,14 +1925,19 @@ contains
   real(rkind) :: dx_crit_dzeta_crit                ! derivative of x_crit w.r.t zeta_crit
   real(rkind) :: dx_crit_dS2                       ! derivative of x_crit w.r.t S2
   real(rkind) :: dgammp_dx_crit                    ! derivative of gammp function in Ac w.r.t x_crit
-  ! tolerance variables
-  real(rkind) :: roundoff_tolerance                ! tolerance for round-off error
+  ! local variables
+  real(rkind)                      :: lambda                ! mean
+  real(rkind)                      :: chi_topmodel          ! scale
+  real(rkind)                      :: mu                    ! offset
+  real(rkind),parameter            :: zeta_upper=1.e3_rkind ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
+  real(rkind)                      :: zeta_crit             ! critical topographic index value (log space)
+  complex(rkind)                   :: F1,F2                 ! temporary storage for regularized lower incomplete gamma function values
 
   ! interface FUSE input parameters
-  lambda = in_surfaceFlx % FUSE_lambda
-  chi    = in_surfaceFlx % FUSE_chi
-  mu     = in_surfaceFlx % FUSE_mu
-  n      = in_surfaceFlx % FUSE_n
+  lambda       = in_surfaceFlx % FUSE_lambda
+  chi_topmodel = in_surfaceFlx % FUSE_chi
+  mu           = in_surfaceFlx % FUSE_mu
+  n_topmodel   = in_surfaceFlx % FUSE_n
 
   ! compute water content in lower FUSE layer
   ! note: the entire soil column is used
@@ -2023,25 +1952,21 @@ contains
    S2_max = iLayerHeight(nSoil) * theta_sat             ! max water storage for upper FUSE layer (m)
   end associate
 
-  ! check water content in lower FUSE layer 
+    ! check water content in lower FUSE layer 
   if (S2 > 0._rkind) then ! if some water is stored in lower FUSE layer
 
-   ! set FUSE parameters - input parameters are lambda, chi, and mu
-   phi=(lambda-mu)/chi
-
-   ! set Gamma distribution parameters
-   alpha=phi
-   theta=chi
+   ! set FUSE parameters - input parameters are lambda, chi_topmodel, and mu
+   alpha_topmodel=(lambda-mu)/chi_topmodel
 
    ! * compute the mean power-transformed topographic index *
    ! compute regularized lower incomplete Gamma function values
-   F1=gammp_complex(alpha,(-(mu*n - mu*theta - (n - theta)*zeta_upper)/n)/theta)
-   F2=gammp_complex(alpha,(-(mu*n - mu*theta)/n)/theta)
+   F1=gammp_complex(alpha_topmodel,(-(mu*n_topmodel - mu*chi_topmodel - (n_topmodel - chi_topmodel)*zeta_upper)/n_topmodel)/chi_topmodel)
+   F2=gammp_complex(alpha_topmodel,(-(mu*n_topmodel - mu*chi_topmodel)/n_topmodel)/chi_topmodel)
 
    ! mean power-transformed topographic index (translated to Fortran from SageMath)
-   lambda_n=(cmplx(-mu + zeta_upper,0._rkind,rkind)**alpha*(F1 - 1)*exp(mu/n)*gamma(alpha)/cmplx(-(mu*n - mu*theta - &
-           &(n - theta)*zeta_upper)/(n*theta),0._rkind,rkind)**alpha - cmplx(-mu,0._rkind,rkind)**alpha*(F2 - 1)*exp(mu/n)*gamma(alpha)/&
-           &cmplx(-(mu*n - mu*theta)/(n*theta),0._rkind,rkind)**alpha)/(cmplx(theta,0._rkind,rkind)**alpha*gamma(alpha))
+   lambda_n=(cmplx(-mu + zeta_upper,0._rkind,rkind)**alpha_topmodel*(F1 - 1)*exp(mu/n_topmodel)*gamma(alpha_topmodel)/cmplx(-(mu*n_topmodel - mu*chi_topmodel - &
+           &(n_topmodel - chi_topmodel)*zeta_upper)/(n_topmodel*chi_topmodel),0._rkind,rkind)**alpha_topmodel - cmplx(-mu,0._rkind,rkind)**alpha_topmodel*(F2 - 1)*exp(mu/n_topmodel)*gamma(alpha_topmodel)/&
+           &cmplx(-(mu*n_topmodel - mu*chi_topmodel)/(n_topmodel*chi_topmodel),0._rkind,rkind)**alpha_topmodel)/(cmplx(chi_topmodel,0._rkind,rkind)**alpha_topmodel*gamma(alpha_topmodel))
 
    ! compute critical zeta value
    ! note: to obtain physical topography values, only the real part of lambda_n is used 
@@ -2057,11 +1982,10 @@ contains
     end associate
    end if
 
-   zeta_crit=n*log(zeta_crit_n) ! critical topographic index in log space
+   zeta_crit=n_topmodel*log(zeta_crit_n) ! critical topographic index in log space
 
    ! transform to x random variable and validate result
    x_crit=zeta_crit-mu
-   roundoff_tolerance = 1.e2_rkind * epsilon(1._rkind) ! tolerance for round-off error is near machine epsilon 
    if (x_crit < -roundoff_tolerance) then ! less than zero outside tolerance
     associate(&
      ! output: error control
@@ -2100,13 +2024,13 @@ contains
 
    
    ! compute derivatives needed for infiltration derivative
-   if (S2 > 0._rkind) then ! for S2 > 0: Ac = 1._rkind-gammp(alpha,x_crit/theta)
+  if (S2 > 0._rkind) then ! for S2 > 0: Ac = 1._rkind-gammp(alpha_topmodel,x_crit/chi_topmodel)
      dS2_dWat  = mLayerDepth(:)                       ! derivative of S2 w.r.t. water content      
      dzeta_crit_n_dS2 = -lambda_n%re*S2_max/S2**2_i4b ! derivative of zeta_crit_n=lambda_n%re*S2_max/S2 w.r.t S2     
-     dzeta_crit_dzeta_crit_n = ( n*zeta_crit_n**(n-1._rkind) ) / zeta_crit_n**n    ! derivative of zeta_crit=log(zeta_crit_n**n) w.r.t zeta_crit_n
+    dzeta_crit_dzeta_crit_n = ( n_topmodel*zeta_crit_n**(n_topmodel-1._rkind) ) / zeta_crit_n**n_topmodel    ! derivative of zeta_crit=log(zeta_crit_n**n_topmodel) w.r.t zeta_crit_n
      dx_crit_dzeta_crit = 1._rkind                                                 ! derivative of x_crit=zeta_crit-mu w.r.t zeta_crit
      dx_crit_dS2 = dx_crit_dzeta_crit * dzeta_crit_dzeta_crit_n * dzeta_crit_n_dS2 ! derivative of x_crit w.r.t S2 via chain rule
-     dgammp_dx_crit = ( (x_crit/theta)**(alpha-1._rkind) * exp(-x_crit/theta) )/theta/gamma(alpha) ! derivative of gammp function in Ac w.r.t x_crit 
+    dgammp_dx_crit = ( (x_crit/chi_topmodel)**(alpha_topmodel-1._rkind) * exp(-x_crit/chi_topmodel) )/chi_topmodel/gamma(alpha_topmodel) ! derivative of gammp function in Ac w.r.t x_crit 
      dAc_dWat = -dgammp_dx_crit * dx_crit_dS2 * dS2_dWat(:) ! derivative of Ac w.r.t water content via chain rule 
    else ! for S2 = 0: Ac = 0
      dAc_dWat(:) = 0._rkind
