@@ -1147,10 +1147,8 @@ contains
 
  subroutine update_gather_runoff_components
   ! **** Gather surface runoff components for the liquid flux upper hydrology boundary condition ****
-  real(rkind) :: roundoff_tolerance   ! tolerance for round-off error
 
   ! validate surface runoff component values and correct for round-off error if needed
-  roundoff_tolerance = 1.e2_rkind * epsilon(1._rkind) ! permit round-off error near machine epsilon
   associate(&
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt, & ! rain plus melt  (m s-1)
    err                => out_surfaceFlx % err,               & ! error code
