@@ -520,10 +520,10 @@ subroutine T2enthTemp_snow(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   diffT    = mLayerTemp - Tfreeze  ! diffT<0._rkind because snow is frozen
 
-  if(diffT==0._rkind)then ! only need for upper bound
-    enthLiq = 0._rkind
+  if(diffT>=0._rkind)then ! diffT<0._rkind if in snow, but keep for generality and temporary upper bound violations
+    enthLiq = iden_water * Cp_water * mLayerVolFracWat * diffT
     enthIce = 0._rkind
-    enthAir = 0._rkind
+    enthAir = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWat ) * diffT
   else
     integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
     enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
