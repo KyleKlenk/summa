@@ -1052,9 +1052,10 @@ contains
          end select
 
          ! calculate maximum infiltration rate
+         ! Note: case() structure does not make much sense right now, but if we want to add more conceptual options later it will help
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
            case(noInfiltrationExcess)    ! zero infiltration excess surface runoff + IE derivatives
-             call update_surfaceFlx_zero_IE;        if (return_flag) return 
+             ! intentionally do nothing - this will be handled in the infiltration calculation
 
            case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible + IE derivatives
              call update_surfaceFlx_liquidFlux_calculate_infratemax;     if (return_flag) return
@@ -1064,16 +1065,23 @@ contains
              return_flag=.true.; return
          end select
 
-         ! update the derivatives (this needs to be done before infiltration to keep new code match old results)
+         ! update the derivatives (this needs to be done before infiltration calculation to keep new code match old results)
          if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives  ! provides the derivatives for any combination of SE and IE parametrization options
-         
-         ! Calculate infiltration from maximum infiltration ratea and saturated area
+
          if (surfRun_SE == homegrown_SE) then
           ! NOTE: this is temporary, just to see if taking the derives out of the main function works in test cases
           ! if it does, we'll move this into update_surfaceFlx_liquidFlux_derivatives
           if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
          end if
-         call update_surfaceFlx_liquidFlux_infiltration;  if (return_flag) return
+
+         ! Calculate infiltration from maximum infiltration ratea and saturated area
+         select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
+           case(noInfiltrationExcess)    ! zero infiltration excess surface runoff + IE derivatives
+             call update_surfaceFlx_zero_IE;        if (return_flag) return 
+
+           case(GreenAmpt, topmodel_GA)
+             call update_surfaceFlx_liquidFlux_infiltration;  if (return_flag) return
+         end select
          
          ! tie everything together and run checks
          call update_gather_runoff_components;  if (return_flag) return
