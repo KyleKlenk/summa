@@ -1064,8 +1064,13 @@ contains
              return_flag=.true.; return
          end select
 
-         ! tie everything together
+         ! update the derivatives
          if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives  ! provides the derivatives for any combination of SE and IE parametrization options
+         
+         ! Calculate infiltration and tie everything together
+         ! Infiltration calculation needs to be outside the maxInfRate calculation because we need to
+         !  update the derivatives in between calculating maxInfRate and final infiltration
+         call update_surfaceFlx_liquidFlux_infiltration;  if (return_flag) return
          call update_gather_runoff_components;  if (return_flag) return
 
        case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
@@ -1136,7 +1141,7 @@ contains
     select case(surfRun_SE) ! saturation excess surface runoff
     case(homegrown_SE)    ! homegrown saturation excess surface runoff + SE derivatives
       write(*,*) 'WARNING: homegrown_SE derivatives not yet implemented in update_surfaceFlx_liquidFlux_derivatives_SE'
-      !call update_surfaceFlx_liquidFlux_computation_flux_derivatives_SE
+      !call update_surfaceFlx_homegrown_SE_derivatives
     case(FUSEPRMS)        ! FUSE PRMS surface runoff + SE derivatives
       call update_surfaceFlx_FUSE_PRMS_derivatives;
     case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff + SE derivatives
@@ -1147,14 +1152,19 @@ contains
   end if
 
   ! Set the infiltration excess derivatives next, based on active parametrization
-  ! NOTE: WIP
-  if (surfRun_SE == homegrown_SE) then
-    !call update_surfaceFlx_liquidFlux_computation_flux_derivatives; ! internally accounts for all combinations of IE and homegrown_SE
-  else 
-    ! FUSE & zero-SE cases, assume zero infiltration excess surface runoff
-    dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
-    dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
-  end if
+  ! select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
+  !   case(noInfiltrationExcess)    ! zero infiltration excess surface runoff + IE derivatives
+  !     dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
+  !     dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
+
+  !   case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible + IE derivatives
+  !     !write(*,*) 'WARNING: GreenAmpt/topmodel_GA IE derivatives not yet implemented in update_surfaceFlx_liquidFlux_derivatives_IE'
+  !     !call update_surfaceFlx_IE_derivatives
+
+  !   case default
+  !     err=20; message=trim(message)//'unknown infiltration excess surface runoff method in update_surfaceFlx_liquidFlux_derivatives';
+  !     return_flag=.true.; return
+  ! end select
 
   ! Combine into the total infiltration derivatives
   ! NOTE: currently only happens in update_surfaceFlx_liquidFlux_computation_flux_derivatives
@@ -1828,7 +1838,7 @@ contains
   ! -- main computations - these always need to run
   call update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
   if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
-  call update_surfaceFlx_liquidFlux_infiltration
+  !call update_surfaceFlx_liquidFlux_infiltration
 
  end subroutine update_surfaceFlx_liquidFlux
 
@@ -2112,6 +2122,11 @@ contains
    end if
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_frozen_area
+
+ subroutine update_surfaceFlx_homegrown_SE_derivatives
+  ! ****
+
+ end subroutine update_surfaceFlx_homegrown_SE_derivatives
 
  subroutine update_surfaceFlx_liquidFlux_computation_flux_derivatives
   ! **** Update operations for surfaceFlx: flux condition -- main computations (flux derivatives, nonzero only if updateInfil) ****
