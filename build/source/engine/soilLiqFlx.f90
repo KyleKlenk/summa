@@ -1034,16 +1034,16 @@ contains
            case(zero_SE)         ! zero saturation excess surface runoff. Sets SR_SE.
              call update_surfaceFlx_zero_SE;        if (return_flag) return 
 
-           case(homegrown_SE)    ! homegrown saturation excess surface runoff + SE derivatives
+           case(homegrown_SE)    ! homegrown saturation excess surface runoff. Set SR_SE and Ac.
               call update_surfaceFlx_homegrown_SE;     if (return_flag) return
 
            case(FUSEPRMS)        ! FUSE PRMS surface runoff. Set SR_SE and Ac.
              call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return 
 
-           case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff + SE derivatives
+           case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff. Set SR_SE and Ac.
              call update_surfaceFlx_FUSE_ARNO_VIC;  if (return_flag) return
 
-           case(FUSETOPM)        ! FUSE TOPMODEL surface runoff + SE derivatives
+           case(FUSETOPM)        ! FUSE TOPMODEL surface runoff. Set SR_SE and Ac.
              call update_surfaceFlx_FUSE_TOPMODEL;  if (return_flag) return
 
            case default
@@ -1051,31 +1051,31 @@ contains
              return_flag=.true.; return
          end select
 
-         ! infiltration excess surface runoff now we have the saturated area
+         ! calculate maximum infiltration rate
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
            case(noInfiltrationExcess)    ! zero infiltration excess surface runoff + IE derivatives
              call update_surfaceFlx_zero_IE;        if (return_flag) return 
 
            case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible + IE derivatives
-             call update_surfaceFlx_liquidFlux;     if (return_flag) return
+             call update_surfaceFlx_liquidFlux_calculate_infratemax;     if (return_flag) return
 
            case default
              err=20; message=trim(message)//'unknown infiltration excess surface runoff method';
              return_flag=.true.; return
          end select
 
-         ! update the derivatives
+         ! update the derivatives (this needs to be done before infiltration to keep new code match old results)
          if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives  ! provides the derivatives for any combination of SE and IE parametrization options
          
-         ! Calculate infiltration and tie everything together
-         ! Infiltration calculation needs to be outside the maxInfRate calculation because we need to
-         !  update the derivatives in between calculating maxInfRate and final infiltration
+         ! Calculate infiltration from maximum infiltration ratea and saturated area
          if (surfRun_SE == homegrown_SE) then
           ! NOTE: this is temporary, just to see if taking the derives out of the main function works in test cases
           ! if it does, we'll move this into update_surfaceFlx_liquidFlux_derivatives
           if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
          end if
          call update_surfaceFlx_liquidFlux_infiltration;  if (return_flag) return
+         
+         ! tie everything together and run checks
          call update_gather_runoff_components;  if (return_flag) return
 
        case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
@@ -1825,7 +1825,7 @@ contains
   call update_surfaceFlx_liquidFlux_computation_homegrown_SE
  end subroutine update_surfaceFlx_homegrown_SE
 
- subroutine update_surfaceFlx_liquidFlux 
+ subroutine update_surfaceFlx_liquidFlux_calculate_infratemax
   ! **** Update operations for surfaceFlx: flux condition ****
   ! -- get the required variables from saturation excess runoff computations 
   associate(&
@@ -1845,7 +1845,7 @@ contains
   !if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
   !call update_surfaceFlx_liquidFlux_infiltration
 
- end subroutine update_surfaceFlx_liquidFlux
+ end subroutine update_surfaceFlx_liquidFlux_calculate_infratemax
 
  subroutine update_surfaceFlx_liquidFlux_computation_scalarInfilArea_update
     ! **** Update operations for surfaceFlx: flux condition -- set scalarInfilArea from scalarSaturatedArea ****
