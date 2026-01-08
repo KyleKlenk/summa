@@ -1070,6 +1070,11 @@ contains
          ! Calculate infiltration and tie everything together
          ! Infiltration calculation needs to be outside the maxInfRate calculation because we need to
          !  update the derivatives in between calculating maxInfRate and final infiltration
+         if (surfRun_SE == homegrown_SE) then
+          ! NOTE: this is temporary, just to see if taking the derives out of the main function works in test cases
+          ! if it does, we'll move this into update_surfaceFlx_liquidFlux_derivatives
+          if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
+         end if
          call update_surfaceFlx_liquidFlux_infiltration;  if (return_flag) return
          call update_gather_runoff_components;  if (return_flag) return
 
@@ -1816,7 +1821,7 @@ contains
   call update_surfaceFlx_liquidFlux_computation_infiltrating_area  ! this calculates infiltration area and saturated area is simply 1-infiltration area
   call update_surfaceFlx_liquidFlux_computation_validate_inf_area
   call update_surfaceFlx_liquidFlux_computation_frozen_area
-  if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
+  !if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
   call update_surfaceFlx_liquidFlux_computation_homegrown_SE
  end subroutine update_surfaceFlx_homegrown_SE
 
@@ -1837,7 +1842,7 @@ contains
   end associate
   ! -- main computations - these always need to run
   call update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
-  if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
+  !if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
   !call update_surfaceFlx_liquidFlux_infiltration
 
  end subroutine update_surfaceFlx_liquidFlux
