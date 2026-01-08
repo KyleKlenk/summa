@@ -1047,7 +1047,7 @@ contains
              call update_surfaceFlx_FUSE_TOPMODEL;  if (return_flag) return
 
            case default
-             err=20; message=trim(message)//'unknown saturation excess surface runoff method';
+             err=20; message=trim(message)//'unknown saturation excess surface runoff method';  ! Do we need these? Should already be caught in model decision checker
              return_flag=.true.; return
          end select
 
@@ -1078,7 +1078,9 @@ contains
          ! tie everything together and run checks
          call update_gather_runoff_components;  if (return_flag) return
 
-       case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
+       case default; 
+        err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; 
+        return_flag=.true.; return
      end select 
    else ! do not compute infiltration after first flux call in a splitting operation unless updateInfil is true
      dq_dHydStateVec(:) = realMissing ! not used, so cause problems
