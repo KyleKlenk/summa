@@ -1066,7 +1066,6 @@ contains
 
          ! tie everything together
          if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives  ! provides the derivatives for any combination of SE and IE parametrization options
-         ! to do: add infiltration estimate so we can keep the correct order currently in update_surfaceFlx_liquidFlux()?
          call update_gather_runoff_components;  if (return_flag) return
 
        case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return
@@ -1110,51 +1109,56 @@ contains
    message  => out_surfaceFlx % message  & ! error message
   &)
 
-  ! Select the correct case based on computed maximum infiltration rate and rainPlusMelt rate
+  ! Set the saturation excess derivatives first, based on active parametrization
+  if (surfRun_SE == zero_SE) then
+    dq_dHydStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
+    dq_dNrgStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
+  else  ! i.e., if (surfRun_SE /= zero_SE), meaning FUSE or homegrown_SE
+    ! process liquid derivatives, first initialize  -- TO DO: probably cleaner to have this in its own subroutine (not critical now)
+    dVolFracLiq_dWat(:) = 0._rkind
+    dVolFracLiq_dTk(:)  = 0._rkind      
+    select case(ixRichards)  ! form of Richards' equation
+      case(moisture)
+        dVolFracLiq_dWat(:) = 1._rkind
+      case(mixdform)
+        do iLayer=1,nSoil
+          Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
+          if (mLayerTemp(iLayer) < Tcrit) then
+            dVolFracLiq_dWat(iLayer) = 0._rkind
+          else
+            dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
+          end if
+        end do
+    end select 
+    dVolFracLiq_dTk(:) = dTheta_dTk(:) !already zeroed out if not below critical temperature
+    
+    ! set the SR_SE derivative based on the parametrization used
+    select case(surfRun_SE) ! saturation excess surface runoff
+    case(homegrown_SE)    ! homegrown saturation excess surface runoff + SE derivatives
+      write(*,*) 'WARNING: homegrown_SE derivatives not yet implemented in update_surfaceFlx_liquidFlux_derivatives_SE'
+      !call update_surfaceFlx_liquidFlux_computation_flux_derivatives_SE
+    case(FUSEPRMS)        ! FUSE PRMS surface runoff + SE derivatives
+      call update_surfaceFlx_FUSE_PRMS_derivatives;
+    case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff + SE derivatives
+      call update_surfaceFlx_FUSE_ARNO_VIC_derivatives;
+    case(FUSETOPM)        ! FUSE TOPMODEL surface runoff + SE derivatives
+      call update_surfaceFlx_FUSE_TOPMODEL_derivatives;
+    end select
+  end if
+
+  ! Set the infiltration excess derivatives next, based on active parametrization
+  ! NOTE: WIP
   if (surfRun_SE == homegrown_SE) then
     !call update_surfaceFlx_liquidFlux_computation_flux_derivatives; ! internally accounts for all combinations of IE and homegrown_SE
-    ! do nothing for the moment, we're already doing this in update_surfaceFlx_liquidFlux()
   else 
-    
     ! FUSE & zero-SE cases, assume zero infiltration excess surface runoff
     dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
     dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
+  end if
 
-    if (surfRun_SE /= zero_SE) then ! FUSE cases
-      ! process liquid derivatives, first initialize
-      dVolFracLiq_dWat(:) = 0._rkind
-      dVolFracLiq_dTk(:)  = 0._rkind
-      select case(ixRichards)  ! form of Richards' equation
-        case(moisture)
-          dVolFracLiq_dWat(:) = 1._rkind
-        case(mixdform)
-          do iLayer=1,nSoil
-            Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
-            if (mLayerTemp(iLayer) < Tcrit) then
-              dVolFracLiq_dWat(iLayer) = 0._rkind
-            else
-              dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
-            end if
-          end do
-      end select 
-      dVolFracLiq_dTk(:) = dTheta_dTk(:) !already zeroed out if not below critical temperature
-    
-     ! set the SR_SE derivative based on the parametrization used
-     select case(surfRun_SE) ! saturation excess surface runoff
-      case(zero_SE)         ! zero saturation excess surface runoff
-        dq_dHydStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
-        dq_dNrgStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
-      case(homegrown_SE)    ! homegrown saturation excess surface runoff + SE derivatives
-        !call update_surfaceFlx_liquidFlux_computation_flux_derivatives_SE
-      case(FUSEPRMS)        ! FUSE PRMS surface runoff + SE derivatives
-        call update_surfaceFlx_FUSE_PRMS_derivatives;
-      case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff + SE derivatives
-        call update_surfaceFlx_FUSE_ARNO_VIC_derivatives;
-      case(FUSETOPM)        ! FUSE TOPMODEL surface runoff + SE derivatives
-        call update_surfaceFlx_FUSE_TOPMODEL_derivatives;
-      end select
-    end if
-   end if
+  ! Combine into the total infiltration derivatives
+  ! NOTE: currently only happens in update_surfaceFlx_liquidFlux_computation_flux_derivatives
+
   end associate
  end subroutine update_surfaceFlx_liquidFlux_derivatives
 
