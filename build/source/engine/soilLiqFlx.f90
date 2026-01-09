@@ -1050,7 +1050,9 @@ contains
          ! Note: case() structure does not make much sense right now, but if we want to add more conceptual options later it will help
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
            case(noInfiltrationExcess)    ! zero infiltration excess surface runoff + IE derivatives
-             ! intentionally do nothing - this will be handled in the infiltration calculation
+             ! Set the auxiliary variables needed for infiltration and derivatives calculations
+             io_surfaceFlx % scalarSaturatedArea = 0._rkind ! fraction of area that is considered saturated (-)
+             io_surfaceFlx % xMaxInfilRate = veryBig ! set to a very large number so rainPlusMelt never exceeds this
            case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible + IE derivatives
              call update_surfaceFlx_liquidFlux_calculate_infratemax;     if (return_flag) return
            case default
@@ -1298,8 +1300,6 @@ contains
   SR_IE              = 0._rkind ! surface runoff
   !dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
   !dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
-  io_surfaceFlx % scalarSaturatedArea = 0._rkind ! fraction of area that is considered saturated (-)
-  ! TO DO: should we set saturated area here or should that go into saturation excess? Seems oddly placed here
  end subroutine update_surfaceFlx_zero_IE 
 
  subroutine update_surfaceFlx_zero_SE
@@ -1419,13 +1419,18 @@ contains
    ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    dq_dNrgStateVec_SE(:) = -scalarRainPlusMelt * dAc_dWat(:) * dVolFracLiq_dTk(:)
 
-  !  ! compute infiltration excess (IE) and saturation excess (SE) components
-  !  if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (SR) occurs
-  !   write(*,*) "scalarRainPlusMelt, xMaxInfilRate =", scalarRainPlusMelt, xMaxInfilRate
-  !   err=20; message=trim(message)//'update_surfaceFlx_FUSE_PRMS_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
-  !   return_flag=.true.; return
-  !   ! TO DO: implement derivatives for infiltration excess surface runoff if needed
-  !  end if
+   if (scalarRainPlusMelt.gt.xMaxInfilRate) then
+    write(*,*) "scalarRainPlusMelt, xMaxInfilRate =", scalarRainPlusMelt, xMaxInfilRate
+   end if
+
+   ! compute infiltration excess (IE) and saturation excess (SE) components
+   if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (SR) occurs
+    ! write a temporary warning, because the error below does not get propagated correctly
+    write(*,*) 'WARNING: update_surfaceFlx_FUSE_PRMS_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented'
+    !err=20; message=trim(message)//'update_surfaceFlx_FUSE_PRMS_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
+    !return_flag=.true.; return
+    ! TO DO: implement derivatives for infiltration excess surface runoff if needed
+   end if
 
    end associate
  end subroutine update_surfaceFlx_FUSE_PRMS_derivatives
@@ -1559,12 +1564,14 @@ contains
     write(*,*) "scalarRainPlusMelt, xMaxInfilRate =", scalarRainPlusMelt, xMaxInfilRate
    end if
 
-  !  ! compute infiltration excess (IE) and saturation excess (SE) components
-  !  if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (IE) occurs
-  !   err=20; message=trim(message)//'update_surfaceFlx_FUSE_ARNO_VIC_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
-  !   return_flag=.true.; return
-  !   ! TO DO: implement derivatives for infiltration excess surface runoff if needed
-  !  end if
+   ! compute infiltration excess (IE) and saturation excess (SE) components
+   if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (IE) occurs
+    ! write a temporary warning, because the error below does not get propagated correctly
+    write(*,*) 'WARNING: update_surfaceFlx_FUSE_ARNO_VIC_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented'
+    !err=20; message=trim(message)//'update_surfaceFlx_FUSE_ARNO_VIC_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
+    !return_flag=.true.; return
+    ! TO DO: implement derivatives for infiltration excess surface runoff if needed
+   end if
   
   end associate
 
@@ -1756,12 +1763,14 @@ contains
     write(*,*) "scalarRainPlusMelt, xMaxInfilRate =", scalarRainPlusMelt, xMaxInfilRate
    end if
 
-  !  ! compute infiltration excess (IE) and saturation excess (SE) components
-  !  if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (IE) occurs
-  !   err=20; message=trim(message)//'update_surfaceFlx_FUSE_TOPMODEL_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
-  !   return_flag=.true.; return
-  !   ! TO DO: implement derivatives for infiltration excess surface runoff if needed
-  !  end if
+   ! compute infiltration excess (IE) and saturation excess (SE) components
+   if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (IE) occurs
+    ! write a temporary warning, because the error below does not get propagated correctly
+    write(*,*) 'WARNING: update_surfaceFlx_FUSE_TOPMODEL_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented'
+    !err=20; message=trim(message)//'update_surfaceFlx_FUSE_TOPMODEL_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
+    !return_flag=.true.; return
+    ! TO DO: implement derivatives for infiltration excess surface runoff if needed
+   end if
 
   end associate
 
@@ -2035,7 +2044,7 @@ contains
     end if
 
    ! process hydraulic conductivity-controlled infiltration rate
-   select case(ixInfRateMax)  ! maximum infiltration rate parameterization
+   select case(ixInfRateMax)  ! maximum infiltration rate parameterization (noInfExcess set in update_surfaceFlx)
     case(topmodel_GA)
      ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
      hydCondWettingFront = surfaceSatHydCond * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 1._rkind) )
@@ -2065,12 +2074,6 @@ contains
         dxMaxInfilRate_dWat(:) = -hydCondWettingFront*wettingFrontSuction*dDepthWettingFront_dWat(:)/depthWettingFront**2_i4b
         dxMaxInfilRate_dTk(:)  = -hydCondWettingFront*wettingFrontSuction*dDepthWettingFront_dTk(:)/depthWettingFront**2_i4b
       endif
-    case(noInfiltrationExcess)
-      ! TO DO: we're currently doubling up on the no-IE decision - it's already set in the main routine
-      ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
-      !hydCondWettingFront =  surfaceSatHydCond ! this is not needed for this calculation, but keeping it here in case not setting this will cause unanticipated problems down the line
-      ! define the maximum infiltration rate (m s-1), derivatives are zero
-      xMaxInfilRate = veryBig ! If maximum infiltration is very big we'll never have a rainfall rate that exceeds it, so no infiltration excess
    end select
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
