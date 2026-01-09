@@ -1047,13 +1047,12 @@ contains
          end select
 
          ! calculate maximum infiltration rate
-         ! Note: case() structure does not make much sense right now, but if we want to add more conceptual options later it will help
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
-           case(noInfiltrationExcess)    ! zero infiltration excess surface runoff + IE derivatives
+           case(noInfiltrationExcess)    ! zero infiltration excess surface runoff
              ! Set the auxiliary variables needed for infiltration and derivatives calculations
              io_surfaceFlx % scalarSaturatedArea = 0._rkind ! fraction of area that is considered saturated (-)
              io_surfaceFlx % xMaxInfilRate = veryBig ! set to a very large number so rainPlusMelt never exceeds this
-           case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible + IE derivatives
+           case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible
              call update_surfaceFlx_liquidFlux_calculate_infratemax;     if (return_flag) return
            case default
              err=20; message=trim(message)//'unknown infiltration excess surface runoff method';
