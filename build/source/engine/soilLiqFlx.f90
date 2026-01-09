@@ -1129,12 +1129,26 @@ contains
    message  => out_surfaceFlx % message  & ! error message
   &)
 
-  ! Set the saturation excess derivatives first, based on active parametrization
+  ! The SE and total derivatives (done below) are conditional on the infiltration excess parametrization
+  ! The individual SE parametrization functions account for this in their derivative calculations, but 
+  !  we need to set the IE derivatives to zero if no infiltration excess runoff is possible
+  ! To facilitate the derivatives of the SE parametrizations, we do set xMaxInfilRate = veryBig with noInfiltrationExcess
+  select case(ixInfRateMax)         ! maximum infiltration rate method (controls infiltration excess surface runoff)
+    case(noInfiltrationExcess)      ! zero infiltration excess surface runoff (xMaxInfilRate = veryBig)
+      dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
+      dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
+    end select
+
+  ! Now set the saturation excess derivatives, based on active SE parametrization
+  ! Each subroutine called below accounts for IE and total runoff derivatives internally
   if (surfRun_SE == zero_SE) then
     dq_dHydStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
     dq_dNrgStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
-  else  ! i.e., if (surfRun_SE /= zero_SE), meaning FUSE or homegrown_SE
-    ! process liquid derivatives, first initialize  -- TO DO: probably cleaner to have this in its own subroutine (not critical now)
+
+  else  ! i.e., if (surfRun_SE /= zero_SE), currently meaning FUSE (AVIC, PRMS, TOPMODEL) or homegrown_SE
+
+    ! process the liquid derivatives that all SE parametrizations use, first initialize  
+    ! -- TO DO: probably cleaner to have this in its own subroutine (not critical now)
     dVolFracLiq_dWat(:) = 0._rkind
     dVolFracLiq_dTk(:)  = 0._rkind      
     select case(ixRichards)  ! form of Richards' equation
@@ -1151,17 +1165,16 @@ contains
         end do
     end select 
     dVolFracLiq_dTk(:) = dTheta_dTk(:) !already zeroed out if not below critical temperature
-    
+
     ! set the SR_SE derivative based on the parametrization used
     select case(surfRun_SE) ! saturation excess surface runoff
-    case(homegrown_SE)    ! homegrown saturation excess surface runoff + SE derivatives
-      write(*,*) 'WARNING: homegrown_SE derivatives not yet implemented in update_surfaceFlx_liquidFlux_derivatives_SE'
-      !call update_surfaceFlx_homegrown_SE_derivatives
-    case(FUSEPRMS)        ! FUSE PRMS surface runoff + SE derivatives
+    case(homegrown_SE)
+      call update_surfaceFlx_liquidFlux_computation_flux_derivatives
+    case(FUSEPRMS)
       call update_surfaceFlx_FUSE_PRMS_derivatives;
-    case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff + SE derivatives
+    case(FUSEAVIC)
       call update_surfaceFlx_FUSE_ARNO_VIC_derivatives;
-    case(FUSETOPM)        ! FUSE TOPMODEL surface runoff + SE derivatives
+    case(FUSETOPM)
       call update_surfaceFlx_FUSE_TOPMODEL_derivatives;
     end select
   end if
