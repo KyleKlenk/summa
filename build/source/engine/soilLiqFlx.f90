@@ -1419,10 +1419,6 @@ contains
    ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    dq_dNrgStateVec_SE(:) = -scalarRainPlusMelt * dAc_dWat(:) * dVolFracLiq_dTk(:)
 
-   if (scalarRainPlusMelt.gt.xMaxInfilRate) then
-    write(*,*) "scalarRainPlusMelt, xMaxInfilRate =", scalarRainPlusMelt, xMaxInfilRate
-   end if
-
    ! compute infiltration excess (IE) and saturation excess (SE) components
    if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (SR) occurs
     ! write a temporary warning, because the error below does not get propagated correctly
@@ -1559,10 +1555,6 @@ contains
    ! * compute the energy derivatives components (only saturation excess components for FUSE) *
    ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    dq_dNrgStateVec_SE(:) = -scalarRainPlusMelt * dAc_dWat(:) * dVolFracLiq_dTk(:)
-
-   if (scalarRainPlusMelt.gt.xMaxInfilRate) then
-    write(*,*) "scalarRainPlusMelt, xMaxInfilRate =", scalarRainPlusMelt, xMaxInfilRate
-   end if
 
    ! compute infiltration excess (IE) and saturation excess (SE) components
    if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (IE) occurs
@@ -1758,10 +1750,6 @@ contains
    ! * compute the energy derivatives components (only saturation excess components for FUSE) *
    ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    dq_dNrgStateVec_SE(:) = -scalarRainPlusMelt * dAc_dWat(:) * dVolFracLiq_dTk(:)
-
-   if (scalarRainPlusMelt.gt.xMaxInfilRate) then
-    write(*,*) "scalarRainPlusMelt, xMaxInfilRate =", scalarRainPlusMelt, xMaxInfilRate
-   end if
 
    ! compute infiltration excess (IE) and saturation excess (SE) components
    if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (IE) occurs
