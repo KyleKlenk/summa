@@ -1062,7 +1062,7 @@ contains
          ! this needs to be done before infiltration calculation to keep new code matching old results
          if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives
 
-         ! Calculate infiltration from maximum infiltration ratea and saturated area
+         ! Calculate infiltration from maximum infiltration rate and saturated area
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
            case(noInfiltrationExcess)    ! zero infiltration excess surface runoff
              call update_surfaceFlx_zero_IE;        if (return_flag) return 
@@ -1156,13 +1156,13 @@ contains
     ! set the SR_SE derivative based on the parametrization used
     select case(surfRun_SE) ! saturation excess surface runoff
     case(homegrown_SE)
-      call update_surfaceFlx_liquidFlux_computation_flux_derivatives
+      call update_surfaceFlx_liquidFlux_homegrown_SE_derivatives
     case(FUSEPRMS)
-      call update_surfaceFlx_FUSE_PRMS_derivatives;
+      call update_surfaceFlx_FUSE_PRMS_derivatives
     case(FUSEAVIC)
-      call update_surfaceFlx_FUSE_ARNO_VIC_derivatives;
+      call update_surfaceFlx_FUSE_ARNO_VIC_derivatives
     case(FUSETOPM)
-      call update_surfaceFlx_FUSE_TOPMODEL_derivatives;
+      call update_surfaceFlx_FUSE_TOPMODEL_derivatives
     end select
   end if
 
@@ -2143,7 +2143,7 @@ contains
 
  end subroutine update_surfaceFlx_homegrown_SE_derivatives
 
- subroutine update_surfaceFlx_liquidFlux_computation_flux_derivatives
+ subroutine update_surfaceFlx_liquidFlux_homegrown_SE_derivatives
   ! **** Update operations for surfaceFlx: flux condition -- main computations (flux derivatives, nonzero only if updateInfil) ****
   ! * local variables *
   ! surface runoff component arrays for infiltration derivatives ...
@@ -2228,7 +2228,7 @@ contains
         dq_dNrgStateVec_SE = dq_dNrg_SE(:) 
     end select
   end associate 
- end subroutine update_surfaceFlx_liquidFlux_computation_flux_derivatives
+ end subroutine update_surfaceFlx_liquidFlux_homegrown_SE_derivatives
 
  subroutine update_surfaceFlx_liquidFlux_computation_homegrown_SE
   ! **** Update operations for surfaceFlx: flux condition -- compute homegrown saturation excess ****
