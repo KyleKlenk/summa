@@ -622,7 +622,6 @@ subroutine eval8summaWithPrime(&
                     fluxVec,                   & ! intent(out):   flux vector (mixed units)
                     ! output: error control
                     err,cmessage)                ! intent(out):   error code and error message
-    write(*,*) 'After computFlux in eval8summaWithPrime, err, cmessage=', err, cmessage
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     firstSplitOper = .false. ! after call computFlux once in dt, no longer firstSplitOper

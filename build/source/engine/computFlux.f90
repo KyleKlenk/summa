@@ -262,10 +262,7 @@ subroutine computFlux(&
     if (nSoilOnlyHyd>0) then ! if necessary, calculate the liquid flux through soil
       call initialize_soilLiqFlx
       call soilLiqFlx(in_soilLiqFlx,mpar_data,indx_data,prog_data,diag_data,flux_data,io_soilLiqFlx,out_soilLiqFlx)
-      write(*,*) 'Debug: After soilLiqFlx call in computFlux; err, out_soilLiqFlx%err = ', err, out_soilLiqFlx % err
-      call finalize_soilLiqFlx; 
-      write(*,*) 'Debug: After finalize_soilLiqFlx call in computFlux; err, out_soilLiqFlx%err = ', err, out_soilLiqFlx % err
-      if(err/=0)then; return; endif
+      call finalize_soilLiqFlx; if(err/=0)then; return; endif
     end if 
   end associate
 

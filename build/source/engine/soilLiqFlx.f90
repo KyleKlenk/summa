@@ -171,9 +171,7 @@ subroutine soilLiqFlx(&
   call initialize_soilLiqFlx; if (return_flag) return 
 
   ! ** Compute transpiration, diagnostic variables, infiltration, and interface fluxes **
-  call update_soilLiqFlx;     
-  write(*,*) "in soilLiqFlx, after update_soilLiqFlx; err, return_flag =", out_soilLiqFlx % err, return_flag
-  if (return_flag) return
+  call update_soilLiqFlx;     if (return_flag) return
 
   ! ** Final error control **
   call finalize_soilLiqFlx;   if (return_flag) return
@@ -253,9 +251,7 @@ contains
 
   call compute_diagnostic_variables; if (return_flag) return
 
-  call compute_surface_infiltration; 
-  write(*,*) "in update_soilLiqFlx, after compute_surface_infiltration; err, return_flag =", out_soilLiqFlx % err, return_flag
-  if (return_flag) return
+  call compute_surface_infiltration; if (return_flag) return
 
   call compute_interface_fluxes_derivatives; if (return_flag) return
 
@@ -451,8 +447,6 @@ contains
    message => out_soilLiqFlx % cmessage & ! error message
   &)
    call out_surfaceFlx % finalize(io_soilLiqFlx,err,cmessage)
-   write(*,*) 'after out_surfaceFlx finalize; err, return_flag =', err, return_flag
-   write(*,*) trim(message)//trim(cmessage)
    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
 
@@ -957,9 +951,7 @@ subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
 
   call initialize_surfaceFlx
 
-  call update_surfaceFlx;   
-  write(*,*) "after update_surfaceFlx; err, return_flag =", out_surfaceFlx % err, return_flag
-  if (return_flag) return
+  call update_surfaceFlx;   if (return_flag) return
 
   call finalize_surfaceFlx; if (return_flag) return
 
@@ -1068,9 +1060,7 @@ contains
 
          ! update the derivatives for any combination of SE and IE parametrization options 
          ! this needs to be done before infiltration calculation to keep new code matching old results
-         if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives; 
-         write(*,*) "after update_surfaceFlx_liquidFlux_derivatives; err, return_flag =", err, return_flag
-         if (return_flag) return
+         if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives; if (return_flag) return 
 
          ! Calculate infiltration from maximum infiltration rate and saturated area
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
@@ -1174,7 +1164,6 @@ contains
     case(FUSETOPM)
       call update_surfaceFlx_FUSE_TOPMODEL_derivatives;           if (return_flag) return 
     end select
-    write(*,*) "after setting SE derivatives, return_flag =", return_flag
   end if
 
   ! Set the infiltration excess derivatives next, based on active parametrization
@@ -1430,16 +1419,13 @@ contains
    ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    dq_dNrgStateVec_SE(:) = -scalarRainPlusMelt * dAc_dWat(:) * dVolFracLiq_dTk(:)
 
-   ! compute infiltration excess (IE) and saturation excess (SE) components
-   if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (SR) occurs
-    write(*,*) "scalarRainPlusMelt, xMaxInfilRate =", scalarRainPlusMelt, xMaxInfilRate
-    err=20; message=trim(message)//'update_surfaceFlx_FUSE_PRMS_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
-    return_flag=.true.; 
-    write(*,*) "in update_surfaceFlx_FUSE_PRMS_derivatives, after setting error; err, return_flag =", err,return_flag
-    return
-    ! TO DO: implement derivatives for infiltration excess surface runoff if needed
-   end if
-   write(*,*) "in update_surfaceFlx_FUSE_PRMS_derivatives, before end, return_flag =", return_flag
+  !  ! compute infiltration excess (IE) and saturation excess (SE) components
+  !  if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (SR) occurs
+  !   write(*,*) "scalarRainPlusMelt, xMaxInfilRate =", scalarRainPlusMelt, xMaxInfilRate
+  !   err=20; message=trim(message)//'update_surfaceFlx_FUSE_PRMS_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
+  !   return_flag=.true.; return
+  !   ! TO DO: implement derivatives for infiltration excess surface runoff if needed
+  !  end if
 
    end associate
  end subroutine update_surfaceFlx_FUSE_PRMS_derivatives
@@ -2394,7 +2380,6 @@ contains
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   write (*,*) 'surfaceFlx subroutine final error check, err=', err
    if (err /= 0_i4b) then
     message=trim(message)//'unanticipated error in surfaceFlx subroutine'; return_flag=.true.; return
    end if
