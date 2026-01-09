@@ -1029,23 +1029,18 @@ contains
  
        case(liquidFlux)     ! flux condition
 
-         ! run saturation excess first, because this gives us the saturated area that we need to compute infiltration
+         ! run saturation excess (SR_SE) first, because this gives us the saturated area (Ac) that we need to compute infiltration
          select case(surfRun_SE) ! saturation excess surface runoff
-           case(zero_SE)         ! zero saturation excess surface runoff. Sets SR_SE.
+           case(zero_SE)         ! zero saturation excess surface runoff
              call update_surfaceFlx_zero_SE;        if (return_flag) return 
-
-           case(homegrown_SE)    ! homegrown saturation excess surface runoff. Set SR_SE and Ac.
+           case(homegrown_SE)    ! homegrown saturation excess surface runoff (original SUMMA method)
               call update_surfaceFlx_homegrown_SE;     if (return_flag) return
-
-           case(FUSEPRMS)        ! FUSE PRMS surface runoff. Set SR_SE and Ac.
+           case(FUSEPRMS)        ! FUSE PRMS surface runoff
              call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return 
-
-           case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff. Set SR_SE and Ac.
+           case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff
              call update_surfaceFlx_FUSE_ARNO_VIC;  if (return_flag) return
-
-           case(FUSETOPM)        ! FUSE TOPMODEL surface runoff. Set SR_SE and Ac.
+           case(FUSETOPM)        ! FUSE TOPMODEL surface runoff
              call update_surfaceFlx_FUSE_TOPMODEL;  if (return_flag) return
-
            case default
              err=20; message=trim(message)//'unknown saturation excess surface runoff method';  ! Do we need these? Should already be caught in model decision checker
              return_flag=.true.; return
@@ -1056,10 +1051,8 @@ contains
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
            case(noInfiltrationExcess)    ! zero infiltration excess surface runoff + IE derivatives
              ! intentionally do nothing - this will be handled in the infiltration calculation
-
            case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible + IE derivatives
              call update_surfaceFlx_liquidFlux_calculate_infratemax;     if (return_flag) return
-
            case default
              err=20; message=trim(message)//'unknown infiltration excess surface runoff method';
              return_flag=.true.; return
@@ -1073,7 +1066,6 @@ contains
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
            case(noInfiltrationExcess)    ! zero infiltration excess surface runoff
              call update_surfaceFlx_zero_IE;        if (return_flag) return 
-
            case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible
              call update_surfaceFlx_liquidFlux_infiltration;  if (return_flag) return
          end select
@@ -1081,7 +1073,7 @@ contains
          ! tie everything together and run checks
          call update_gather_runoff_components;  if (return_flag) return
 
-       case default; 
+       case default;  ! end of select case(bc_upper)
         err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; 
         return_flag=.true.; return
      end select 
