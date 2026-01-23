@@ -1059,10 +1059,6 @@ contains
              return_flag=.true.; return
          end select
 
-         ! update the derivatives for any combination of SE and IE parametrization options 
-         ! this needs to be done before infiltration calculation to keep new code matching old results
-         if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives; if (return_flag) return 
-
          ! Calculate infiltration from maximum infiltration rate and saturated area
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
            case(noInfiltrationExcess)    ! zero infiltration excess surface runoff
@@ -1071,6 +1067,10 @@ contains
              call update_surfaceFlx_liquidFlux_infiltration;  if (return_flag) return
          end select
          
+         ! update the derivatives for any combination of SE and IE parametrization options 
+         ! this needs to be done before infiltration calculation to keep new code matching old results
+         if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives; if (return_flag) return 
+
          ! tie everything together and run checks
          call update_gather_runoff_components;  if (return_flag) return
 
