@@ -1018,13 +1018,14 @@ contains
          call update_surfaceFlx_prescribedHead; if (return_flag) return 
  
        case(liquidFlux)     ! flux condition
-
-         ! run saturation excess (SR_SE) first, because this gives us the saturated area (Ac) that we need to compute infiltration
-         select case(surfRun_SE) ! saturation excess surface runoff
-           case(zero_SE)         ! zero saturation excess surface runoff
+        ! Get infiltration area not considering frozen area, initialize derivatives to zero before calculating based on SE method
+        dInfilArea_dWat(:) = 0._rkind
+        dInfilArea_dTk(:)  = 0._rkind
+         select case(surfRun_SE) ! saturation excess surface runoff method, sets infiltration area and its derivatives
+           case(zero_SE)         ! zero saturation excess surface runoff, all area infiltrates if not frozen
              call update_surfaceFlx_zero_SE;        if (return_flag) return
            case(homegrown_SE)    ! homegrown saturation excess surface runoff (original SUMMA method)
-              call update_surfaceFlx_homegrown_SE;     if (return_flag) return
+              call update_surfaceFlx_homegrown_SE;  if (return_flag) return
            case(FUSEPRMS)        ! FUSE PRMS surface runoff
              call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return
            case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff
