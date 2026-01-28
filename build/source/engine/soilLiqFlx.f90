@@ -1032,17 +1032,10 @@ contains
          ! calculate maximum infiltration rate
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
            case(noInfiltrationExcess)    ! zero infiltration excess surface runoff
-             ! Set the auxiliary variables needed for infiltration and derivatives calculations
-             io_surfaceFlx % xMaxInfilRate = veryBig ! set to a very large number so rainPlusMelt never exceeds this
-             if (surfRun_SE /= homegrown_SE) then ! We also need these if we haven't run the homegrown_SE parametrization
-               io_surfaceFlx % scalarInfilArea = 1._rkind ! set to 1 so all area is available for infiltration
-               call update_surfaceFlx_liquidFlux_computation_frozen_area ! compute frozen area and its derivatives
-             end if
+             call update_surfaceFlx_liquidFlux_noinfratemax
            case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible
-             call update_surfaceFlx_liquidFlux_calculate_infratemax;     if (return_flag) return
-           case default
-             err=20; message=trim(message)//'unknown infiltration excess surface runoff method';
-             return_flag=.true.; return
+             call update_surfaceFlx_liquidFlux_calculate_infratemax;  if (return_flag) return
+           case default; err=20; message=trim(message)//'unknown infiltration excess surface runoff method'; return_flag=.true.; return
          end select
 
          ! Calculate infiltration from maximum infiltration rate and saturated area
@@ -1801,6 +1794,22 @@ subroutine update_volFracLiq_derivatives
   call update_surfaceFlx_liquidFlux_computation_frozen_area
   call update_surfaceFlx_liquidFlux_computation_homegrown_SE
  end subroutine update_surfaceFlx_homegrown_SE
+
+ subroutine update_surfaceFlx_liquidFlux_noinfratemax
+  ! **** Update operations for surfaceFlx: no infiltration excess****
+  associate(&
+   ! input: model control
+   surfRun_SE => in_surfaceFlx % surfRun_SE         & ! index defining the saturation excess surface runoff method
+  &)
+   io_surfaceFlx % xMaxInfilRate = veryBig ! set to a very large number so rainPlusMelt never exceeds this
+   if (surfRun_SE /= homegrown_SE) then  ! frozen area (depends on ice and root zone)
+    io_surfaceFlx % scalarInfilArea = 1._rkind 
+    call update_surfaceFlx_liquidFlux_computation_root_layers
+   end if
+  end associate
+  ! -- main computations - these always need to run
+  call update_surfaceFlx_liquidFlux_computation_frozen_area
+ end subroutine update_surfaceFlx_liquidFlux_noinfratemax
 
  subroutine update_surfaceFlx_liquidFlux_calculate_infratemax
   ! **** Update operations for surfaceFlx: infiltration excess possible - calculate max infiltration rate ****
