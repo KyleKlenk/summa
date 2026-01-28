@@ -1028,14 +1028,12 @@ contains
            case(homegrown_SE)    ! homegrown saturation excess surface runoff (original SUMMA method)
               call update_surfaceFlx_homegrown_SE;  if (return_flag) return
            case(FUSEPRMS)        ! FUSE PRMS surface runoff
-             call update_surfaceFlx_FUSE_PRMS;      if (return_flag) return
+             call update_surfaceFlx_FUSE_PRMS_infilArea;      if (return_flag) return
            case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff
-             call update_surfaceFlx_FUSE_ARNO_VIC;  if (return_flag) return
+             call update_surfaceFlx_FUSE_ARNO_VIC_infilArea;  if (return_flag) return
            case(FUSETOPM)        ! FUSE TOPMODEL surface runoff
-             call update_surfaceFlx_FUSE_TOPMODEL;  if (return_flag) return
-           case default
-             err=20; message=trim(message)//'unknown saturation excess surface runoff method';  ! Do we need these? Should already be caught in model decision checker
-             return_flag=.true.; return
+             call update_surfaceFlx_FUSE_TOPMODEL_infilArea;  if (return_flag) return
+           case default; err=20; message=trim(message)//'unknown saturation excess surface runoff method'; return_flag=.true.; return
          end select
 
          ! calculate maximum infiltration rate
@@ -1306,7 +1304,7 @@ subroutine update_volFracLiq_derivatives
   SR_IE = 0._rkind ! surface runoff
  end subroutine update_surfaceFlx_zero_IE 
 
- subroutine update_surfaceFlx_FUSE_PRMS
+ subroutine update_surfaceFlx_FUSE_PRMS_infilArea
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- PRMS ****
   use soil_utils_module,only:LogSumExp  ! smooth max/min
   use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
@@ -1377,9 +1375,9 @@ subroutine update_volFracLiq_derivatives
    endif ! else derivatives are zero
   end associate
 
- end subroutine update_surfaceFlx_FUSE_PRMS
+ end subroutine update_surfaceFlx_FUSE_PRMS_infilArea
 
- subroutine update_surfaceFlx_FUSE_ARNO_VIC
+ subroutine update_surfaceFlx_FUSE_ARNO_VIC_infilArea
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- ARNO/VIC ****
   use soil_utils_module,only:LogSumExp  ! smooth max/min
   use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
@@ -1462,9 +1460,10 @@ subroutine update_volFracLiq_derivatives
     endif ! else derivatives are zero
   end associate
 
- end subroutine update_surfaceFlx_FUSE_ARNO_VIC
+ end subroutine update_surfaceFlx_FUSE_ARNO_VIC_infilArea
 
- subroutine update_surfaceFlx_FUSE_TOPMODEL
+
+ subroutine update_surfaceFlx_FUSE_TOPMODEL_infilArea
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- TOPMODEL ****
   ! local variables
   real(rkind)                      :: lambda                            ! mean
@@ -1583,7 +1582,7 @@ subroutine update_volFracLiq_derivatives
    endif ! else derivatives are zero
   end associate
 
- end subroutine update_surfaceFlx_FUSE_TOPMODEL
+ end subroutine update_surfaceFlx_FUSE_TOPMODEL_infilArea
 
  subroutine update_surfaceFlx_prescribedHead
   ! **** Update operations for surfaceFlx: prescribed pressure head condition ****
