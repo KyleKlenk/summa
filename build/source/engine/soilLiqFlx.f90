@@ -1157,22 +1157,7 @@ subroutine update_volFracLiq_derivatives
 
  subroutine update_surfaceFlx_liquidFlux_derivatives
   ! **** Updates the derivatives for the liquid flux upper hydrology boundary condition if needed ****
-  ! the total derivatives get set in update_gather_runoff_components after validating the runoff components
-
   associate(&
-   ! input: model control
-   ixInfRateMax   => in_surfaceFlx % ixInfRateMax   , & ! index defining the maximum infiltration rate method
-   surfRun_SE     => in_surfaceFlx % surfRun_SE     , & ! index defining the saturation excess surface runoff method
-   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
-   nSoil          => in_surfaceFlx % nSoil          , & ! number of soil layers
-   ! input: state and diagnostic variables
-   mLayerTemp          => in_surfaceFlx % mLayerTemp          , & ! temperature (K)
-   mLayerMatricHead    => in_surfaceFlx % mLayerMatricHead    , & ! matric head in each soil layer (m)
-   ! input: pre-computed derivatives in ...
-   dTheta_dTk             => in_surfaceFlx % dTheta_dTk             , & ! ... volumetric liquid water content w.r.t. temperature (K-1)
-   dTheta_dPsi            => in_surfaceFlx % dTheta_dPsi            , & ! ... the soil water characteristic w.r.t. psi (m-1)
-   ! input: depth of soil layers (m)
-   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of each soil layer (m)
    ! input: flux at the upper boundary
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt , & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
    ! input: surface runoff and infiltration flux (m s-1)
@@ -1186,17 +1171,6 @@ subroutine update_volFracLiq_derivatives
    err      => out_surfaceFlx % err    , & ! error code
    message  => out_surfaceFlx % message  & ! error message
   &)
-  !  ! Need dInfilArea_dWat and dInfilArea_dTk for FUSE SE methods
-  !  if (surfRun_SE /= homegrown_SE) then
-  !    select case(surfRun_SE) ! saturation excess surface runoff
-  !      case(FUSEPRMS)
-  !        call update_surfaceFlx_FUSE_PRMS_derivatives;      if (return_flag) return 
-  !      case(FUSEAVIC)
-  !        call update_surfaceFlx_FUSE_ARNO_VIC_derivatives;  if (return_flag) return 
-  !      case(FUSETOPM)
-  !        call update_surfaceFlx_FUSE_TOPMODEL_derivatives;  if (return_flag) return 
-  !    end select
-  !  end if
 
    ! Compute total runoff derivatives, do w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob* module
    ! Do not need to break into IE and SE components since they are never used separately in the Jacobian assembly
