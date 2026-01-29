@@ -1628,9 +1628,7 @@ subroutine update_volFracLiq_derivatives
   ! **** Update operations for surfaceFlx: homegrown saturation excess runoff condition ****
   call update_surfaceFlx_liquidFlux_computation_root_layers 
   call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return 
-  call update_surfaceFlx_liquidFlux_computation_infiltrating_area  ! this calculates infiltration area and saturated area is simply 1-infiltration area
-  call update_surfaceFlx_liquidFlux_computation_validate_inf_area
-  !call update_surfaceFlx_liquidFlux_computation_homegrown_SE
+  call update_surfaceFlx_liquidFlux_computation_homegrown  ! this calculates infiltration area ignoring if frozen or not, depends on available capacity (depends on ice and root zone)
  end subroutine update_surfaceFlx_homegrown_infilArea
 
  subroutine update_surfaceFlx_liquidFlux_noinfratemax
@@ -1804,13 +1802,18 @@ subroutine update_volFracLiq_derivatives
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
 
- subroutine update_surfaceFlx_liquidFlux_computation_infiltrating_area
-  ! **** Update operations for surfaceFlx: flux condition -- main computations (infiltrating area) ****
+ subroutine update_surfaceFlx_liquidFlux_computation_homegrown
+  ! **** Update operations for surfaceFlx: infiltrating area (ignoring frozen area) for homegrown saturation excess condition ****
   associate(&
    ! input: model control
-   nSoil          => in_surfaceFlx % nSoil                  , & ! number of soil layers
+   nSoil            => in_surfaceFlx % nSoil               , & ! number of soil layers
+   nRoots           => in_surfaceFlx % nRoots              , & ! number of layers that contain roots
+   ixIce            => in_surfaceFlx % ixIce               , & ! index of lowest ice layer
+   mLayerVolFracLiq => in_surfaceFlx % mLayerVolFracLiq    , & ! volumetric liquid water content in each soil layer (-)
+   mLayerDepth      => in_surfaceFlx % mLayerDepth         , & ! depth of each soil layer (m)
    ! input: soil parameters
-   qSurfScale       => in_surfaceFlx % qSurfScale           , & ! scaling factor in the surface runoff parameterization (-)
+   theta_sat        => in_surfaceFlx % theta_sat           , & ! soil porosity (-)
+   qSurfScale       => in_surfaceFlx % qSurfScale          , & ! scaling factor in the surface runoff parameterization (-)
    ! input-output: surface runoff and infiltration flux (m s-1)
    scalarInfilArea  => io_surfaceFlx % scalarInfilArea      , & ! fraction of unfrozen area where water can infiltrate (-)
    scalarSaturatedArea => io_surfaceFlx % scalarSaturatedArea & ! fraction of area that is considered saturated (-)
@@ -1836,27 +1839,7 @@ subroutine update_volFracLiq_derivatives
    else
      scalarInfilArea = 1._rkind ! derivatives are zero
    end if
-   ! retain saturated area as well
-   scalarSaturatedArea = 1._rkind - scalarInfilArea  ! Ac = 1 - scalarInfilArea
-  end associate
- end subroutine update_surfaceFlx_liquidFlux_computation_infiltrating_area
 
- subroutine update_surfaceFlx_liquidFlux_computation_validate_inf_area
-  ! **** Update operations for surfaceFlx: flux condition -- main computations (validate infiltration) ****
-  associate(&
-   ! input: model control
-   nRoots         => in_surfaceFlx % nRoots, & ! number of layers that contain roots
-   ixIce          => in_surfaceFlx % ixIce , & ! index of lowest ice layer
-   ! input: state and diagnostic variables
-   mLayerVolFracLiq    => in_surfaceFlx % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
-   ! input: depth of each soil layer (m)
-   mLayerDepth  => in_surfaceFlx % mLayerDepth, & ! depth of each soil layer (m)
-   ! input: soil parameters
-   theta_sat           => in_surfaceFlx % theta_sat, & ! soil porosity (-)
-   ! input-output: surface runoff and infiltration flux (m s-1)
-   scalarInfilArea  => io_surfaceFlx % scalarInfilArea, & ! fraction of unfrozen area where water can infiltrate (-)
-   scalarSaturatedArea => io_surfaceFlx % scalarSaturatedArea & ! fraction of area that is considered saturated (-)
-  &)
    ! check to ensure we are not infiltrating into a fully saturated column
    if (ixIce<nRoots) then
      if (sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) > 0.9999_rkind*theta_sat*sum(mLayerDepth(ixIce+1:nRoots))) then 
@@ -1867,7 +1850,7 @@ subroutine update_volFracLiq_derivatives
      end if
    end if
   end associate
- end subroutine update_surfaceFlx_liquidFlux_computation_validate_inf_area
+ end subroutine update_surfaceFlx_liquidFlux_computation_homegrown
 
  subroutine update_surfaceFlx_liquidFlux_computation_frozen_area
   ! **** Update operations for surfaceFlx: get impermeable area due to soil freezing ****
