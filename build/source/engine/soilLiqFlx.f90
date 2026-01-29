@@ -1646,26 +1646,12 @@ subroutine update_volFracLiq_derivatives
    if (surfRun_SE /= homegrown_SE) then  ! infiltration rate max depends on available capacity (depends on ice and root zone) and frozen area (depends on ice and root zone)
      call update_surfaceFlx_liquidFlux_computation_root_layers 
      call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return
-     call update_surfaceFlx_liquidFlux_computation_frozen_area
-     call update_surfaceFlx_liquidFlux_computation_scalarInfilArea_update  ! set the correct value for scalarInfilArea using scalarSaturatedArea (Ac) from the non-homegrown_SE methods
    end if
   end associate
   ! -- main computations - these always need to run
   call update_surfaceFlx_liquidFlux_computation_frozen_area
   call update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
  end subroutine update_surfaceFlx_liquidFlux_calculate_infratemax
-
- subroutine update_surfaceFlx_liquidFlux_computation_scalarInfilArea_update
-    ! **** Update operations for surfaceFlx: flux condition -- set scalarInfilArea from scalarSaturatedArea ****
-  associate(&
-   ! input: saturated area
-   scalarSaturatedArea => io_surfaceFlx % scalarSaturatedArea , & ! fraction of area that is considered saturated (-)
-   ! output: infiltration area
-   scalarInfilArea     => io_surfaceFlx % scalarInfilArea      & ! fraction of unfrozen area where water can infiltrate (-)
-  &)
-   scalarInfilArea = 1._rkind - scalarSaturatedArea
-  end associate
- end subroutine update_surfaceFlx_liquidFlux_computation_scalarInfilArea_update
 
  subroutine update_surfaceFlx_liquidFlux_computation_root_layers 
   ! **** Update operations for surfaceFlx: root layer water computation ****
