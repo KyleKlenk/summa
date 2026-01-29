@@ -1791,8 +1791,7 @@ subroutine update_volFracLiq_derivatives
    theta_sat        => in_surfaceFlx % theta_sat           , & ! soil porosity (-)
    qSurfScale       => in_surfaceFlx % qSurfScale          , & ! scaling factor in the surface runoff parameterization (-)
    ! input-output: surface runoff and infiltration flux (m s-1)
-   scalarInfilArea  => io_surfaceFlx % scalarInfilArea      , & ! fraction of unfrozen area where water can infiltrate (-)
-   scalarSaturatedArea => io_surfaceFlx % scalarSaturatedArea & ! fraction of area that is considered saturated (-)
+   scalarInfilArea  => io_surfaceFlx % scalarInfilArea        & ! fraction of area where water can infiltrate, may be frozen (-)
   &)
    ! define the infiltrating area and derivatives for the non-frozen part of the cell/basin, first initialize
    dInfilArea_dWat(:) = 0._rkind
@@ -1819,8 +1818,7 @@ subroutine update_volFracLiq_derivatives
    ! check to ensure we are not infiltrating into a fully saturated column
    if (ixIce<nRoots) then
      if (sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) > 0.9999_rkind*theta_sat*sum(mLayerDepth(ixIce+1:nRoots))) then 
-      scalarInfilArea=0._rkind
-      scalarSaturatedArea=1._rkind  ! defined in update_surfaceFlx_liquidFlux_computation_infiltrating_area() as 1-scalarInfilArea so needs update here too
+      scalarInfilArea    = 0._rkind
       dInfilArea_dWat(:) = 0._rkind
       dInfilArea_dTk(:)  = 0._rkind
      end if
