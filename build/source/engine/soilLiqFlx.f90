@@ -1059,7 +1059,8 @@ contains
              err=20; message=trim(message)//'unknown infiltration excess surface runoff method';
              return_flag=.true.; return
          end select
-         
+         !SR_IE = -9999._rkind ! temporary
+
          ! update the derivatives for any combination of SE and IE parametrization options 
          if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives
 
@@ -1877,13 +1878,10 @@ subroutine update_volFracLiq_derivatives
   &)
    ! unfrozen infiltration area
    scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
-   if (xMaxInfilRate > scalarRainPlusMelt) then
+   ! soil control on infiltration for derivative if dependent on scalarRainPlusMelt (needed to compute scalarRainPlusMelt derivative inside computJacob*)
+   scalarSoilControl = 0._rkind
+   if (updateInfil .and. xMaxInfilRate > scalarRainPlusMelt) then
      scalarSoilControl = scalarInfilArea_unfrozen
-   else
-     scalarSoilControl = 0._rkind
-   end if
-   if(.not.updateInfil) then
-     scalarSoilControl = 0._rkind
    end if
 
    ! infiltration rate derivatives, will be zero if no infiltration excess or if infiltration not being updated
