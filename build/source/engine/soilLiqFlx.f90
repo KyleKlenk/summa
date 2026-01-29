@@ -1061,15 +1061,12 @@ contains
          end select
          
          ! update the derivatives for any combination of SE and IE parametrization options 
-         ! this needs to be done before infiltration calculation to keep new code matching old results
-         if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives; if (return_flag) return 
+         if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives
 
          ! tie everything together and run checks
          call update_gather_runoff_components;  if (return_flag) return
 
-       case default;  ! end of select case(bc_upper)
-        err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; 
-        return_flag=.true.; return
+       case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return  ! end of select case(bc_upper)
      end select 
    else ! do not compute infiltration after first flux call in a splitting operation unless updateInfil is true
      dq_dHydStateVec(:) = realMissing ! not used, so cause problems
@@ -1880,26 +1877,6 @@ subroutine update_volFracLiq_derivatives
    end if
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_frozen_area
-
-!  subroutine update_surfaceFlx_liquidFlux_computation_homegrown_SE
-!   ! **** Update operations for surfaceFlx: flux condition -- compute homegrown saturation excess ****
-!   ! local variables
-!   real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
-
-!   ! compute infiltration and runoff
-!   associate(&
-!    ! input: flux at the upper boundary
-!    scalarRainPlusMelt   => in_surfaceFlx % scalarRainPlusMelt, & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
-!    ! input-output: surface runoff flux (m s-1)
-!    scalarInfilArea     => io_surfaceFlx % scalarInfilArea  ,   & ! fraction of unfrozen area where water can infiltrate (-)
-!    scalarFrozenArea    => io_surfaceFlx % scalarFrozenArea     & ! fraction of area that is considered impermeable due to soil ice (-)
-!   &)
-!   ! unfrozen infiltration area
-!   scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
-!   ! saturation excess surface runoff
-!   SR_SE = scalarRainPlusMelt * (1._rkind - scalarInfilArea_unfrozen) ! (rain plus melt) * (saturated area)
-!   end associate
-!  end subroutine update_surfaceFlx_liquidFlux_computation_homegrown_SE
 
  subroutine update_surfaceFlx_liquidFlux_infiltration
   ! **** Update operations for surfaceFlx: final infiltration and runoff calculations ****
