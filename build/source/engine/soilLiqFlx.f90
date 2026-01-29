@@ -1024,9 +1024,9 @@ contains
          select case(surfRun_SE) ! saturation excess surface runoff method, sets infiltration area (not considering frozen) and its derivatives
            case(zero_SE)         ! zero saturation excess surface runoff, all area infiltrates if not frozen
             io_surfaceFlx % scalarInfilArea = 1._rkind 
-            SR_SE = 0._rkind ! surface runoff
+            SR_SE = 0._rkind ! temporary
            case(homegrown_SE)    ! homegrown saturation excess surface runoff (original SUMMA method)
-              call update_surfaceFlx_homegrown_SE;  if (return_flag) return
+              call update_surfaceFlx_homegrown_infilArea;     if (return_flag) return
            case(FUSEPRMS)        ! FUSE PRMS surface runoff
              call update_surfaceFlx_FUSE_PRMS_infilArea;      if (return_flag) return
            case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff
@@ -1515,7 +1515,7 @@ subroutine update_volFracLiq_derivatives
    ! define the infiltrating area and derivatives for the non-frozen part of the cell/basin
    io_surfaceFlx % scalarInfilArea = gammp(alpha_topmodel,x_crit/chi_topmodel)
 
-  else ! if no water is stored in lower FUSE layer (based on asymptotic behaviour of integral in eq. 9c of Clark et al. (2008))
+  else ! if (S1 == 0) no water is stored in lower FUSE layer (based on asymptotic behaviour of integral in eq. 9c of Clark et al. (2008))
    io_surfaceFlx % scalarInfilArea = 1._rkind
   end if
 
@@ -1626,7 +1626,7 @@ subroutine update_volFracLiq_derivatives
   end associate
  end subroutine update_surfaceFlx_prescribedHead
 
- subroutine update_surfaceFlx_homegrown_SE
+ subroutine update_surfaceFlx_homegrown_infilArea
   ! **** Update operations for surfaceFlx: homegrown saturation excess runoff condition ****
   call update_surfaceFlx_liquidFlux_computation_root_layers 
   call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return 
@@ -1634,7 +1634,7 @@ subroutine update_volFracLiq_derivatives
   call update_surfaceFlx_liquidFlux_computation_validate_inf_area
   call update_surfaceFlx_liquidFlux_computation_frozen_area
   !call update_surfaceFlx_liquidFlux_computation_homegrown_SE
- end subroutine update_surfaceFlx_homegrown_SE
+ end subroutine update_surfaceFlx_homegrown_infilArea
 
  subroutine update_surfaceFlx_liquidFlux_noinfratemax
   ! **** Update operations for surfaceFlx: no infiltration excess****
