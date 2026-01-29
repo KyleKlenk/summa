@@ -1023,7 +1023,6 @@ contains
          select case(surfRun_SE) ! saturation excess surface runoff method, sets infiltration area (not considering frozen) and its derivatives
            case(zero_SE)         ! zero saturation excess surface runoff, all area infiltrates if not frozen
             io_surfaceFlx % scalarInfilArea = 1._rkind 
-            SR_SE = 0._rkind ! temporary
            case(homegrown_SE)    ! homegrown saturation excess surface runoff (original SUMMA method)
               call update_surfaceFlx_homegrown_infilArea;     if (return_flag) return
            case(FUSEPRMS)        ! FUSE PRMS surface runoff
@@ -1631,7 +1630,6 @@ subroutine update_volFracLiq_derivatives
   call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return 
   call update_surfaceFlx_liquidFlux_computation_infiltrating_area  ! this calculates infiltration area and saturated area is simply 1-infiltration area
   call update_surfaceFlx_liquidFlux_computation_validate_inf_area
-  call update_surfaceFlx_liquidFlux_computation_frozen_area
   !call update_surfaceFlx_liquidFlux_computation_homegrown_SE
  end subroutine update_surfaceFlx_homegrown_infilArea
 
@@ -1657,8 +1655,7 @@ subroutine update_volFracLiq_derivatives
    ! input: model control
    surfRun_SE => in_surfaceFlx % surfRun_SE         & ! index defining the saturation excess surface runoff method
   &)
-   if (surfRun_SE /= homegrown_SE) then  ! run everything we need to get the variables needed for infiltration computations 
-     ! note that we don't run _infiltrating_area() and validate_infiltration() because those derive infiltration (and saturated) area for homegrown_SE only
+   if (surfRun_SE /= homegrown_SE) then  ! infiltration rate max depends on available capacity (depends on ice and root zone) and frozen area (depends on ice and root zone)
      call update_surfaceFlx_liquidFlux_computation_root_layers 
      call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return
      call update_surfaceFlx_liquidFlux_computation_frozen_area
@@ -1666,8 +1663,8 @@ subroutine update_volFracLiq_derivatives
    end if
   end associate
   ! -- main computations - these always need to run
+  call update_surfaceFlx_liquidFlux_computation_frozen_area
   call update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
-
  end subroutine update_surfaceFlx_liquidFlux_calculate_infratemax
 
  subroutine update_surfaceFlx_liquidFlux_computation_scalarInfilArea_update
