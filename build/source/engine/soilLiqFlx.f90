@@ -891,7 +891,6 @@ subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
   ! FUSE
   real(rkind),parameter            :: alpha_LSE=1.e3_rkind                ! smoothness parameter for LSE smoother function
   real(rkind),parameter            :: roundoff_tolerance = 1.e2_rkind * epsilon(1._rkind) ! tolerance for round-off error is near machine epsilon 
-  real(rkind)                      :: Ac                                  ! saturated area (-)
   real(rkind)                      :: S1                                  ! total water content in upper soil layer (m)
   real(rkind)                      :: S1_max                              ! Maximum storage in the upper layer (m)
   ! FUSE PRMS variables
