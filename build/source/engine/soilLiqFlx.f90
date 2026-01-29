@@ -1052,7 +1052,7 @@ contains
          ! Calculate infiltration from maximum infiltration rate and saturated area
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
            case(noInfiltrationExcess)    ! zero infiltration excess surface runoff
-             call update_surfaceFlx_zero_IE;        if (return_flag) return 
+             SR_IE = 0._rkind ! temporary
            case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible
              call update_surfaceFlx_liquidFlux_infiltration;  if (return_flag) return
            case default
@@ -1271,13 +1271,6 @@ subroutine update_volFracLiq_derivatives
   end associate
 
  end subroutine update_gather_runoff_components
-
- subroutine update_surfaceFlx_zero_IE
-  ! **** Update operations for surfaceFlx: zero infiltration excess surface runoff ****
-  ! set infiltration excess components
-  ! note: it is assumed that rain plus melt does not depend on state variables for infiltration derivatives
-  SR_IE = 0._rkind ! surface runoff
- end subroutine update_surfaceFlx_zero_IE 
 
  subroutine update_surfaceFlx_FUSE_PRMS_infilArea
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- PRMS ****
