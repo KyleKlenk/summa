@@ -118,14 +118,6 @@ subroutine soilLiqFlx(&
                       io_soilLiqFlx,                & ! intent(inout): diagnostic variables, fluxes, and derivatives
                       ! output: error control
                       out_soilLiqFlx)                 ! intent(out): error control
-  ! utility modules
-  USE soil_utils_module,only:volFracLiq               ! compute volumetric fraction of liquid water
-  USE soil_utils_module,only:matricHead               ! compute matric head (m)
-  USE soil_utils_module,only:dTheta_dPsi              ! compute derivative of the soil moisture characteristic w.r.t. psi (m-1)
-  USE soil_utils_module,only:dPsi_dTheta              ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
-  USE soil_utils_module,only:hydCond_psi              ! compute hydraulic conductivity as a function of matric head
-  USE soil_utils_module,only:hydCond_liq              ! compute hydraulic conductivity as a function of volumetric liquid water content
-  USE soil_utils_module,only:hydCondMP_liq            ! compute hydraulic conductivity of macropores as a function of volumetric liquid water content
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control, trial state variables, derivatives, and fluxes
