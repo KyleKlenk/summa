@@ -98,7 +98,6 @@ contains
   case('nrgConserv'      ); get_ixdecisions=iLookDECISIONS%nrgConserv  ! choice of variable in either energy backward Euler residual or IDA state variable
   case('aquiferIni'      ); get_ixdecisions=iLookDECISIONS%aquiferIni  ! choice of full or empty aquifer at start
   case('infRateMax'      ); get_ixdecisions=iLookDECISIONS%infRateMax  ! choice of maximum infiltration rate method
-  case('surfRun_IE'      ); get_ixdecisions=iLookDECISIONS%surfRun_IE  ! choice of parameterization for infiltration excess surface runoff
   case('surfRun_SE'      ); get_ixdecisions=iLookDECISIONS%surfRun_SE  ! choice of parameterization for saturation excess surface runoff
   ! get to here if cannot find the variable
   case default
@@ -588,7 +587,7 @@ contains
   case('mLayerPoreSpace'                ); get_ixDiag = iLookDIAG%mLayerPoreSpace                  ! total pore space in each snow layer (-)
   case('mLayerMeltFreeze'               ); get_ixDiag = iLookDIAG%mLayerMeltFreeze                 ! ice content change from melt/freeze in each layer (kg m-3)
   ! soil hydrology
-  case('scalarInfilArea'                ); get_ixDiag = iLookDIAG%scalarInfilArea                  ! fraction of unfrozen area where water can infiltrate (-)
+  case('scalarInfilArea'                ); get_ixDiag = iLookDIAG%scalarInfilArea                  ! fraction of area where water can infiltrate, may be frozen (-)
   case('scalarSaturatedArea'            ); get_ixDiag = iLookDIAG%scalarSaturatedArea              ! fraction of area that is considered saturated (-)
   case('scalarFrozenArea'               ); get_ixDiag = iLookDIAG%scalarFrozenArea                 ! fraction of area that is considered impermeable due to soil ice (-)
   case('scalarSoilControl'              ); get_ixDiag = iLookDIAG%scalarSoilControl                ! soil control on infiltration for derivative
