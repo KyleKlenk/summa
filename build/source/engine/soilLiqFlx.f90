@@ -1285,6 +1285,7 @@ subroutine update_volFracLiq_derivatives
 
    ! define the infiltrating area and derivatives for the non-frozen part of the cell/basin
    io_surfaceFlx % scalarInfilArea = base**b_arnovic
+   
    ! define the derivatives
    if(updateInfil)then
    ! compute derivatives needed for infiltration derivative
@@ -1579,13 +1580,13 @@ subroutine update_volFracLiq_derivatives
      end do
    end if
    ! process layers where the roots end in the current layer
-   rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
-   rootZoneIce = rootZoneIce + mLayerVolFracIce(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
+   rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(nRoots)*min(mLayerDepth(nRoots),rootingDepth - iLayerHeight(nRoots-1))
+   rootZoneIce = rootZoneIce + mLayerVolFracIce(nRoots)*min(mLayerDepth(nRoots),rootingDepth - iLayerHeight(nRoots-1))
    if(updateInfil)then
-     dRootZoneLiq_dWat(nRoots) = dVolFracLiq_dWat(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
-     dRootZoneIce_dWat(nRoots) = dVolFracIce_dWat(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
-     dRootZoneLiq_dTk(nRoots)  = dVolFracLiq_dTk(nRoots)* (rootingDepth - iLayerHeight(nRoots-1))
-     dRootZoneIce_dTk(nRoots)  = dVolFracIce_dTk(nRoots)* (rootingDepth - iLayerHeight(nRoots-1))
+     dRootZoneLiq_dWat(nRoots) = dVolFracLiq_dWat(nRoots)*min(mLayerDepth(nRoots),rootingDepth - iLayerHeight(nRoots-1))
+     dRootZoneIce_dWat(nRoots) = dVolFracIce_dWat(nRoots)*min(mLayerDepth(nRoots),rootingDepth - iLayerHeight(nRoots-1))
+     dRootZoneLiq_dTk(nRoots)  = dVolFracLiq_dTk(nRoots)* min(mLayerDepth(nRoots),rootingDepth - iLayerHeight(nRoots-1))
+     dRootZoneIce_dTk(nRoots)  = dVolFracIce_dTk(nRoots)* min(mLayerDepth(nRoots),rootingDepth - iLayerHeight(nRoots-1))
    endif
 
   end associate
@@ -1594,6 +1595,8 @@ subroutine update_volFracLiq_derivatives
  subroutine update_surfaceFlx_liquidFlux_computation_available_capacity 
   ! **** Update operations for surfaceFlx: compute and check available capacity to hold water ****
   associate(&
+   ! input: depth of each soil layer (m)
+   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of each soil layer (m)
    ! input: soil parameters
    theta_sat           => in_surfaceFlx % theta_sat   , & ! soil porosity (-)
    rootingDepth        => in_surfaceFlx % rootingDepth, & ! rooting depth (m)
@@ -1614,8 +1617,6 @@ subroutine update_volFracLiq_derivatives
   associate(&
    ! input: model control
    ixInfRateMax => in_surfaceFlx % ixInfRateMax , & ! index defining the maximum infiltration rate method (GreenAmpt, topmodel_GA, noInfiltrationExcess)
-   ! input: depth of upper-most soil layer (m)
-   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of upper-most soil layer (m)
    ! input: transmittance
    surfaceSatHydCond => in_surfaceFlx % surfaceSatHydCond , & ! saturated hydraulic conductivity at the surface (m s-1)
    ! input: soil parameters
@@ -1626,11 +1627,10 @@ subroutine update_volFracLiq_derivatives
    xMaxInfilRate    => io_surfaceFlx % xMaxInfilRate  & ! maximum infiltration rate (m s-1)
   &)
    ! define the depth to the wetting front (m) and derivatives
-   total_soil_depth = sum(mLayerDepth)
-   depthWettingFront = (rootZoneLiq/availCapacity)*min(rootingDepth, total_soil_depth)
+   depthWettingFront = (rootZoneLiq/availCapacity)*min(rootingDepth,total_soil_depth)
    if(updateInfil)then
-     dDepthWettingFront_dWat(:)=( dRootZoneLiq_dWat(:)*min(rootingDepth, total_soil_depth) + dRootZoneIce_dWat(:)*depthWettingFront )/availCapacity
-     dDepthWettingFront_dTk(:) =( dRootZoneLiq_dTk(:) *min(rootingDepth, total_soil_depth) + dRootZoneIce_dTk(:)*depthWettingFront  )/availCapacity
+     dDepthWettingFront_dWat(:)=( dRootZoneLiq_dWat(:)*min(rootingDepth,total_soil_depth) + dRootZoneIce_dWat(:)*depthWettingFront )/availCapacity
+     dDepthWettingFront_dTk(:) =( dRootZoneLiq_dTk(:) *min(rootingDepth,total_soil_depth) + dRootZoneIce_dTk(:)*depthWettingFront  )/availCapacity
     end if
 
    ! process hydraulic conductivity-controlled infiltration rate
