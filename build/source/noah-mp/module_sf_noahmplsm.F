@@ -506,7 +506,7 @@ contains
 ! ==================================================================================================
 ! --------------------------------------------------------------------------------------------------
   SUBROUTINE PHENOLOGY (VEGTYP , ISURBAN, SNOWH  , TV     , LAT   , YEARLEN , JULIAN , & !in
-                        LAI    , SAI     , HTOP  , ELAI    , ESAI   , IGS)
+                        LAI    , SAI    , HTOP   , ELAI   , ESAI  , IGS)                 !out
 
 ! --------------------------------------------------------------------------------------------------
 ! vegetation phenology considering vegeation canopy being buries by snow and evolution in time
