@@ -72,9 +72,9 @@ USE data_types,only:&
                     var_dlength,                  & ! data vector with variable length dimension (rkind)
                     zLookup,                      & ! lookup tables
                     model_options,                & ! defines the model decisions
-                    in_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
-                    io_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
-                    out_type_summaSolve4homegrown   ! class for summaSolve4homegrown arguments
+                    in_type_summaSolv4homegrown, & ! class for summaSolv4homegrown arguments
+                    io_type_summaSolv4homegrown, & ! class for summaSolv4homegrown arguments
+                    out_type_summaSolv4homegrown   ! class for summaSolv4homegrown arguments
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:&
@@ -156,11 +156,11 @@ subroutine systemSolv(&
 #ifdef SUNDIALS_ACTIVE
   USE tol4ida_module,only:popTol4ida                        ! populate tolerances
   USE eval8summaWithPrime_module,only:eval8summaWithPrime   ! get the fluxes and residuals
-  USE summaSolve4ida_module,only:summaSolve4ida             ! solve DAE by IDA
-  USE summaSolve4kinsol_module,only:summaSolve4kinsol       ! solve DAE by KINSOL
+  USE summaSolv4ida_module,only:summaSolv4ida               ! solve DAE by IDA
+  USE summaSolv4kinsol_module,only:summaSolv4kinsol         ! solve DAE by KINSOL
 #endif
   USE eval8summa_module,only:eval8summa                     ! get the fluxes and residuals
-  USE summaSolve4homegrown_module,only:summaSolve4homegrown ! solve DAE using homegrown solver
+  USE summaSolv4homegrown_module,only:summaSolv4homegrown   ! solve DAE using homegrown solver
 
   implicit none
   ! ---------------------------------------------------------------------------------------
@@ -260,10 +260,10 @@ subroutine systemSolv(&
   integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution homegrown solver
   logical(lgt)                    :: converged                     ! convergence flag homegrown solver
   logical(lgt), parameter         :: post_massCons=.false.         ! “perfectly” conserve mass by pushing the errors into the states, turn off for now to agree with SUNDIALS
-  ! class objects for call to summaSolve4homegrown
-  type(in_type_summaSolve4homegrown)  :: in_SS4HG  ! object for intent(in)  summaSolve4homegrown arguments
-  type(io_type_summaSolve4homegrown)  :: io_SS4HG  ! object for intent(io)  summaSolve4homegrown arguments
-  type(out_type_summaSolve4homegrown) :: out_SS4HG ! object for intent(out) summaSolve4homegrown arguments
+  ! class objects for call to summaSolv4homegrown
+  type(in_type_summaSolv4homegrown)  :: in_SS4HG  ! object for intent(in)  summaSolv4homegrown arguments
+  type(io_type_summaSolv4homegrown)  :: io_SS4HG  ! object for intent(io)  summaSolv4homegrown arguments
+  type(out_type_summaSolv4homegrown) :: out_SS4HG ! object for intent(out) summaSolv4homegrown arguments
   ! flags
   logical(lgt) :: return_flag ! flag for handling systemSolv returns trigerred from internal subroutines 
   logical(lgt) :: exit_flag   ! flag for handling loop exit statements trigerred from internal subroutines 
@@ -560,7 +560,7 @@ contains
    )
    call in_SS4HG % initialize(dt_cur,dt,iter,nSnow,nSoil,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
    call io_SS4HG % initialize(firstFluxCall,xMin,xMax,ixSaturation)
-   call summaSolve4homegrown(in_SS4HG,&                                                                                ! input: model control
+   call summaSolv4homegrown(in_SS4HG,&                                                                                ! input: model control
                             &stateVecTrial,fScale,xScale,resVec,sMul,dMat,&                                            ! input: state vectors
                             &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input: data structures
                             &indx_data,diag_data,flux_temp,deriv_data,&                                                ! input-output: data structures
@@ -663,7 +663,7 @@ contains
    ! * solving F(y,y') = 0 by IDA, y is the state vector and y' is the time derivative vector dy/dt
    !---------------------------
    ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
-   call summaSolve4ida(&
+   call summaSolv4ida(&
                        dt_cur,                  & ! intent(in):    current stepsize
                        dt,                      & ! intent(in):    entire time step for drainage pond rate
                        atol,                    & ! intent(in):    absolute tolerance
@@ -750,7 +750,7 @@ contains
    !---------------------------
    stateVecNew(:) = 0._rkind
    ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
-   call summaSolve4kinsol(&
+   call summaSolv4kinsol(&
                           dt_cur,                  & ! intent(in):    data time step
                           dt,                      & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
                           fScale,                  & ! intent(in):    characteristic scale of the function evaluations

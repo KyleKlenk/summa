@@ -891,7 +891,7 @@ MODULE data_types
  ! ** end varSubstep
 
  ! ***********************************************************************************************************
- ! Define classes used to simplify calls to the subroutines in summaSolve4homegrown
+ ! Define classes used to simplify calls to the subroutines in summaSolv4homegrown
  ! ***********************************************************************************************************
 
  type, public :: in_type_computJacob  ! class for intent(in) arguments in computJacob call
@@ -936,7 +936,7 @@ MODULE data_types
  ! Define classes used to simplify calls to the subroutines in systemSolv
  ! ***********************************************************************************************************
 
- type, public :: in_type_summaSolve4homegrown  ! class for intent(in) arguments in summaSolve4homegrown call
+ type, public :: in_type_summaSolv4homegrown  ! class for intent(in) arguments in summaSolv4homegrown call
    real(rkind)              :: dt_cur                   ! intent(in): current stepsize
    real(rkind)              :: dt                       ! intent(in): entire time step for drainage pond rate
    integer(i4b)             :: iter                     ! intent(in): iteration index
@@ -951,26 +951,26 @@ MODULE data_types
    logical(lgt)             :: scalarSolution           ! intent(in): flag to denote if implementing the scalar solution
    real(rkind)              :: fOld                     ! intent(in): old function evaluation
   contains
-   procedure :: initialize => initialize_in_summaSolve4homegrown
- end type in_type_summaSolve4homegrown
+   procedure :: initialize => initialize_in_summaSolv4homegrown
+ end type in_type_summaSolv4homegrown
 
- type, public :: io_type_summaSolve4homegrown  ! class for intent(inout) arguments in summaSolve4homegrown call
+ type, public :: io_type_summaSolv4homegrown  ! class for intent(inout) arguments in summaSolv4homegrown call
    logical(lgt)             :: firstFluxCall            ! intent(inout): flag to indicate if we are processing the first flux call
    real(rkind)              :: xMin,xMax                ! intent(inout): brackets of the root
    integer(i4b)             :: ixSaturation             ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
   contains
-   procedure :: initialize => initialize_io_summaSolve4homegrown
-   procedure :: finalize   => finalize_io_summaSolve4homegrown
- end type io_type_summaSolve4homegrown
+   procedure :: initialize => initialize_io_summaSolv4homegrown
+   procedure :: finalize   => finalize_io_summaSolv4homegrown
+ end type io_type_summaSolv4homegrown
 
- type, public :: out_type_summaSolve4homegrown  ! class for intent(out) arguments in summaSolve4homegrown call
+ type, public :: out_type_summaSolv4homegrown  ! class for intent(out) arguments in summaSolv4homegrown call
    real(rkind)              :: fNew                     ! intent(out): new function evaluation
    logical(lgt)             :: converged                ! intent(out): convergence flag
    integer(i4b)             :: err                      ! intent(out): error code
    character(len=len_msg)   :: message                  ! intent(out): error message
   contains
-   procedure :: finalize => finalize_out_summaSolve4homegrown
- end type out_type_summaSolve4homegrown
+   procedure :: finalize => finalize_out_summaSolv4homegrown
+ end type out_type_summaSolv4homegrown
 
 contains
  
@@ -2307,10 +2307,10 @@ contains
   message   = out_lineSearchRefinement % message                      ! intent(out): error message
  end subroutine finalize_out_lineSearchRefinement
 
- ! **** summaSolve4homegrown ****
+ ! **** summaSolv4homegrown ****
 
- subroutine initialize_in_summaSolve4homegrown(in_SS4NR,dt_cur,dt,iter,nSnow,nSoil,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
-  class(in_type_summaSolve4homegrown),intent(out)    :: in_SS4NR   ! class object for intent(out) arguments
+ subroutine initialize_in_summaSolv4homegrown(in_SS4NR,dt_cur,dt,iter,nSnow,nSoil,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
+  class(in_type_summaSolv4homegrown),intent(out)    :: in_SS4NR   ! class object for intent(out) arguments
   real(rkind) ,intent(in) :: dt_cur                   ! intent(in): current stepsize
   real(rkind) ,intent(in) :: dt                       ! intent(in): entire time step for drainage pond rate
   integer(i4b),intent(in) :: iter                     ! intent(in): iteration index
@@ -2338,10 +2338,10 @@ contains
   in_SS4NR % computeVegFlux = computeVegFlux 
   in_SS4NR % scalarSolution = scalarSolution
   in_SS4NR % fOld           = fOld            
- end subroutine initialize_in_summaSolve4homegrown
+ end subroutine initialize_in_summaSolv4homegrown
 
- subroutine initialize_io_summaSolve4homegrown(io_SS4NR,firstFluxCall,xMin,xMax,ixSaturation)
-  class(io_type_summaSolve4homegrown),intent(out)    :: io_SS4NR   ! class object for intent(inout) arguments
+ subroutine initialize_io_summaSolv4homegrown(io_SS4NR,firstFluxCall,xMin,xMax,ixSaturation)
+  class(io_type_summaSolv4homegrown),intent(out)    :: io_SS4NR   ! class object for intent(inout) arguments
   logical(lgt),intent(in) :: firstFluxCall ! intent(inout): flag to indicate if we are processing the first flux call
   real(rkind) ,intent(in) :: xMin,xMax     ! intent(inout): brackets of the root
   integer(i4b),intent(in) :: ixSaturation  ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
@@ -2350,10 +2350,10 @@ contains
   io_SS4NR % xMin          = xMin    
   io_SS4NR % xMax          = xMax    
   io_SS4NR % ixSaturation  = ixSaturation 
- end subroutine initialize_io_summaSolve4homegrown
+ end subroutine initialize_io_summaSolv4homegrown
 
- subroutine finalize_io_summaSolve4homegrown(io_SS4NR,firstFluxCall,xMin,xMax,ixSaturation)
-  class(io_type_summaSolve4homegrown),intent(in)    :: io_SS4NR   ! class object for intent(inout) arguments
+ subroutine finalize_io_summaSolv4homegrown(io_SS4NR,firstFluxCall,xMin,xMax,ixSaturation)
+  class(io_type_summaSolv4homegrown),intent(in)    :: io_SS4NR   ! class object for intent(inout) arguments
   logical(lgt),intent(out) :: firstFluxCall ! intent(inout): flag to indicate if we are processing the first flux call
   real(rkind) ,intent(out) :: xMin,xMax     ! intent(inout): brackets of the root
   integer(i4b),intent(out) :: ixSaturation  ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
@@ -2362,10 +2362,10 @@ contains
   xMin          = io_SS4NR % xMin    
   xMax          = io_SS4NR % xMax    
   ixSaturation  = io_SS4NR % ixSaturation 
- end subroutine finalize_io_summaSolve4homegrown
+ end subroutine finalize_io_summaSolv4homegrown
 
- subroutine finalize_out_summaSolve4homegrown(out_SS4NR,fNew,converged,err,message)
-  class(out_type_summaSolve4homegrown),intent(in)    :: out_SS4NR   ! class object for intent(out) arguments
+ subroutine finalize_out_summaSolv4homegrown(out_SS4NR,fNew,converged,err,message)
+  class(out_type_summaSolv4homegrown),intent(in)    :: out_SS4NR   ! class object for intent(out) arguments
   real(rkind) ,intent(out) :: fNew      ! intent(out): new function evaluation
   logical(lgt),intent(out) :: converged ! intent(out): convergence flag
   integer(i4b),intent(out) :: err       ! intent(out): error code
@@ -2375,6 +2375,6 @@ contains
   converged = out_SS4NR % converged
   err       = out_SS4NR % err      
   message   = out_SS4NR % message  
- end subroutine finalize_out_summaSolve4homegrown
+ end subroutine finalize_out_summaSolv4homegrown
 
 END MODULE data_types
