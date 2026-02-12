@@ -74,10 +74,10 @@ implicit none
 private
 public::computJacob
 public::fluxJacAdd
+public::ixInd
 #ifdef SUNDIALS_ACTIVE
 public::computJacob4kinsol
 #endif
-logical::fullMatrix
 contains
 
 
@@ -125,6 +125,7 @@ subroutine computJacob(&
   integer(i4b)                           :: iLayer          ! index of model layer
   integer(i4b)                           :: jLayer          ! index of model layer within the full state vector (hydrology)
   character(LEN=256)                     :: cmessage        ! error message of downwind routine
+  logical(lgt)                           :: fullMatrix      ! flag to indicate if the matrix is full (true) or banded (false)
   ! --------------------------------------------------------------
   ! associate variables from data structures
   associate(&
@@ -362,7 +363,7 @@ end subroutine computJacob
 ! ***********************************************************************************************************
 subroutine fluxJacAdd(&
                       ! input: model control
-                      passed_fullMatrix,          & ! intent(in):    flag to indicate if the matrix is full (true) or banded (false)
+                      fullMatrix,                 & ! intent(in):    flag to indicate if the matrix is full (true) or banded (false)
                       dt,                         & ! intent(in):    length of the time step (seconds)
                       nSnow,                      & ! intent(in):    number of snow layers
                       nSoil,                      & ! intent(in):    number of soil layers
@@ -383,7 +384,7 @@ subroutine fluxJacAdd(&
   ! -----------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
-  logical(lgt),intent(in)              :: passed_fullMatrix          ! flag to indicate if the matrix is full (true) or banded (false)
+  logical(lgt),intent(in)              :: fullMatrix          ! flag to indicate if the matrix is full (true) or banded (false)
   real(rkind),intent(in)               :: dt                         ! length of the time step (seconds)
   integer(i4b),intent(in)              :: nSnow                      ! number of snow layers
   integer(i4b),intent(in)              :: nSoil                      ! number of soil layers
@@ -509,7 +510,6 @@ subroutine fluxJacAdd(&
     ! --------------------------------------------------------------
     ! initialize error control
     err=0; message='fluxJacAdd/'
-    fullMatrix = passed_fullMatrix ! local copy of the flag to indicate if the matrix is full (true) or banded (false)
     ! -----
     ! * energy and liquid fluxes over vegetation...
     ! ---------------------------------------------
@@ -850,6 +850,22 @@ subroutine fluxJacAdd(&
 
 end subroutine fluxJacAdd
 
+! **********************************************************************************************************
+! public function: get the index in the band-diagonal matrix or full matrix
+! **********************************************************************************************************
+function ixInd(jState,iState)
+  implicit none
+  integer(i4b),intent(in)  :: jState ! off-diagonal state
+  integer(i4b),intent(in)  :: iState ! diagonal state
+  integer(i4b)             :: ixInd  ! index in the band-diagonal matrix or full matrix
+
+  if(fullMatrix) then
+    ixInd = jState
+  else
+    ixInd = ixDiag + jState - iState
+  endif
+end function ixInd
+
 #ifdef SUNDIALS_ACTIVE
 ! **********************************************************************************************************
 ! public function computJacob4kinsol: the interface to compute the Jacobian matrix dF/dy + c dF/dy' for IDA solver
@@ -940,20 +956,5 @@ integer(c_int) function computJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
 end function computJacob4kinsol
 #endif
 
-! **********************************************************************************************************
-! private function: get the index in the band-diagonal matrix or full matrix
-! **********************************************************************************************************
-function ixInd(jState,iState)
-  implicit none
-  integer(i4b),intent(in)  :: jState ! off-diagonal state
-  integer(i4b),intent(in)  :: iState ! diagonal state
-  integer(i4b)             :: ixInd  ! index in the band-diagonal matrix or full matrix
-
-  if(fullMatrix) then
-    ixInd = jState
-  else
-    ixInd = ixDiag + jState - iState
-  endif
-end function ixInd
 
 end module computJacob_module

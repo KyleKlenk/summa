@@ -83,7 +83,6 @@ implicit none
 private
 public::computJacobWithPrime
 public::computJacob4ida
-logical::fullMatrix
 contains
 
 
@@ -124,6 +123,7 @@ subroutine computJacobWithPrime(&
   ! -----------------------------------------------------------------------------------------------------------------
   ! provide access to subroutines
   use computJacob_module,only:fluxJacAdd
+  use computJacob_module,only:ixInd
   ! -----------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
@@ -173,6 +173,7 @@ subroutine computJacobWithPrime(&
   ! conversion factors
   real(rkind)                          :: LH_fu0                     ! latent heat of fusion, modified to be 0 if using enthalpy formulation and not using
   character(LEN=256)                   :: cmessage                   ! error message of downwind routine
+  logical(lgt)                         :: fullMatrix                 ! flag to indicate if the matrix is full (true) or banded (false)
   ! --------------------------------------------------------------
   ! associate variables from data structures
   associate(&
@@ -234,10 +235,10 @@ subroutine computJacobWithPrime(&
     ! diagnostic variables
     scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)           ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
     scalarBulkVolHeatCapVeg      => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1)    ,& ! intent(in): [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)
-    scalarCanopyCm               => diag_data%var(iLookDIAG%scalarCanopyCm)%dat(1)             ,& ! intent(in): [dp]     Cm for canopy vegetation (J kg-1)
+    scalarCanopyCm               => diag_data%var(iLookDIAG%scalarCanopyCm)%dat(1)             ,& ! intent(in): [dp]     Cm of canopy (J kg-1 K-1)
     mLayerFracLiqSnow            => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat             ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow layer (-)
     mLayerVolHtCapBulk           => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat            ,& ! intent(in): [dp(:)]  bulk volumetric heat capacity in each snow+soil layer (J m-3 K-1)
-    mLayerCm                     => diag_data%var(iLookDIAG%mLayerCm)%dat                      ,& ! intent(in): [dp(:)]  Cm for each snow+soil layer (J m-3)
+    mLayerCm                     => diag_data%var(iLookDIAG%mLayerCm)%dat                      ,& ! intent(in): [dp(:)]  Cm in each snow+soil layer (J kg-1 K-1)
     ! canopy and layer depth
     canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)          ,& ! intent(in): [dp   ]  canopy depth (m)
     mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat                    & ! intent(in): [dp(:)]  depth of each layer in the snow+soil sub-domain (m)
@@ -563,21 +564,5 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   return
 
 end function computJacob4ida
-
-! **********************************************************************************************************
-! private function: get the index in the band-diagonal matrix or full matrix
-! **********************************************************************************************************
-function ixInd(jState,iState)
-  implicit none
-  integer(i4b),intent(in)  :: jState ! off-diagonal state
-  integer(i4b),intent(in)  :: iState ! diagonal state
-  integer(i4b)             :: ixInd  ! index in the band-diagonal matrix or full matrix
-
-  if(fullMatrix) then
-    ixInd = jState
-  else
-    ixInd = ixDiag + jState - iState
-  endif
-end function ixInd
 
 end module computJacobWithPrime_module
