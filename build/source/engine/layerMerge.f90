@@ -21,7 +21,7 @@
 module layerMerge_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer

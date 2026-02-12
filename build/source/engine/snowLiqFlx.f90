@@ -21,7 +21,7 @@
 module snowLiqFlx_module
 
 ! access modules
-USE nrtype                                 ! numerical recipes data types
+USE nr_type                                ! numerical recipes data types
 USE multiconst,only:iden_ice,iden_water    ! intrinsic density of ice and water (kg m-3)
 
 ! access missing values

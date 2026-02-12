@@ -21,7 +21,7 @@
 module layerDivide_module
 
 ! variable types
-USE nrtype
+USE nr_type
 
 ! physical constants
 USE multiconst,only:&

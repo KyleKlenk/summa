@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module check_icond_module
-USE nrtype
+USE nr_type
 
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
@@ -45,7 +45,7 @@ contains
                         err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
- USE nrtype
+ USE nr_type
  USE var_lookup,only:iLookPARAM                          ! variable lookup structure
  USE var_lookup,only:iLookPROG                           ! variable lookup structure
  USE var_lookup,only:iLookDIAG                           ! variable lookup structure

@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module updatState_module
-USE nrtype
+USE nr_type
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,     & ! freezing point of pure water  (K)

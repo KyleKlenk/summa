@@ -28,7 +28,7 @@ USE globalData,only:realMissing     ! missing real number
 USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU ! run modes
 
 ! common modules
-USE nrtype
+USE nr_type
 USE netcdf
 USE netcdf_util_module,only:nc_file_close  ! close netcdf file
 USE netcdf_util_module,only:nc_file_open   ! open netcdf file

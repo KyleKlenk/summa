@@ -21,7 +21,7 @@
 module matrixOper_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: nRHS           ! number of unknown variables on the RHS of the linear system A.X=B

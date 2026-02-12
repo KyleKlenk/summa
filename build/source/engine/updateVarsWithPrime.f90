@@ -21,7 +21,7 @@
 module updateVarsWithPrime_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer

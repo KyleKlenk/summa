@@ -21,7 +21,7 @@
 module derivforce_module
 
 ! data types
-USE nrtype
+USE nr_type
 USE data_types,only:var_dlength                             ! data structure: x%var(:)%dat (rkind)
 
 ! model constants

@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module read_attrb_module
-USE nrtype
+USE nr_type
 implicit none
 private
 public::read_dimension
@@ -33,7 +33,7 @@ contains
  USE netcdf
  USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
  USE netcdf_util_module,only:nc_file_close                  ! close netcdf file
- USE nr_utility_module ,only:arth
+ USE nr_utils_module ,only:arth
  ! provide access to global data
  USE globalData,only:gru_struc                              ! gru->hru mapping structure
  USE globalData,only:index_map                              ! hru->gru mapping structure

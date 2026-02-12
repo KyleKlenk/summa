@@ -21,7 +21,7 @@
 module getVectorz_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -262,7 +262,7 @@ subroutine getScaling(&
                       dMat,                    & ! intent(out):   diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
                       err,message)               ! intent(out):   error control
   ! --------------------------------------------------------------------------------------------------------------------------------
-  USE nr_utility_module,only:arth                   ! get a sequence of numbers arth(start, incr, count)
+  USE nr_utils_module,only:arth                   ! get a sequence of numbers arth(start, incr, count)
   USE f2008funcs_module,only:findIndex              ! finds the index of the first value within a vector
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: data structures

@@ -20,7 +20,7 @@
 
 MODULE data_types
  ! used to define model data structures
- USE nrtype, integerMissing=>nr_integerMissing
+ USE nr_type, integerMissing=>nr_integerMissing
  USE var_lookup,only:maxvarFreq
  USE var_lookup,only:maxvarStat
  USE var_lookup,only:maxvarDecisions  ! maximum number of decisions

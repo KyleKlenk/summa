@@ -14,8 +14,8 @@ set(NOAHMP
 # Free versions of numerical recipes utilities for NOAH-MP modules
 set(NRUTIL
     ${ENGINE_DIR}/f2008funcs.f90
-    ${ENGINE_DIR}/nr_utility.f90
-    ${ENGINE_DIR}/nrtype.f90
+    ${ENGINE_DIR}/nr_utils.f90
+    ${DSHARE_DIR}/nr_type.f90
     CACHE INTERNAL "NRUTIL")
 
 # Free versions of numerical recipes procedures for SUMMA modules

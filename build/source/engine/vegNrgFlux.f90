@@ -21,7 +21,7 @@
 module vegNrgFlux_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! global variables
 USE globalData,only:&

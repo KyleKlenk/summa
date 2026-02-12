@@ -21,7 +21,7 @@
 module computFlux_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! provide access to the derived types and classes used to define data structures and class objects
 USE data_types,only:&

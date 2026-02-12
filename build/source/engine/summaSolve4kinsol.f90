@@ -22,7 +22,7 @@ module summaSolve4kinsol_module
 
     !======= Inclusions ===========
 USE, intrinsic :: iso_c_binding
-USE nrtype
+USE nr_type
 USE type4kinsol
 
 ! access missing values

@@ -1,7 +1,7 @@
 module computSnowDepth_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! physical constants
 USE multiconst,only:&

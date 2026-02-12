@@ -21,7 +21,7 @@
 module computHeatCap_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -84,7 +84,7 @@ subroutine computStatMult(&
                       sMul,                    & ! intent(out): multiplier for state vector (used in the residual calculations)
                       err,message)               ! intent(out): error control
 ! --------------------------------------------------------------------------------------------------------------------------------
-USE nr_utility_module,only:arth                  ! get a sequence of numbers arth(start, incr, count)
+USE nr_utils_module,only:arth                  ! get a sequence of numbers arth(start, incr, count)
 USE f2008funcs_module,only:findIndex             ! finds the index of the first value within a vector
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: data structures

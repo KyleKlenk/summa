@@ -2,7 +2,7 @@
 module computThermConduct_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:&

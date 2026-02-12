@@ -23,7 +23,7 @@ USE netcdf
 USE netcdf_util_module,only:netcdf_err        ! netcdf error handling function
 USE netcdf_util_module,only:nc_file_close     ! close NetCDF files
 USE f2008funcs_module,only:cloneStruc         ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
-USE nrtype, integerMissing=>nr_integerMissing ! top-level data types
+USE nr_type, integerMissing=>nr_integerMissing ! top-level data types
 USE globalData, only: outputPrecision         ! data structure for output precision
 USE globalData, only: chunkSize               ! size of chunks to write
 USE globalData, only: outputCompressionLevel  ! netcdf deflate level

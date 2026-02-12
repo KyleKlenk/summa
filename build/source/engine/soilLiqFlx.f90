@@ -22,7 +22,7 @@ module soilLiqFlx_module
 ! -----------------------------------------------------------------------------------------------------------
 
 ! data types
-USE nrtype
+USE nr_type
 USE data_types,only:var_d                  ! x%var(:)       (rkind)
 USE data_types,only:var_ilength            ! x%var(:)%dat   (i4b)
 USE data_types,only:var_dlength            ! x%var(:)%dat   (rkind)

@@ -1,5 +1,5 @@
 module updatStateWithPrime_module
-USE nrtype
+USE nr_type
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,     & ! freezing point of pure water  (K)

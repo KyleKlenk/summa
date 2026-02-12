@@ -23,7 +23,7 @@ module summaSolve4ida_module
 
 !======= Inclusions ===========
 USE, intrinsic :: iso_c_binding
-USE nrtype
+USE nr_type
 USE type4ida
 
 ! access missing values

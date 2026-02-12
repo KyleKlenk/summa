@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module f2008funcs_module
-USE nrtype
+USE nr_type
 implicit none
 private
 public::cloneStruc

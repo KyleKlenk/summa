@@ -21,7 +21,7 @@
 module snwDensify_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! model constants
 USE multiconst,only:&

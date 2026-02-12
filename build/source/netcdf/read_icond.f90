@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module read_icond_module
-USE nrtype
+USE nr_type
 USE netcdf
 USE globalData,only: ixHRUfile_min,ixHRUfile_max
 USE globalData,only: nTimeDelay   ! number of hours in the time delay histogram
@@ -42,7 +42,7 @@ contains
  subroutine read_icond_nlayers(iconFile,nGRU,indx_meta,err,message)
  ! --------------------------------------------------------------------------------------------------------
  ! modules
- USE nrtype
+ USE nr_type
  USE var_lookup,only:iLookINDEX                        ! variable lookup structure
  USE globalData,only:gru_struc                         ! gru-hru mapping structures
  USE netcdf_util_module,only:nc_file_close             ! close netcdf file
@@ -147,7 +147,7 @@ contains
                        err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
- USE nrtype
+ USE nr_type
  USE var_lookup,only:iLookVarType                       ! variable lookup structure
  USE var_lookup,only:iLookPROG                          ! variable lookup structure
  USE var_lookup,only:iLookPARAM                         ! variable lookup structure

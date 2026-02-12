@@ -21,7 +21,7 @@
 module coupled_em_module
 
 ! homegrown solver data types
-USE nrtype
+USE nr_type
 USE globalData,only: verySmall ! a very small number used as an additive constant to check if substantial difference among real numbers
 
 ! physical constants

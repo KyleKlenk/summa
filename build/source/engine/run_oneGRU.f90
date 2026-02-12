@@ -21,7 +21,7 @@
 module run_oneGRU_module
 
 ! numerical recipes data types
-USE nrtype
+USE nr_type
 
 ! access integers to define "yes" and "no"
 USE globalData,only:yes,no             ! .true. and .false.

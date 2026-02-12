@@ -21,7 +21,7 @@
 module snowAlbedo_module
 
 ! data types
-USE nrtype                          ! numerical recipes data types
+USE nr_type                         ! numerical recipes data types
 USE globalData,only:realMissing     ! missing real number
 
 ! physical constants
