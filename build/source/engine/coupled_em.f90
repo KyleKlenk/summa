@@ -149,7 +149,7 @@ subroutine coupled_em(&
   ! additional subroutines
   USE tempAdjust_module,only:tempAdjust                         ! adjust snow temperature associated with new snowfall
   USE var_derive_module,only:calcHeight                         ! module to calculate height at layer interfaces and layer mid-point
-  USE computSnowDepth_module,only:computSnowDepth               ! compute snow depth
+  USE snowDepth_module,only:snowDepth                           ! compute snow depth
   USE convertEnthalpyTemp_module,only:T2enthTemp_veg            ! convert temperature to enthalpy for vegetation
   USE convertEnthalpyTemp_module,only:T2enthTemp_snow           ! convert temperature to enthalpy for snow
   USE convertEnthalpyTemp_module,only:T2enthTemp_soil           ! convert temperature to enthalpy for soil
@@ -1114,7 +1114,7 @@ subroutine coupled_em(&
           ! * compute change in ice content of the top snow layer due to sublimation 
           !   and account for compaction and cavitation in the snowpack...
           ! ------------------------------------------------------------------------
-          call computSnowDepth(&
+          call snowDepth(&
                     whole_step,                               & ! intent(in)
                     nSnow,                                    & ! intent(in)
                     sumSnowSublimation/whole_step,            & ! intent(in)

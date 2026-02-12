@@ -115,7 +115,7 @@ set(SOLVER
     ${ENGINE_DIR}/heatCapacity.f90
     ${ENGINE_DIR}/computJacob.f90
     ${ENGINE_DIR}/computResid.f90
-    ${ENGINE_DIR}/computSnowDepth.f90
+    ${ENGINE_DIR}/snowDepth.f90
     ${ENGINE_DIR}/thermConductivity.f90
     ${ENGINE_DIR}/coupled_em.f90
     ${ENGINE_DIR}/init_heatCap_thermCond.f90
