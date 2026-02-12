@@ -296,8 +296,8 @@ contains
  USE data_types,only:var_ilength,var_dlength                      ! data vectors with variable length dimension
  USE data_types,only:var_d                                        ! data structures with fixed dimension
  ! provide access to external modules
- USE snow_utils_module,only:fracliquid                            ! compute fraction of liquid water
- USE enthalpyTemp_module,only:enthalpy2T_snwWat,T2enthalpy_snwWat ! convert temperature to liq+ice enthalpy for a snow layer
+ USE snow_utils_module,only:fracliquid                                   ! compute fraction of liquid water
+ USE convertEnthalpyTemp_module,only:enthalpy2T_snwWat,T2enthalpy_snwWat ! convert temperature to liq+ice enthalpy for a snow layer
  implicit none
  ! ------------------------------------------------------------------------------------------------------------
  ! input/output: data structures

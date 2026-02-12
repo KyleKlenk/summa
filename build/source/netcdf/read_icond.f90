@@ -167,7 +167,7 @@ contains
  USE data_types,only:var_dlength                        ! double precision structure for a single HRU
  USE data_types,only:var_info                           ! metadata
  USE get_ixName_module,only:get_varTypeName             ! to access type strings for error messages
- USE updatState_module,only:updateSoil                  ! update soil states
+ USE updatState_module,only:updatSoil                  ! update soil states
 
  implicit none
  ! --------------------------------------------------------------------------------------------------------
@@ -367,7 +367,7 @@ contains
     jLayer = iLayer+indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
 
     ! update soil layers
-    call updateSoil(&
+    call updatSoil(&
                     ! input
                     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp          )%dat(jLayer),& ! intent(in): temperature vector (K)
                     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead    )%dat(iLayer),& ! intent(in): matric head (m)

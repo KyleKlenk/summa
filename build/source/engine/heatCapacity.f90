@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module computHeatCap_module
+module heatCapacity_module
 
 ! data types
 USE nr_type
@@ -66,7 +66,7 @@ USE globalData,only:iname_aquifer    ! named variables for the aquifer
 implicit none
 private
 public::computStatMult
-public::computHeatCapAnalytic
+public::heatCapacityAnalytic
 public::computCm
 
 contains
@@ -158,10 +158,10 @@ USE f2008funcs_module,only:findIndex             ! finds the index of the first 
 end subroutine computStatMult
 
 ! **********************************************************************************************************
-! public subroutine computHeatCapAnalytic: compute diagnostic energy variables (heat capacity)
+! public subroutine heatCapacityAnalytic: compute diagnostic energy variables (heat capacity)
 !   NOTE: computing on whole vector, could just compute on state subset
 ! **********************************************************************************************************
-subroutine computHeatCapAnalytic(&
+subroutine heatCapacityAnalytic(&
                       ! input: state variables
                       canopyDepth,             & ! intent(in):    canopy depth (m)
                       scalarCanopyIce,         & ! intent(in):    trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -253,7 +253,7 @@ subroutine computHeatCapAnalytic(&
     )  ! end associate statement
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="computHeatCapAnalytic/"
+    err=0; message="heatCapacityAnalytic/"
 
     ! loop through model state variables
     do iState=1,size(ixMapSubset2Full)
@@ -332,7 +332,7 @@ subroutine computHeatCapAnalytic(&
 
   end associate
 
-end subroutine computHeatCapAnalytic
+end subroutine heatCapacityAnalytic
 
 ! **********************************************************************************************************
 ! public subroutine computCm: compute diagnostic energy variables (change in enthTemp with water)
@@ -491,4 +491,4 @@ subroutine computCm(&
 end subroutine computCm
 
 
-end module computHeatCap_module
+end module heatCapacity_module

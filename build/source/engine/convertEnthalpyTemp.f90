@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module enthalpyTemp_module
+module convertEnthalpyTemp_module
 
 ! constants
 USE multiconst, only: gravity, &                          ! gravitational acceleration (m s-1)
@@ -1711,4 +1711,4 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
   end function diff_H_soil
 
 
-end module enthalpyTemp_module
+end module convertEnthalpyTemp_module

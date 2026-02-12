@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module diagn_evar_module
+module init_heatCap_thermCond_module
 
 ! data types
 USE nr_type
@@ -71,14 +71,14 @@ USE mDecisions_module,only: funcSoilWet, & ! function of soil wetness
 ! privacy
 implicit none
 private
-public::diagn_evar
+public::init_heatCap_thermCond
 contains
 
 
  ! **********************************************************************************************************
- ! public subroutine diagn_evar: compute diagnostic energy variables (thermal conductivity and heat capacity)
+ ! public subroutine init_heatCap_thermCond: compute start-of-step thermal conductivity and heat capacity
  ! **********************************************************************************************************
- subroutine diagn_evar(&
+ subroutine init_heatCap_thermCond(&
                        ! input: control variables
                        computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
                        canopyDepth,             & ! intent(in):    canopy depth (m)
@@ -167,7 +167,7 @@ contains
  )  ! end associate statement
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message="diagn_evar/"
+ err=0; message="init_heatCap_thermCond/"
 
  ! initialize the soil layer
  iSoil=integerMissing
@@ -318,7 +318,7 @@ contains
  ! end association to variables in the data structure
  end associate
 
- end subroutine diagn_evar
+ end subroutine init_heatCap_thermCond
 
 
-end module diagn_evar_module
+end module init_heatCap_thermCond_module

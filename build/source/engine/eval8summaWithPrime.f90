@@ -106,14 +106,14 @@ subroutine eval8summaWithPrime(&
   ! provide access to subroutines
   USE getVectorz_module, only:varExtract                    ! extract variables from the state vector
   USE getVectorz_module, only:checkFeas                     ! check feasibility of state vector
-  USE updateVarsWithPrime_module, only:updateVarsWithPrime  ! update variables
+  USE updatDiagnWithPrime_module, only:updatDiagnWithPrime  ! update variables
   USE computFlux_module, only:soilCmpresPrime               ! compute soil compression
   USE computFlux_module, only:computFlux                    ! compute fluxes given a state vector
-  USE computHeatCap_module,only:computHeatCapAnalytic       ! recompute closed form heat capacity (Cp) and derivatives
-  USE computHeatCap_module,only:computCm                    ! compute Cm and derivatives
-  USE computHeatCap_module, only:computStatMult             ! recompute state multiplier
+  USE heatCapacity_module,only:heatCapacityAnalytic         ! recompute closed form heat capacity (Cp) and derivatives
+  USE heatCapacity_module,only:computCm                     ! compute Cm and derivatives
+  USE heatCapacity_module, only:computStatMult              ! recompute state multiplier
   USE computResidWithPrime_module,only:computResidWithPrime ! compute residuals given a state vector
-  USE computThermConduct_module,only:computThermConduct     ! recompute thermal conductivity and derivatives
+  USE thermConductivity_module,only:thermConductivity       ! recompute thermal conductivity and derivatives
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -419,7 +419,7 @@ subroutine eval8summaWithPrime(&
     ! update diagnostic variables and derivatives
     ! NOTE: if we are using enthalpy as a state variable, currently all *TempPrime, *IcePrime, and *LiqPrime are set to realMissing
     !       This possibly could cause problems (?) if we use splitting, but we are not using splitting at the moment
-    call updateVarsWithPrime(&
+    call updatDiagnWithPrime(&
                     ! input
                     ixNrgConserv.ne.closedForm,   & ! intent(in):    flag if need to update temperature from enthalpy
                     ixNrgConserv==enthalpyFormLU, & ! intent(in):    flag to use the lookup table for soil temperature-enthalpy
@@ -464,7 +464,7 @@ subroutine eval8summaWithPrime(&
 
     if(updateStateCp)then
       ! *** compute volumetric heat capacity C_p
-      call computHeatCapAnalytic(&
+      call heatCapacityAnalytic(&
                   ! input: state variables
                   canopyDepth,             & ! intent(in):    canopy depth (m)
                   scalarCanopyIceTrial,    & ! intent(in):    trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -516,7 +516,7 @@ subroutine eval8summaWithPrime(&
 
     if(updateFluxCp)then
       ! update thermal conductivity
-      call computThermConduct(&
+      call thermConductivity(&
                           ! input: control variables
                           nLayers,               & ! intent(in):    total number of layers
                           ! input: state variables

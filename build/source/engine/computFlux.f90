@@ -276,7 +276,7 @@ subroutine computFlux(&
         call groundwatr(in_groundwatr,attr_data,mpar_data,prog_data,flux_data,io_groundwatr,out_groundwatr)
         call finalize_groundwatr;   if(err/=0)then; return; endif
       end if
-      call computeBaseflowRunoff ! compute total baseflow from soil and runoff
+      call computBaseflowRunoff ! compute total baseflow from soil and runoff
     end if
   end associate
 
@@ -326,7 +326,7 @@ contains
   end associate
  end subroutine zeroBaseflowFluxes
 
- subroutine computeBaseflowRunoff
+ subroutine computBaseflowRunoff
   ! compute total baseflow from the soil zone (needed for mass balance checks) and total runoff
   ! (Note: scalarSoilBaseflow is zero if topmodel is not used)
   ! (Note: scalarSoilBaseflow may need to re-envisioned in topmodel formulation if parts of it flow into neighboring soil rather than exfiltrate)
@@ -339,7 +339,7 @@ contains
    scalarSoilBaseflow = sum(mLayerBaseflow)                                               ! baseflow from the soil zone 
    scalarTotalRunoff  = scalarSurfaceRunoff + scalarSoilDrainage + scalarSoilBaseflow     ! total runoff
   end associate
- end subroutine computeBaseflowRunoff  
+ end subroutine computBaseflowRunoff  
 
  subroutine zeroAquiferFluxes
   ! set aquifer fluxes to zero (if no aquifer exists)

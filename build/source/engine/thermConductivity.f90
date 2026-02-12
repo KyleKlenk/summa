@@ -1,5 +1,5 @@
 
-module computThermConduct_module
+module thermConductivity_module
 
 ! data types
 USE nr_type
@@ -57,15 +57,15 @@ USE mDecisions_module,only:      &
 ! privacy
 implicit none
 private
-public::computThermConduct
+public::thermConductivity
 contains
 
 
 ! **********************************************************************************************************
-! public subroutine computThermConduct: recompute diagnostic energy variables (thermal conductivity)
+! public subroutine thermConductivity: recompute diagnostic energy variables (thermal conductivity)
 !   NOTE: does every layer regardless if layer or layer+1 is in state subset, could fix for speedup
 ! **********************************************************************************************************
-subroutine computThermConduct(&
+subroutine thermConductivity(&
                     ! input: control variables
                     nLayers,                 & ! intent(in):    total number of layers
                     ! input: state variables
@@ -192,7 +192,7 @@ subroutine computThermConduct(&
     )  ! association of local variables with information in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="computThermConduct/"
+    err=0; message="thermConductivity/"
 
     ! initialize the soil layer
     iSoil=integerMissing
@@ -389,7 +389,7 @@ subroutine computThermConduct(&
   ! end association to variables in the data structure
   end associate
 
-end subroutine computThermConduct
+end subroutine thermConductivity
 
 
-end module computThermConduct_module
+end module thermConductivity_module

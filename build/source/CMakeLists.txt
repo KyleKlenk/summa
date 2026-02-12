@@ -89,7 +89,7 @@ set(PRELIM
 set(MODRUN
     ${ENGINE_DIR}/canopySnow.f90
     ${ENGINE_DIR}/derivforce.f90
-    ${ENGINE_DIR}/enthalpyTemp.f90
+    ${ENGINE_DIR}/convertEnthalpyTemp.f90
     ${ENGINE_DIR}/getVectorz.f90
     ${ENGINE_DIR}/indexState.f90
     ${ENGINE_DIR}/layerMerge.f90
@@ -99,26 +99,26 @@ set(MODRUN
     ${ENGINE_DIR}/snowAlbedo.f90
     ${ENGINE_DIR}/snwCompact.f90
     ${ENGINE_DIR}/tempAdjust.f90
-    ${ENGINE_DIR}/updateVars.f90
+    ${ENGINE_DIR}/updatDiagn.f90
     ${ENGINE_DIR}/var_derive.f90
     ${ENGINE_DIR}/volicePack.f90
     CACHE INTERNAL "MODRUN")
 set(MODRUN_SUNDIALS
     ${ENGINE_DIR}/tol4ida.f90
-    ${ENGINE_DIR}/updateVarsWithPrime.f90
+    ${ENGINE_DIR}/updatDiagnWithPrime.f90
     CACHE INTERNAL "MODRUN_SUNDIALS")
 
 # Solver main modules
 set(SOLVER
     ${ENGINE_DIR}/bigAquifer.f90
     ${ENGINE_DIR}/computFlux.f90
-    ${ENGINE_DIR}/computHeatCap.f90
+    ${ENGINE_DIR}/heatCapacity.f90
     ${ENGINE_DIR}/computJacob.f90
     ${ENGINE_DIR}/computResid.f90
     ${ENGINE_DIR}/computSnowDepth.f90
-    ${ENGINE_DIR}/computThermConduct.f90
+    ${ENGINE_DIR}/thermConductivity.f90
     ${ENGINE_DIR}/coupled_em.f90
-    ${ENGINE_DIR}/diagn_evar.f90
+    ${ENGINE_DIR}/init_heatCap_thermCond.f90
     ${ENGINE_DIR}/eval8summa.f90
     ${ENGINE_DIR}/groundwatr.f90
     ${ENGINE_DIR}/opSplittin.f90

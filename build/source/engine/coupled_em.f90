@@ -129,31 +129,31 @@ subroutine coupled_em(&
                       ! error control
                       err,message)         ! intent(out):   error control
   ! structure allocations
-  USE allocspace_module,only:allocLocal             ! allocate local data structures
-  USE allocspace_module,only:resizeData             ! clone a data structure
+  USE allocspace_module,only:allocLocal                         ! allocate local data structures
+  USE allocspace_module,only:resizeData                         ! clone a data structure
   ! simulation of fluxes and residuals given a trial state vector
-  USE soil_utils_module,only:liquidHead             ! compute the liquid water matric potential
+  USE soil_utils_module,only:liquidHead                         ! compute the liquid water matric potential
   ! preliminary subroutines
-  USE vegPhenlgy_module,only:vegPhenlgy             ! compute vegetation phenology
-  USE vegNrgFlux_module,only:wettedFrac             ! compute wetted fraction of the canopy (used in sw radiation fluxes)
-  USE snowAlbedo_module,only:snowAlbedo             ! compute snow albedo
-  USE vegSWavRad_module,only:vegSWavRad             ! compute canopy sw radiation fluxes
-  USE canopySnow_module,only:canopySnow             ! compute interception and unloading of snow from the vegetation canopy
-  USE volicePack_module,only:newsnwfall             ! compute change in the top snow layer due to throughfall and unloading
-  USE volicePack_module,only:volicePack             ! merge and sub-divide snow layers, if necessary
-  USE diagn_evar_module,only:diagn_evar             ! compute diagnostic energy variables -- thermal conductivity and heat capacity
+  USE vegPhenlgy_module,only:vegPhenlgy                         ! compute vegetation phenology
+  USE vegNrgFlux_module,only:wettedFrac                         ! compute wetted fraction of the canopy (used in sw radiation fluxes)
+  USE snowAlbedo_module,only:snowAlbedo                         ! compute snow albedo
+  USE vegSWavRad_module,only:vegSWavRad                         ! compute canopy sw radiation fluxes
+  USE canopySnow_module,only:canopySnow                         ! compute interception and unloading of snow from the vegetation canopy
+  USE volicePack_module,only:newsnwfall                         ! compute change in the top snow layer due to throughfall and unloading
+  USE volicePack_module,only:volicePack                         ! merge and sub-divide snow layers, if necessary
+  USE init_heatCap_thermCond_module,only:init_heatCap_thermCond ! compute diagnostic energy variables -- thermal conductivity and heat capacity
   ! the model solver
-  USE indexState_module,only:indexState             ! define indices for all model state variables and layers
-  USE opSplittin_module,only:opSplittin             ! solve the system of thermodynamic and hydrology equations for a given substep
-  USE time_utils_module,only:elapsedSec             ! calculate the elapsed time
+  USE indexState_module,only:indexState                         ! define indices for all model state variables and layers
+  USE opSplittin_module,only:opSplittin                         ! solve the system of thermodynamic and hydrology equations for a given substep
+  USE time_utils_module,only:elapsedSec                         ! calculate the elapsed time
   ! additional subroutines
-  USE tempAdjust_module,only:tempAdjust             ! adjust snow temperature associated with new snowfall
-  USE var_derive_module,only:calcHeight             ! module to calculate height at layer interfaces and layer mid-point
-  USE computSnowDepth_module,only:computSnowDepth   ! compute snow depth
-  USE enthalpyTemp_module,only:T2enthTemp_veg       ! convert temperature to enthalpy for vegetation
-  USE enthalpyTemp_module,only:T2enthTemp_snow      ! convert temperature to enthalpy for snow
-  USE enthalpyTemp_module,only:T2enthTemp_soil      ! convert temperature to enthalpy for soil
-  USE enthalpyTemp_module,only:enthTemp_or_enthalpy ! add phase change terms to delta temperature component of enthalpy or vice versa
+  USE tempAdjust_module,only:tempAdjust                         ! adjust snow temperature associated with new snowfall
+  USE var_derive_module,only:calcHeight                         ! module to calculate height at layer interfaces and layer mid-point
+  USE computSnowDepth_module,only:computSnowDepth               ! compute snow depth
+  USE convertEnthalpyTemp_module,only:T2enthTemp_veg            ! convert temperature to enthalpy for vegetation
+  USE convertEnthalpyTemp_module,only:T2enthTemp_snow           ! convert temperature to enthalpy for snow
+  USE convertEnthalpyTemp_module,only:T2enthTemp_soil           ! convert temperature to enthalpy for soil
+  USE convertEnthalpyTemp_module,only:enthTemp_or_enthalpy      ! add phase change terms to delta temperature component of enthalpy or vice versa
 
   implicit none
 
@@ -841,7 +841,7 @@ subroutine coupled_em(&
         ! *** compute diagnostic variables for each layer...
         ! --------------------------------------------------
         ! NOTE: this needs to be done AFTER volicePack, since layers may have been sub-divided and/or merged, and need to specifically send in canopy depth
-        call diagn_evar(&
+        call init_heatCap_thermCond(&
                         ! input: control variables
                         computeVegFlux,         & ! intent(in): flag to denote if computing the vegetation flux
                         diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1), & ! intent(in): canopy depth (m), send in specific value since diag_data may have changed
@@ -879,7 +879,7 @@ subroutine coupled_em(&
         if (allocated(mLayerVolFracIceInit)) deallocate(mLayerVolFracIceInit) ! prep for potential size change
         allocate(mLayerVolFracIceInit(nLayers)); mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat
 
-        ! make sure have consistent state variables to start, later done in updateVars
+        ! make sure have consistent state variables to start, later done in updatDiagn
         ! associate local variables with information in the data structures
         init: associate(&
           ! depth-varying soil parameters

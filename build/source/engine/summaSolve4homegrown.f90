@@ -331,7 +331,7 @@ contains
                               &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
                               &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,return_flag)                        ! output
   ! provide access to the external procedures
-  USE matrixOper_module, only: computeGradient
+  USE matrixOper_module, only: computGradient
   USE eval8summa_module, only: imposeConstraints
   implicit none
   ! input
@@ -455,7 +455,7 @@ contains
                                 &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                                 &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)
   ! provide access to the external procedures
-  USE matrixOper_module, only: computeGradient
+  USE matrixOper_module, only: computGradient
   USE eval8summa_module, only: imposeConstraints
   implicit none
   ! input
@@ -532,7 +532,7 @@ contains
    if (doLineSearch) then
 
     ! compute the gradient of the function vector
-    call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
+    call computGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
     ! compute the initial slope
@@ -656,7 +656,7 @@ contains
  subroutine trustRegionRefinement(in_TRR,in_SS4HG,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_TRR)
   ! provide access to the matrix routines
   USE matrixOper_module, only: lapackSolv
-  USE matrixOper_module, only: computeGradient
+  USE matrixOper_module, only: computGradient
   implicit none
   ! input
   type(in_type_lineSearchRefinement),intent(in)   :: in_TRR            ! object for scalar intent(in) arguments -- reusing line search class
