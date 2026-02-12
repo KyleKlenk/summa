@@ -100,8 +100,6 @@ subroutine liquidHeadPrime(&
 
   ! ** partially frozen soil
   if(volFracIce > epsilon(1._rkind) .and. matricHeadTotal < 0._rkind)then  ! check that ice exists and that the soil is unsaturated
-
-
     ! -----
     ! - compute liquid water matric potential...
     ! ------------------------------------------
@@ -130,13 +128,14 @@ subroutine liquidHeadPrime(&
     dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2_i4b) + dTheta_dT/xDen
     dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp
 
-    ! ** unfrozen soil
+  ! ** unfrozen soil
   else   ! (no ice)
     matricHeadLiq = matricHeadTotal
     matricHeadLiqPrime = matricHeadTotalPrime
     dPsiLiq_dPsi0 = 1._rkind  ! derivative=1 because values are identical
     dPsiLiq_dTemp = 0._rkind  ! derivative=0 because no impact of temperature for unfrozen conditions
   end if  ! (if ice exists)
+
   if(volFracLiqPrime==realMissing .or. volFracIcePrime==realMissing) matricHeadLiqPrime = realMissing
 
 end subroutine liquidHeadPrime
