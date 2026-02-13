@@ -11,12 +11,12 @@ New modular components may be added by using similar existing modular components
         * e.g., applies to flux calculations
 * Identify the appropriate source file and module
     * source files have self-explanatory names
-        * e.g., `soilLiqFlx.f90` corresponds to operations for liquid water fluxes in soil
+        * e.g., `soilLiqFlux.f90` corresponds to operations for liquid water fluxes in soil
     * each source file generally contains one module
-        * e.g., `soilLiqFlx.f90` contains `soilLiqFlx_module`
+        * e.g., `soilLiqFlux.f90` contains `soilLiqFlux_module`
 * Identify the appropriate procedure
     * isolate the module procedure
-        * e.g., within `soilLiqFlx_module`, the `surfaceFlx` module subroutine handles operations for surface hydrology fluxes
+        * e.g., within `soilLiqFlux_module`, the `surfaceFlx` module subroutine handles operations for surface hydrology fluxes
     * isolate the internal procedure
         * e.g., within the `contains` block of `surfaceFlx`, we have `update_surfaceFlx_prescribedHead` containing operations for specifying a prescribed pressure head surface boundary condition
         * `update_surfaceFlx_prescribedHead` may be used as a template for our example contribution
@@ -28,14 +28,14 @@ New modular components may be added by using similar existing modular components
 ## Determine input and output variables
 * Found by examining dummy variables in argument lists
     * Note that internal procedures inherit the dummy variables from the applicable module procedure by default
-    * e.g., for the `update_surfaceFlx_prescribedHead` internal subroutine, the argument list of the `surfaceFlx` module subroutine applies: `subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)`
+    * e.g., for the `update_surfaceFlx_prescribedHead` internal subroutine, the argument list of the `surfaceFlx` module subroutine applies: `subroutine surfaceFlx(io_soilLiqFlux,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)`
 * Dummy variables may be objects with multiple data and procedure components
     * Such objects are declared using derived types (most commonly defined in `data_types.f90`)
     * Objects may be used to concisely interface data between the procedure and the caller
     * for SUMMA objects, the nomenclature `in_foobar`, `io_foobar`, and `out_foobar` is used for objects that interface input, input-output, and output data between the `foobar` procedure and its caller, respectively
 * The `intent` attribute within dummy variable declarations indicates usage for input, input-output, or output
     * e.g., within `surfaceFlx` we have `type(in_type_surfaceFlx) ,intent(in)    :: in_surfaceFlx`, indicating the `in_surfaceFlx` object is for input data only
-    * as noted above, the `in_surfaceFlx` object interfaces input data between the `surfaceFlx` module subroutine and its caller (the `soilLiqFlx` module subroutine)
+    * as noted above, the `in_surfaceFlx` object interfaces input data between the `surfaceFlx` module subroutine and its caller (the `soilLiqFlux` module subroutine)
 
 ## Create a skeleton of the new procedure
 * Choose a self explanatory name for the new procedure
@@ -101,7 +101,7 @@ end subroutine update_surfaceFlx_example_flux
     * e.g., `call in_surfaceFlx % initialize` points to the `initialize_in_surfaceFlx` class procedure (in the `contains` block of the `data_types` module) for initializing data components:
 
         ```fortran
-        subroutine initialize_in_surfaceFlx(in_surfaceFlx,nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,&
+        subroutine initialize_in_surfaceFlx(in_surfaceFlx,nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                            &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                            &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
          class(in_type_surfaceFlx),intent(out) :: in_surfaceFlx ! input object for surfaceFlx
@@ -109,8 +109,8 @@ end subroutine update_surfaceFlx_example_flux
 
          associate(&
           ! model control
-          firstSplitOper         => in_soilLiqFlx % firstSplitOper,                      & ! flag to compute infiltration
-          deriv_desired          => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
+          firstSplitOper         => in_soilLiqFlux % firstSplitOper,                      & ! flag to compute infiltration
+          deriv_desired          => in_soilLiqFlux % deriv_desired,                       & ! flag indicating if derivatives are desired
           ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of the Richards equation
           ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision & ! index defining the type of boundary conditions
          &)
@@ -131,7 +131,7 @@ end subroutine update_surfaceFlx_example_flux
     * new data components, such as `example_flux_constant`, must be applied within the procedure components:
 
         ```fortran
-        subroutine initialize_in_surfaceFlx(in_surfaceFlx,nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,&
+        subroutine initialize_in_surfaceFlx(in_surfaceFlx,nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                            &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                            &iLayerHeight,dHydCond_dTemp,iceImpedeFac,example_flux_constant)
          class(in_type_surfaceFlx),intent(out) :: in_surfaceFlx ! input object for surfaceFlx
@@ -140,8 +140,8 @@ end subroutine update_surfaceFlx_example_flux
 
          associate(&
           ! model control
-          firstSplitOper         => in_soilLiqFlx % firstSplitOper,                      & ! flag to compute infiltration
-          deriv_desired          => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
+          firstSplitOper         => in_soilLiqFlux % firstSplitOper,                      & ! flag to compute infiltration
+          deriv_desired          => in_soilLiqFlux % deriv_desired,                       & ! flag indicating if derivatives are desired
           ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of the Richards equation
           ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision & ! index defining the type of boundary conditions
          &)
@@ -164,7 +164,7 @@ end subroutine update_surfaceFlx_example_flux
         ```
 
     * for the above example, we have added a dummy variable for the new example flux constant and an assignment statement to initialize the new data component `in_surfaceFlx % example_flux_constant`
-    * note that the corresponding call to `in_surfaceFlx` within the `soilLiqFlx` subroutine would need to be updated to include the additional argument `example_flux_constant`
+    * note that the corresponding call to `in_surfaceFlx` within the `soilLiqFlux` subroutine would need to be updated to include the additional argument `example_flux_constant`
 
 ## Add operations to the skeleton procedure
 * add main operations within the skeleton procedure created in the above steps to complete the new modular component

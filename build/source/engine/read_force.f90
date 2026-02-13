@@ -242,10 +242,10 @@ contains
  ! *************************************************************************
  subroutine getFirstTimestep(currentJulDay,iFile,iRead,ncid,err,message)
  USE netcdf                                            ! netcdf capability
- USE nr_utils_module,only:arth                       ! get a sequence of numbers
+ USE nr_utils_module,only:arth                         ! use to build vectors with regular increments
  implicit none
  ! define input
- real(rkind),intent(in)               :: currentJulDay    ! Julian day of current time step
+ real(rkind),intent(in)            :: currentJulDay    ! Julian day of current time step
  ! define input-output variables
  integer(i4b),intent(inout)        :: iFile            ! index of current forcing file in forcing file list
  integer(i4b),intent(inout)        :: iRead            ! index of read position in time dimension in current netcdf file

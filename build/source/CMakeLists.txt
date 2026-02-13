@@ -124,9 +124,9 @@ set(SOLVER
     ${ENGINE_DIR}/opSplittin.f90
     ${ENGINE_DIR}/run_oneGRU.f90
     ${ENGINE_DIR}/run_oneHRU.f90
-    ${ENGINE_DIR}/snowLiqFlx.f90
-    ${ENGINE_DIR}/soilLiqFlx.f90
-    ${ENGINE_DIR}/ssdNrgFlux.f90
+    ${ENGINE_DIR}/snowLiqFlux.f90
+    ${ENGINE_DIR}/soilLiqFlux.f90
+    ${ENGINE_DIR}/snowSoilNrgFlux.f90
     ${ENGINE_DIR}/stomResist.f90
     ${ENGINE_DIR}/summaSolv4homegrown.f90
     ${ENGINE_DIR}/systemSolv.f90

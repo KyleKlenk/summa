@@ -90,7 +90,7 @@ subroutine T2H_lookup_snWat(mpar_data,                     &  ! intent(in):    p
                            err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines 
-  USE nr_utils_module,only:arth                       ! use to build vectors with regular increments
+  USE nr_utils_module,only:arth                         ! use to build vectors with regular increments
   USE spline_int_module,only:spline,splint              ! use for cubic spline interpolation
   implicit none
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -151,7 +151,7 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
                            err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines                    
-  USE nr_utils_module,only:arth                       ! use to build vectors with regular increments
+  USE nr_utils_module,only:arth                         ! use to build vectors with regular increments
   USE spline_int_module,only:spline,splint              ! use for cubic spline interpolation
   USE soil_utils_module,only:volFracLiq                 ! use to compute the volumetric fraction of liquid water
   implicit none

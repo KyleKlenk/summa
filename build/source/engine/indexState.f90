@@ -73,7 +73,7 @@ contains
                        indx_data,               & ! intent(inout): indices defining model states and layers
                        err,message)               ! intent(out):   error control
  ! provide access to the numerical recipes utility modules
- USE nr_utils_module,only:arth                           ! creates a sequence of numbers (start, incr, n)
+ USE nr_utils_module,only:arth                           ! use to build vectors with regular increments
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -278,7 +278,7 @@ contains
                        out_indexSplit)                ! intent(out)   : error control
  ! external modules 
  USE f2008funcs_module,only:findIndex                 ! finds the index of the first value within a vector
- USE nr_utils_module,only:arth                      ! creates a sequence of numbers (start, incr, n)
+ USE nr_utils_module,only:arth                        ! use to build vectors with regular increments
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input
