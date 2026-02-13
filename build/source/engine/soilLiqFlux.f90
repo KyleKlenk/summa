@@ -382,22 +382,22 @@ contains
 
  subroutine compute_surface_infiltration
   ! **** compute infiltration at the surface and its derivative w.r.t. mass in the upper soil layer ****
-  type(in_type_surfaceFlx)  ::  in_surfaceFlx
-  type(io_type_surfaceFlx)  ::  io_surfaceFlx
-  type(out_type_surfaceFlx) :: out_surfaceFlx
+  type(in_type_surfaceFlux)  ::  in_surfaceFlux
+  type(io_type_surfaceFlux)  ::  io_surfaceFlux
+  type(out_type_surfaceFlux) :: out_surfaceFlux
 
-  call initialize_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx)
+  call initialize_compute_surface_infiltration(in_surfaceFlux,io_surfaceFlux)
 
-  call update_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+  call update_compute_surface_infiltration(in_surfaceFlux,io_surfaceFlux,out_surfaceFlux)
 
-  call finalize_compute_surface_infiltration(io_surfaceFlx,out_surfaceFlx); if (return_flag) return
+  call finalize_compute_surface_infiltration(io_surfaceFlux,out_surfaceFlux); if (return_flag) return
 
  end subroutine compute_surface_infiltration
 
- subroutine initialize_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx)
+ subroutine initialize_compute_surface_infiltration(in_surfaceFlux,io_surfaceFlux)
   ! **** Initialize operations for compute_surface_infiltration ****
-  type(in_type_surfaceFlx),intent(out) :: in_surfaceFlx
-  type(io_type_surfaceFlx),intent(out) :: io_surfaceFlx
+  type(in_type_surfaceFlux),intent(out) :: in_surfaceFlux
+  type(io_type_surfaceFlux),intent(out) :: io_surfaceFlux
   ! set derivative w.r.t. state above to zero (does not exist)
   associate(&
    ! intent(inout): flux derivatives ... 
@@ -409,32 +409,32 @@ contains
   end associate
 
   ! compute surface flux and its derivative...
-  call in_surfaceFlx % initialize(nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
+  call in_surfaceFlux % initialize(nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                  &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                  &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
-  call io_surfaceFlx % initialize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
+  call io_surfaceFlux % initialize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
  end subroutine initialize_compute_surface_infiltration
 
- subroutine update_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+ subroutine update_compute_surface_infiltration(in_surfaceFlux,io_surfaceFlux,out_surfaceFlux)
   ! **** Update operations for compute_surface_infiltration ****
-  type(in_type_surfaceFlx) ,intent(in)    ::  in_surfaceFlx
-  type(io_type_surfaceFlx) ,intent(inout) ::  io_surfaceFlx
-  type(out_type_surfaceFlx),intent(out)   :: out_surfaceFlx
-  call surfaceFlx(io_soilLiqFlux,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+  type(in_type_surfaceFlux) ,intent(in)    ::  in_surfaceFlux
+  type(io_type_surfaceFlux) ,intent(inout) ::  io_surfaceFlux
+  type(out_type_surfaceFlux),intent(out)   :: out_surfaceFlux
+  call surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceFlux)
  end subroutine update_compute_surface_infiltration
 
- subroutine finalize_compute_surface_infiltration(io_surfaceFlx,out_surfaceFlx)
+ subroutine finalize_compute_surface_infiltration(io_surfaceFlux,out_surfaceFlux)
   ! **** Finalize operations for compute_surface_infiltration ****
-  type(io_type_surfaceFlx) ,intent(in) :: io_surfaceFlx
-  type(out_type_surfaceFlx),intent(in) :: out_surfaceFlx
+  type(io_type_surfaceFlux) ,intent(in) :: io_surfaceFlux
+  type(out_type_surfaceFlux),intent(in) :: out_surfaceFlux
 
   ! interface object data components with local name space
-  call  io_surfaceFlx % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
+  call  io_surfaceFlux % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
   associate(&
    err     => out_soilLiqFlux % err,     & ! error code
    message => out_soilLiqFlux % cmessage & ! error message
   &)
-   call out_surfaceFlx % finalize(io_soilLiqFlux,err,cmessage)
+   call out_surfaceFlux % finalize(io_soilLiqFlux,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
 
@@ -832,9 +832,9 @@ contains
 end subroutine diagv_node
 
 ! ***************************************************************************************************************
-! private subroutine surfaceFlx: compute the surface flux and its derivative
+! private subroutine surfaceFlux: compute the surface flux and its derivative
 ! ***************************************************************************************************************
-subroutine surfaceFlx(io_soilLiqFlux,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceFlux)
   USE soil_utils_module,only:volFracLiq            ! compute volumetric fraction of liquid water as a function of matric head (-)
   USE soil_utils_module,only:hydCond_psi           ! compute hydraulic conductivity as a function of matric head (m s-1)
   USE soil_utils_module,only:hydCond_liq           ! compute hydraulic conductivity as a function of volumetric liquid water content (m s-1)
@@ -847,21 +847,21 @@ subroutine surfaceFlx(io_soilLiqFlux,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
   ! input: use soilLiqFlux object for array dimensions
   type(io_type_soilLiqFlux) ,intent(in)    :: io_soilLiqFlux          ! input-output object for soilLiqFlux
   ! input: model control, variables, derivatives, soil layer depth, boundary conditions, fluxes, and transmittance and soil parameters
-  type(in_type_surfaceFlx) ,intent(in)    :: in_surfaceFlx          ! input object for surfaceFlx
+  type(in_type_surfaceFlux) ,intent(in)    :: in_surfaceFlux          ! input object for surfaceFlux
   ! input-output: hydraulic conductivity and diffusivity, and infiltration parameters
-  type(io_type_surfaceFlx) ,intent(inout) :: io_surfaceFlx          ! input object for surfaceFlx
+  type(io_type_surfaceFlux) ,intent(inout) :: io_surfaceFlux          ! input object for surfaceFlux
   ! output: runoff, infiltration, derivatives, and error control
-  type(out_type_surfaceFlx),intent(out)   :: out_surfaceFlx         ! output object for surfaceFlx
+  type(out_type_surfaceFlux),intent(out)   :: out_surfaceFlux         ! output object for surfaceFlux
   ! -----------------------------------------------------------------------------------------------------------------------------
   ! local variables
   ! general
   integer(i4b)                     :: iLayer                              ! index of soil layer
   real(rkind)                      :: Tcrit                               ! temperature where all water is unfrozen (K)
   real(rkind)                      :: fPart1,fPart2                       ! different parts of a function
-  real(rkind)                      :: dPart1(1:in_surfaceFlx % nSoil)     ! derivatives for different parts of a function
-  real(rkind)                      :: dPart2(1:in_surfaceFlx % nSoil)     ! derivatives for different parts of a function
-  real(rkind)                      :: dfracCap(1:in_surfaceFlx % nSoil)   ! derivatives for different parts of a function
-  real(rkind)                      :: dfInfRaw(1:in_surfaceFlx % nSoil)   ! derivatives for different parts of a function
+  real(rkind)                      :: dPart1(1:in_surfaceFlux % nSoil)     ! derivatives for different parts of a function
+  real(rkind)                      :: dPart2(1:in_surfaceFlux % nSoil)     ! derivatives for different parts of a function
+  real(rkind)                      :: dfracCap(1:in_surfaceFlux % nSoil)   ! derivatives for different parts of a function
+  real(rkind)                      :: dfInfRaw(1:in_surfaceFlux % nSoil)   ! derivatives for different parts of a function
   real(rkind)                      :: total_soil_depth                    ! total depth of soil (m)
   ! head boundary condition
   real(rkind)                      :: cFlux                               ! capillary flux (m s-1)
@@ -907,55 +907,55 @@ subroutine surfaceFlx(io_soilLiqFlux,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
   real(rkind)                      :: n_topmodel                          ! TOPMODEL exponent exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
   complex(rkind)                   :: lambda_n                            ! mean of the power-transformed topographic index
    ! derivatives
-  real(rkind) :: dVolFracLiq_dWat(1:in_surfaceFlx % nSoil)  ! ... vol fraction of liquid w.r.t. water state variable in root layers
-  real(rkind) :: dVolFracIce_dWat(1:in_surfaceFlx % nSoil)  ! ... vol fraction of ice w.r.t. water state variable in root layers
-  real(rkind) :: dVolFracLiq_dTk(1:in_surfaceFlx % nSoil)   ! ... vol fraction of liquid w.r.t. temperature in root layers
-  real(rkind) :: dVolFracIce_dTk(1:in_surfaceFlx % nSoil)   ! ... vol fraction of ice w.r.t. temperature in root layers
-  real(rkind) :: dRootZoneLiq_dWat(1:in_surfaceFlx % nSoil) ! ... vol fraction of scalar root zone liquid w.r.t. water state variable in root layers
-  real(rkind) :: dRootZoneIce_dWat(1:in_surfaceFlx % nSoil) ! ... vol fraction of scalar root zone ice w.r.t. water state variable in root layers
-  real(rkind) :: dRootZoneLiq_dTk(1:in_surfaceFlx % nSoil)  ! ... vol fraction of scalar root zone liquid w.r.t. temperature in root layers
-  real(rkind) :: dRootZoneIce_dTk(1:in_surfaceFlx % nSoil)  ! ... vol fraction of scalar root zone ice w.r.t. temperature in root layers
-  real(rkind) :: dDepthWettingFront_dWat(1:in_surfaceFlx % nSoil) ! ... scalar depth of wetting front w.r.t. water state variable in root layers
-  real(rkind) :: dDepthWettingFront_dTk(1:in_surfaceFlx % nSoil)  ! ... scalar depth of wetting front w.r.t. temperature in root layers
-  real(rkind) :: dxMaxInfilRate_dWat(1:in_surfaceFlx % nSoil) ! ... scalar max infiltration rate w.r.t. water state variable in root layers
-  real(rkind) :: dxMaxInfilRate_dTk(1:in_surfaceFlx % nSoil)  ! ... scalar max infiltration rate w.r.t. temperature in root layers
-  real(rkind) :: dInfilArea_dWat(1:in_surfaceFlx % nSoil)  ! ... scalar infiltration rate w.r.t. water state variable in canopy or snow and root layers
-  real(rkind) :: dInfilArea_dTk(1:in_surfaceFlx % nSoil)   ! ... scalar infiltration rate w.r.t. temperature in canopy or snow and root layers
-  real(rkind) :: dFrozenArea_dWat(1:in_surfaceFlx % nSoil) ! ... scalar frozen area w.r.t. water state variable in canopy or snow and root layers
-  real(rkind) :: dFrozenArea_dTk(1:in_surfaceFlx % nSoil)  ! ... scalar frozen area w.r.t. temperature in canopy or snow and root layers
-  real(rkind) :: dInfilRate_dWat(1:in_surfaceFlx % nSoil)  ! ... scalar infiltration rate w.r.t. water state variable in canopy or snow and root layers
-  real(rkind) :: dInfilRate_dTk(1:in_surfaceFlx % nSoil)   ! ... scalar infiltration rate w.r.t. temperature in canopy or snow and root layers
+  real(rkind) :: dVolFracLiq_dWat(1:in_surfaceFlux % nSoil)  ! ... vol fraction of liquid w.r.t. water state variable in root layers
+  real(rkind) :: dVolFracIce_dWat(1:in_surfaceFlux % nSoil)  ! ... vol fraction of ice w.r.t. water state variable in root layers
+  real(rkind) :: dVolFracLiq_dTk(1:in_surfaceFlux % nSoil)   ! ... vol fraction of liquid w.r.t. temperature in root layers
+  real(rkind) :: dVolFracIce_dTk(1:in_surfaceFlux % nSoil)   ! ... vol fraction of ice w.r.t. temperature in root layers
+  real(rkind) :: dRootZoneLiq_dWat(1:in_surfaceFlux % nSoil) ! ... vol fraction of scalar root zone liquid w.r.t. water state variable in root layers
+  real(rkind) :: dRootZoneIce_dWat(1:in_surfaceFlux % nSoil) ! ... vol fraction of scalar root zone ice w.r.t. water state variable in root layers
+  real(rkind) :: dRootZoneLiq_dTk(1:in_surfaceFlux % nSoil)  ! ... vol fraction of scalar root zone liquid w.r.t. temperature in root layers
+  real(rkind) :: dRootZoneIce_dTk(1:in_surfaceFlux % nSoil)  ! ... vol fraction of scalar root zone ice w.r.t. temperature in root layers
+  real(rkind) :: dDepthWettingFront_dWat(1:in_surfaceFlux % nSoil) ! ... scalar depth of wetting front w.r.t. water state variable in root layers
+  real(rkind) :: dDepthWettingFront_dTk(1:in_surfaceFlux % nSoil)  ! ... scalar depth of wetting front w.r.t. temperature in root layers
+  real(rkind) :: dxMaxInfilRate_dWat(1:in_surfaceFlux % nSoil) ! ... scalar max infiltration rate w.r.t. water state variable in root layers
+  real(rkind) :: dxMaxInfilRate_dTk(1:in_surfaceFlux % nSoil)  ! ... scalar max infiltration rate w.r.t. temperature in root layers
+  real(rkind) :: dInfilArea_dWat(1:in_surfaceFlux % nSoil)  ! ... scalar infiltration rate w.r.t. water state variable in canopy or snow and root layers
+  real(rkind) :: dInfilArea_dTk(1:in_surfaceFlux % nSoil)   ! ... scalar infiltration rate w.r.t. temperature in canopy or snow and root layers
+  real(rkind) :: dFrozenArea_dWat(1:in_surfaceFlux % nSoil) ! ... scalar frozen area w.r.t. water state variable in canopy or snow and root layers
+  real(rkind) :: dFrozenArea_dTk(1:in_surfaceFlux % nSoil)  ! ... scalar frozen area w.r.t. temperature in canopy or snow and root layers
+  real(rkind) :: dInfilRate_dWat(1:in_surfaceFlux % nSoil)  ! ... scalar infiltration rate w.r.t. water state variable in canopy or snow and root layers
+  real(rkind) :: dInfilRate_dTk(1:in_surfaceFlux % nSoil)   ! ... scalar infiltration rate w.r.t. temperature in canopy or snow and root layers
   ! error control
   logical(lgt) :: return_flag ! logical flag for return statements
 
-  call initialize_surfaceFlx
+  call initialize_surfaceFlux
 
-  call update_surfaceFlx;   if (return_flag) return
+  call update_surfaceFlux;   if (return_flag) return
 
-  call finalize_surfaceFlx; if (return_flag) return
+  call finalize_surfaceFlux; if (return_flag) return
 
 contains
 
- subroutine initialize_surfaceFlx
-  ! **** Initialize operations for surfaceFlx ****
+ subroutine initialize_surfaceFlux
+  ! **** Initialize operations for surfaceFlux ****
   ! allocate output object array components
-  out_surfaceFlx % dq_dHydStateVec = io_soilLiqFlux % dq_dHydStateLayerSurfVec
-  out_surfaceFlx % dq_dNrgStateVec = io_soilLiqFlux % dq_dNrgStateLayerSurfVec
+  out_surfaceFlux % dq_dHydStateVec = io_soilLiqFlux % dq_dHydStateLayerSurfVec
+  out_surfaceFlux % dq_dNrgStateVec = io_soilLiqFlux % dq_dNrgStateLayerSurfVec
 
   ! initialize error control
   return_flag=.false.
   associate(&
-   err     => out_surfaceFlx % err    , & ! error code
-   message => out_surfaceFlx % message  & ! error message
+   err     => out_surfaceFlux % err    , & ! error code
+   message => out_surfaceFlux % message  & ! error message
   &)
-   err=0; message="surfaceFlx/"
+   err=0; message="surfaceFlux/"
   end associate
  
   ! initialize derivatives
   associate(&
    ! output: derivatives in surface infiltration w.r.t. ...
-   dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
   &)
    dVolFracLiq_dWat(:)    = 0._rkind
    dVolFracIce_dWat(:)    = 0._rkind
@@ -975,10 +975,10 @@ contains
 
   ! initialize runoff and infiltration values
   associate(&
-   scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
-   scalarSurfaceRunoff_IE    => out_surfaceFlx % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
-   scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
-   scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
+   scalarSurfaceRunoff       => out_surfaceFlux % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceRunoff_IE    => out_surfaceFlux % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    => out_surfaceFlux % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
+   scalarSurfaceInfiltration => out_surfaceFlux % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
   &)
    scalarSurfaceRunoff       = 0._rkind 
    scalarSurfaceRunoff_IE    = 0._rkind  
@@ -986,37 +986,37 @@ contains
    scalarSurfaceInfiltration = 0._rkind 
   end associate
 
- end subroutine initialize_surfaceFlx
+ end subroutine initialize_surfaceFlux
 
- subroutine update_surfaceFlx
-  ! **** Update operations for surfaceFlx ****
+ subroutine update_surfaceFlux
+  ! **** Update operations for surfaceFlux ****
   associate(&
    ! input: model control
-   firstSplitOper => in_surfaceFlx % firstSplitOper, & ! flag indicating if desire to compute infiltration
-   bc_upper   => in_surfaceFlx % bc_upper,           & ! index defining the type of boundary conditions
-   ixInfRateMax => in_surfaceFlx % ixInfRateMax,     & ! index defining the maximum infiltration rate method
-   surfRun_SE => in_surfaceFlx % surfRun_SE,         & ! index defining the saturation excess surface runoff method
+   firstSplitOper => in_surfaceFlux % firstSplitOper, & ! flag indicating if desire to compute infiltration
+   bc_upper   => in_surfaceFlux % bc_upper,           & ! index defining the type of boundary conditions
+   ixInfRateMax => in_surfaceFlux % ixInfRateMax,     & ! index defining the maximum infiltration rate method
+   surfRun_SE => in_surfaceFlux % surfRun_SE,         & ! index defining the saturation excess surface runoff method
    ! input to compute infiltration
-   scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt, & ! rain plus melt  (m s-1)
+   scalarRainPlusMelt => in_surfaceFlux % scalarRainPlusMelt, & ! rain plus melt  (m s-1)
    ! output: infiltration area and saturated area
-   scalarInfilArea    => io_surfaceFlx % scalarInfilArea,      & ! fraction of area where water can infiltrate, may be frozen (-)
-   scalarSaturatedArea => io_surfaceFlx % scalarSaturatedArea, & ! saturated area fraction (-)
+   scalarInfilArea    => io_surfaceFlux % scalarInfilArea,      & ! fraction of area where water can infiltrate, may be frozen (-)
+   scalarSaturatedArea => io_surfaceFlux % scalarSaturatedArea, & ! saturated area fraction (-)
    ! output: runoff and infiltration 
-   scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE,    & ! saturation excess surface runoff (m s-1)
-   scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff,       & ! surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    => out_surfaceFlux % scalarSurfaceRunoff_SE,    & ! saturation excess surface runoff (m s-1)
+   scalarSurfaceRunoff       => out_surfaceFlux % scalarSurfaceRunoff,       & ! surface runoff (m s-1)
    ! output: derivatives in surface infiltration w.r.t. ...
-   dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec, & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec, & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec, & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec, & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
    ! output: error control
-   err      => out_surfaceFlx % err    , & ! error code
-   message  => out_surfaceFlx % message  & ! error message
+   err      => out_surfaceFlux % err    , & ! error code
+   message  => out_surfaceFlux % message  & ! error message
   &)
  
    ! compute the surface flux and its derivative
    if (firstSplitOper .or. updateInfil) then
      select case(bc_upper)
        case(prescribedHead) ! head condition, no frozen area and all area infiltrates
-         call update_surfaceFlx_prescribedHead; if (return_flag) return 
+         call update_surfaceFlux_prescribedHead; if (return_flag) return 
  
        case(liquidFlux)     ! flux condition
          ! compute volumetric fraction of liquid and ice water in each soil layer and their derivatives
@@ -1025,15 +1025,15 @@ contains
          ! Get infiltration area not considering frozen area, based on SE method
          select case(surfRun_SE) ! saturation excess surface runoff method, sets infiltration area (not considering frozen) and its derivatives
            case(zero_SE)         ! zero saturation excess surface runoff, all area infiltrates if not frozen
-            io_surfaceFlx % scalarInfilArea = 1._rkind 
+            io_surfaceFlux % scalarInfilArea = 1._rkind 
            case(homegrown_SE)    ! homegrown saturation excess surface runoff (original SUMMA method)
-              call update_surfaceFlx_homegrown_infilArea;     if (return_flag) return
+              call update_surfaceFlux_homegrown_infilArea;     if (return_flag) return
            case(FUSEPRMS)        ! FUSE PRMS surface runoff
-             call update_surfaceFlx_FUSE_PRMS_infilArea;      if (return_flag) return
+             call update_surfaceFlux_FUSE_PRMS_infilArea;      if (return_flag) return
            case(FUSEAVIC)        ! FUSE ARNO/VIC surface runoff
-             call update_surfaceFlx_FUSE_ARNO_VIC_infilArea;  if (return_flag) return
+             call update_surfaceFlux_FUSE_ARNO_VIC_infilArea;  if (return_flag) return
            case(FUSETOPM)        ! FUSE TOPMODEL surface runoff
-             call update_surfaceFlx_FUSE_TOPMODEL_infilArea;  if (return_flag) return
+             call update_surfaceFlux_FUSE_TOPMODEL_infilArea;  if (return_flag) return
            case default; err=20; message=trim(message)//'unknown saturation excess surface runoff method'; return_flag=.true.; return
          end select
 
@@ -1045,17 +1045,17 @@ contains
          ! Calculate maximum infiltration rate and scalarFrozenArea (and their derivatives if needed)
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
            case(noInfiltrationExcess)    ! zero infiltration excess surface runoff
-             call update_surfaceFlx_liquidFlux_noinfratemax
+             call update_surfaceFlux_liquidFlux_noinfratemax
            case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible
-             call update_surfaceFlx_liquidFlux_calculate_infratemax;  if (return_flag) return
+             call update_surfaceFlux_liquidFlux_calculate_infratemax;  if (return_flag) return
            case default; err=20; message=trim(message)//'unknown infiltration excess surface runoff method'; return_flag=.true.; return
          end select
 
          ! Compute total infiltration, gets infiltration excess surface runoff, modifies saturation excess surface runoff if more rain than can infiltrate
-         call update_surfaceFlx_liquidFlux_infiltration;  if (return_flag) return
+         call update_surfaceFlux_liquidFlux_infiltration;  if (return_flag) return
          
          ! update the derivatives for any combination of SE and IE parametrization options 
-         if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives
+         if(updateInfil) call update_surfaceFlux_liquidFlux_derivatives
 
        case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return ! end of select of bc_upper
      end select 
@@ -1065,7 +1065,7 @@ contains
    end if 
 
   end associate
- end subroutine update_surfaceFlx
+ end subroutine update_surfaceFlux
 
 subroutine update_volFracLiq_derivatives
   ! **** Updates the derivatives for volumetric fraction of liquid and ice water in each soil layer ****
@@ -1075,21 +1075,21 @@ subroutine update_volFracLiq_derivatives
 
   associate(&
    ! input: model control
-   ixInfRateMax        => in_surfaceFlx % ixInfRateMax       , & ! index defining the maximum infiltration rate method
-   surfRun_SE          => in_surfaceFlx % surfRun_SE         , & ! index defining the saturation excess surface runoff method
-   ixRichards          => in_surfaceFlx % ixRichards         , & ! index defining the option for Richards' equation (moisture or mixdform)
-   nRoots              => in_surfaceFlx % nRoots             , & ! number of layers that contain roots
-   nSoil               => in_surfaceFlx % nSoil              , & ! total number of soil layers
+   ixInfRateMax        => in_surfaceFlux % ixInfRateMax       , & ! index defining the maximum infiltration rate method
+   surfRun_SE          => in_surfaceFlux % surfRun_SE         , & ! index defining the saturation excess surface runoff method
+   ixRichards          => in_surfaceFlux % ixRichards         , & ! index defining the option for Richards' equation (moisture or mixdform)
+   nRoots              => in_surfaceFlux % nRoots             , & ! number of layers that contain roots
+   nSoil               => in_surfaceFlux % nSoil              , & ! total number of soil layers
    ! input: state and diagnostic variables
-   mLayerTemp          => in_surfaceFlx % mLayerTemp         , & ! temperature (K)
-   mLayerMatricHead    => in_surfaceFlx % mLayerMatricHead   , & ! matric head in each soil layer (m)
+   mLayerTemp          => in_surfaceFlux % mLayerTemp         , & ! temperature (K)
+   mLayerMatricHead    => in_surfaceFlux % mLayerMatricHead   , & ! matric head in each soil layer (m)
    ! input: pre-computed derivatives in ...
-   dTheta_dTk          => in_surfaceFlx % dTheta_dTk         , & ! ... volumetric liquid water content w.r.t. temperature (K-1)
-   dTheta_dPsi         => in_surfaceFlx % dTheta_dPsi        , & ! ... the soil water characteristic w.r.t. psi (m-1)
-   mLayerdPsi_dTheta   => in_surfaceFlx % mLayerdPsi_dTheta  , & ! ... the soil water characteristic w.r.t. theta (m)
+   dTheta_dTk          => in_surfaceFlux % dTheta_dTk         , & ! ... volumetric liquid water content w.r.t. temperature (K-1)
+   dTheta_dPsi         => in_surfaceFlux % dTheta_dPsi        , & ! ... the soil water characteristic w.r.t. psi (m-1)
+   mLayerdPsi_dTheta   => in_surfaceFlux % mLayerdPsi_dTheta  , & ! ... the soil water characteristic w.r.t. theta (m)
    ! output: error control
-   err      => out_surfaceFlx % err    , & ! error code
-   message  => out_surfaceFlx % message  & ! error message
+   err      => out_surfaceFlux % err    , & ! error code
+   message  => out_surfaceFlux % message  & ! error message
   &)
 
    ! determine number of layers to process and whether ice derivatives are needed
@@ -1141,21 +1141,21 @@ subroutine update_volFracLiq_derivatives
   end associate
  end subroutine update_volFracLiq_derivatives
 
- subroutine update_surfaceFlx_liquidFlux_derivatives
+ subroutine update_surfaceFlux_liquidFlux_derivatives
   ! **** Updates the derivatives for the liquid flux upper hydrology boundary condition if needed ****
   associate(&
    ! input: flux at the upper boundary
-   scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt , & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
+   scalarRainPlusMelt => in_surfaceFlux % scalarRainPlusMelt , & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
    ! input: surface runoff and infiltration flux (m s-1)
-   xMaxInfilRate    => io_surfaceFlx % xMaxInfilRate    , & ! maximum infiltration rate (m s-1)
-   scalarInfilArea  => io_surfaceFlx % scalarInfilArea  , & ! fraction of area where water can infiltrate, may be frozen (-)
-   scalarFrozenArea => io_surfaceFlx % scalarFrozenArea , & ! fraction of area that is considered impermeable due to soil ice (-)
+   xMaxInfilRate    => io_surfaceFlux % xMaxInfilRate    , & ! maximum infiltration rate (m s-1)
+   scalarInfilArea  => io_surfaceFlux % scalarInfilArea  , & ! fraction of area where water can infiltrate, may be frozen (-)
+   scalarFrozenArea => io_surfaceFlux % scalarFrozenArea , & ! fraction of area that is considered impermeable due to soil ice (-)
    ! output: derivatives in surface infiltration w.r.t. ...
-   dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec, & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec, & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec, & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec, & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
    ! output: error control
-   err      => out_surfaceFlx % err    , & ! error code
-   message  => out_surfaceFlx % message  & ! error message
+   err      => out_surfaceFlux % err    , & ! error code
+   message  => out_surfaceFlux % message  & ! error message
   &)
 
    ! Compute total runoff derivatives, do w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob* module
@@ -1169,33 +1169,33 @@ subroutine update_volFracLiq_derivatives
                        + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
 
   end associate
- end subroutine update_surfaceFlx_liquidFlux_derivatives
+ end subroutine update_surfaceFlux_liquidFlux_derivatives
 
- subroutine update_surfaceFlx_FUSE_PRMS_infilArea
-  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- PRMS ****
+ subroutine update_surfaceFlux_FUSE_PRMS_infilArea
+  ! **** Update operations for surfaceFlux: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- PRMS ****
   use soil_utils_module,only:LogSumExp  ! smooth max/min
   use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
 
   ! local variables
-  real(rkind)           :: dS1_dLiq(1:in_surfaceFlx % nSoil)        ! derivative of S1 w.r.t. liquid water content
+  real(rkind)           :: dS1_dLiq(1:in_surfaceFlux % nSoil)        ! derivative of S1 w.r.t. liquid water content
   real(rkind)           :: S1_T_derivatives(1:2)                    ! array of derivatives for S1_T
   real(rkind)           :: dS1_T_dS1                                ! derivative of S1_T w.r.t S1
-  real(rkind)           :: dS1_T_dLiq(1:in_surfaceFlx % nSoil)      ! derivative of S1_T w.r.t liquid water content
+  real(rkind)           :: dS1_T_dLiq(1:in_surfaceFlux % nSoil)      ! derivative of S1_T w.r.t liquid water content
 
   associate(&
-   nSoil            => in_surfaceFlx % nSoil,            & ! number of soil layers
-   mLayerVolFracLiq => in_surfaceFlx % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
-   mLayerDepth      => in_surfaceFlx % mLayerDepth,      & ! depth of soil layers (m) 
-   iLayerHeight     => in_surfaceFlx % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
-   theta_sat        => in_surfaceFlx % theta_sat,        & ! soil porosity (-)
+   nSoil            => in_surfaceFlux % nSoil,            & ! number of soil layers
+   mLayerVolFracLiq => in_surfaceFlux % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
+   mLayerDepth      => in_surfaceFlux % mLayerDepth,      & ! depth of soil layers (m) 
+   iLayerHeight     => in_surfaceFlux % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
+   theta_sat        => in_surfaceFlux % theta_sat,        & ! soil porosity (-)
    ! output: error control
-   err     => out_surfaceFlx % err    , & ! error code
-   message => out_surfaceFlx % message  & ! error message
+   err     => out_surfaceFlux % err    , & ! error code
+   message => out_surfaceFlux % message  & ! error message
   &)
 
    ! validation of parameters
-   SatArea_max = in_surfaceFlx % FUSE_Ac_max
-   phi_tens    = in_surfaceFlx % FUSE_phi_tens
+   SatArea_max = in_surfaceFlux % FUSE_Ac_max
+   phi_tens    = in_surfaceFlux % FUSE_phi_tens
    ! validate input parameters 
    if ((SatArea_max<0._rkind).or.(SatArea_max>1._rkind)) then
     err=10; message=trim(message)//"FUSE PRMS surface runoff error: invalid SatArea_max (max saturated area) value"; return_flag=.true.; return
@@ -1206,7 +1206,7 @@ subroutine update_volFracLiq_derivatives
 
   ! compute water content in upper FUSE layer
    S1     = sum( mLayerDepth(:) * mLayerVolFracLiq(:) ) ! total water content in upper FUSE layer (m)
-   if (S1 <= 0._rkind) then; io_surfaceFlx % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
+   if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
    S1_max = iLayerHeight(nSoil) * theta_sat             ! max water storage for upper FUSE layer (m)
 
   ! compute tension water content
@@ -1218,7 +1218,7 @@ subroutine update_volFracLiq_derivatives
    end if
 
    ! define the infiltrating area and derivatives for the non-frozen part of the cell/basin
-   io_surfaceFlx % scalarInfilArea = 1._rkind - (S1_T/S1_T_max)*SatArea_max
+   io_surfaceFlux % scalarInfilArea = 1._rkind - (S1_T/S1_T_max)*SatArea_max
    ! define the derivatives
    if(updateInfil)then
      dS1_dLiq           = mLayerDepth(:)
@@ -1230,39 +1230,39 @@ subroutine update_volFracLiq_derivatives
    endif ! else derivatives are zero
   end associate
 
- end subroutine update_surfaceFlx_FUSE_PRMS_infilArea
+ end subroutine update_surfaceFlux_FUSE_PRMS_infilArea
 
- subroutine update_surfaceFlx_FUSE_ARNO_VIC_infilArea
-  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- ARNO/VIC ****
+ subroutine update_surfaceFlux_FUSE_ARNO_VIC_infilArea
+  ! **** Update operations for surfaceFlux: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- ARNO/VIC ****
   use soil_utils_module,only:LogSumExp  ! smooth max/min
   use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
 
   ! local variables
-  real(rkind)            :: dS1_dLiq(1:in_surfaceFlx % nSoil)      ! derivative of S1 w.r.t. liquid water content
+  real(rkind)            :: dS1_dLiq(1:in_surfaceFlux % nSoil)      ! derivative of S1 w.r.t. liquid water content
   real(rkind)            :: dS1_star_dS1                           ! derivative in S1_star w.r.t S1
   real(rkind)            :: dbase_dS1                              ! derivative of base w.r.t S1
   real(rkind)            :: S1_star_derivatives(1:2)               ! array of derivatives for S1_star from SoftArgMax function
 
   associate(&
-   nSoil            => in_surfaceFlx % nSoil,            & ! number of soil layers
-   mLayerVolFracLiq => in_surfaceFlx % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
-   mLayerDepth      => in_surfaceFlx % mLayerDepth,      & ! depth of soil layers (m) 
-   iLayerHeight     => in_surfaceFlx % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
-   theta_sat        => in_surfaceFlx % theta_sat,        & ! soil porosity (-)
+   nSoil            => in_surfaceFlux % nSoil,            & ! number of soil layers
+   mLayerVolFracLiq => in_surfaceFlux % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
+   mLayerDepth      => in_surfaceFlux % mLayerDepth,      & ! depth of soil layers (m) 
+   iLayerHeight     => in_surfaceFlux % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
+   theta_sat        => in_surfaceFlux % theta_sat,        & ! soil porosity (-)
    ! output: error control
-   err     => out_surfaceFlx % err    , & ! error code
-   message => out_surfaceFlx % message  & ! error message
+   err     => out_surfaceFlux % err    , & ! error code
+   message => out_surfaceFlux % message  & ! error message
   &)
 
    ! validation of input parameters
-   b_arnovic = in_surfaceFlx % FUSE_b ! interface ARNO/VIC exponent
+   b_arnovic = in_surfaceFlux % FUSE_b ! interface ARNO/VIC exponent
    if ((b_arnovic < 0.001_rkind).or.(b_arnovic > 3._rkind)) then
     err=10; message=trim(message)//"FUSE ARNO/VIC exponent must be between 0.001 and 3"; return_flag=.true.; return
    end if
 
    ! compute water content in FUSE layers
    S1     = sum( mLayerDepth(:) * mLayerVolFracLiq(:) ) ! total water content in FUSE layers (m)
-   if (S1 <= 0._rkind) then; io_surfaceFlx % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
+   if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
    S1_max = iLayerHeight(nSoil) * theta_sat             ! max water storage for FUSE layers (m)
 
    ! Original FUSE: SatArea = 1 - (1-S1/S1_max)**b_arnovic
@@ -1290,7 +1290,7 @@ subroutine update_volFracLiq_derivatives
    end if
 
    ! define the infiltrating area and derivatives for the non-frozen part of the cell/basin
-   io_surfaceFlx % scalarInfilArea = base**b_arnovic
+   io_surfaceFlux % scalarInfilArea = base**b_arnovic
    
    ! define the derivatives
    if(updateInfil)then
@@ -1308,14 +1308,14 @@ subroutine update_volFracLiq_derivatives
     endif ! else derivatives are zero
   end associate
 
- end subroutine update_surfaceFlx_FUSE_ARNO_VIC_infilArea
+ end subroutine update_surfaceFlux_FUSE_ARNO_VIC_infilArea
 
 
- subroutine update_surfaceFlx_FUSE_TOPMODEL_infilArea
-  ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- TOPMODEL ****
+ subroutine update_surfaceFlux_FUSE_TOPMODEL_infilArea
+  ! **** Update operations for surfaceFlux: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- TOPMODEL ****
   ! local variables
   complex(rkind)                   :: F1,F2                             ! temporary storage for regularized lower incomplete gamma function values
-  real(rkind)                      :: dS1_dLiq(1:in_surfaceFlx % nSoil) ! derivative in S1 w.r.t liquid water content 
+  real(rkind)                      :: dS1_dLiq(1:in_surfaceFlux % nSoil) ! derivative in S1 w.r.t liquid water content 
   real(rkind)                      :: dzeta_crit_n_dS1                  ! derivative of zeta_crit_n w.r.t S1
   real(rkind)                      :: dzeta_crit_dzeta_crit_n           ! derivative of zeta_crit w.r.t zeta_crit_n
   real(rkind)                      :: dx_crit_dzeta_crit                ! derivative of x_crit w.r.t zeta_crit
@@ -1323,25 +1323,25 @@ subroutine update_volFracLiq_derivatives
   real(rkind)                      :: dgammp_dx_crit                    ! derivative of gammp function in SatArea w.r.t x_crit
 
   associate(&
-   nSoil            => in_surfaceFlx % nSoil,            & ! number of soil layers
-   mLayerVolFracLiq => in_surfaceFlx % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
-   mLayerDepth      => in_surfaceFlx % mLayerDepth,      & ! depth of soil layers (m) 
-   iLayerHeight     => in_surfaceFlx % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
-   theta_sat        => in_surfaceFlx % theta_sat,        & ! soil porosity (-)
+   nSoil            => in_surfaceFlux % nSoil,            & ! number of soil layers
+   mLayerVolFracLiq => in_surfaceFlux % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
+   mLayerDepth      => in_surfaceFlux % mLayerDepth,      & ! depth of soil layers (m) 
+   iLayerHeight     => in_surfaceFlux % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
+   theta_sat        => in_surfaceFlux % theta_sat,        & ! soil porosity (-)
    ! output: error control
-   err     => out_surfaceFlx % err    , & ! error code
-   message => out_surfaceFlx % message  & ! error message
+   err     => out_surfaceFlux % err    , & ! error code
+   message => out_surfaceFlux % message  & ! error message
   &)
 
    ! interface FUSE input parameters
-   lambda       = in_surfaceFlx % FUSE_lambda
-   chi_topmodel = in_surfaceFlx % FUSE_chi
-   mu           = in_surfaceFlx % FUSE_mu
-   n_topmodel   = in_surfaceFlx % FUSE_n
+   lambda       = in_surfaceFlux % FUSE_lambda
+   chi_topmodel = in_surfaceFlux % FUSE_chi
+   mu           = in_surfaceFlux % FUSE_mu
+   n_topmodel   = in_surfaceFlux % FUSE_n
 
    ! compute water content in lower FUSE layer, here the entire soil column is used
    S1     = sum( mLayerDepth(:) * mLayerVolFracLiq(:) ) ! total water content in lower FUSE layer (m)
-   if (S1 <= 0._rkind) then; io_surfaceFlx % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
+   if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
    S1_max = iLayerHeight(nSoil) * theta_sat             ! max water storage for lower FUSE layer (m)
 
    ! validate of parameters
@@ -1395,10 +1395,10 @@ subroutine update_volFracLiq_derivatives
    end if
 
    ! define the infiltrating area and derivatives for the non-frozen part of the cell/basin
-   io_surfaceFlx % scalarInfilArea = gammp(alpha_topmodel,x_crit/chi_topmodel)
+   io_surfaceFlux % scalarInfilArea = gammp(alpha_topmodel,x_crit/chi_topmodel)
 
   else ! if (S1 == 0) no water is stored in lower FUSE layer (based on asymptotic behaviour of integral in eq. 9c of Clark et al. (2008))
-   io_surfaceFlx % scalarInfilArea = 1._rkind
+   io_surfaceFlux % scalarInfilArea = 1._rkind
   end if
 
    ! define the derivatives
@@ -1414,47 +1414,47 @@ subroutine update_volFracLiq_derivatives
    endif ! else derivatives are zero
   end associate
 
- end subroutine update_surfaceFlx_FUSE_TOPMODEL_infilArea
+ end subroutine update_surfaceFlux_FUSE_TOPMODEL_infilArea
 
- subroutine update_surfaceFlx_prescribedHead
-  ! **** Update operations for surfaceFlx: prescribed pressure head condition ****
+ subroutine update_surfaceFlux_prescribedHead
+  ! **** Update operations for surfaceFlux: prescribed pressure head condition ****
   associate(&
    ! input: model control
-   ixRichards     => in_surfaceFlx % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ixRichards     => in_surfaceFlux % ixRichards     , & ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
-   scalarMatricHeadLiq => in_surfaceFlx % scalarMatricHeadLiq , & ! liquid matric head in the upper-most soil layer (m)
-   scalarVolFracLiq    => in_surfaceFlx % scalarVolFracLiq    , & ! volumetric liquid water content in the upper-most soil layer (-)
+   scalarMatricHeadLiq => in_surfaceFlux % scalarMatricHeadLiq , & ! liquid matric head in the upper-most soil layer (m)
+   scalarVolFracLiq    => in_surfaceFlux % scalarVolFracLiq    , & ! volumetric liquid water content in the upper-most soil layer (-)
    ! input: depth of each soil layer (m)
-   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of each soil layer (m)
+   mLayerDepth  => in_surfaceFlux % mLayerDepth  , & ! depth of each soil layer (m)
    ! input: diriclet boundary conditions
-   upperBoundHead   => in_surfaceFlx % upperBoundHead  , & ! upper boundary condition for matric head (m)
-   upperBoundTheta  => in_surfaceFlx % upperBoundTheta , & ! upper boundary condition for volumetric liquid water content (-)
+   upperBoundHead   => in_surfaceFlux % upperBoundHead  , & ! upper boundary condition for matric head (m)
+   upperBoundTheta  => in_surfaceFlux % upperBoundTheta , & ! upper boundary condition for volumetric liquid water content (-)
    ! input: transmittance
-   surfaceSatHydCond => in_surfaceFlx % surfaceSatHydCond , & ! saturated hydraulic conductivity at the surface (m s-1)
-   dHydCond_dTemp    => in_surfaceFlx % dHydCond_dTemp    , & ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-   iceImpedeFac      => in_surfaceFlx % iceImpedeFac      , & ! ice impedence factor in the upper-most soil layer (-)
+   surfaceSatHydCond => in_surfaceFlux % surfaceSatHydCond , & ! saturated hydraulic conductivity at the surface (m s-1)
+   dHydCond_dTemp    => in_surfaceFlux % dHydCond_dTemp    , & ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   iceImpedeFac      => in_surfaceFlux % iceImpedeFac      , & ! ice impedence factor in the upper-most soil layer (-)
    ! input: soil parameters
-   vGn_alpha           => in_surfaceFlx % vGn_alpha           , & ! van Genuchten "alpha" parameter (m-1)
-   vGn_n               => in_surfaceFlx % vGn_n               , & ! van Genuchten "n" parameter (-)
-   vGn_m               => in_surfaceFlx % vGn_m               , & ! van Genuchten "m" parameter (-)
-   theta_sat           => in_surfaceFlx % theta_sat           , & ! soil porosity (-)
-   theta_res           => in_surfaceFlx % theta_res           , & ! soil residual volumetric water content (-)
+   vGn_alpha           => in_surfaceFlux % vGn_alpha           , & ! van Genuchten "alpha" parameter (m-1)
+   vGn_n               => in_surfaceFlux % vGn_n               , & ! van Genuchten "n" parameter (-)
+   vGn_m               => in_surfaceFlux % vGn_m               , & ! van Genuchten "m" parameter (-)
+   theta_sat           => in_surfaceFlux % theta_sat           , & ! soil porosity (-)
+   theta_res           => in_surfaceFlux % theta_res           , & ! soil residual volumetric water content (-)
    ! input-output: hydraulic conductivity and diffusivity at the surface
    ! NOTE: intent(inout) because infiltration may only be computed for the first iteration
-   surfaceHydCond => io_surfaceFlx % surfaceHydCond , & ! hydraulic conductivity (m s-1)
-   surfaceDiffuse => io_surfaceFlx % surfaceDiffuse , & ! hydraulic diffusivity at the surface (m2 s-1)
+   surfaceHydCond => io_surfaceFlux % surfaceHydCond , & ! hydraulic conductivity (m s-1)
+   surfaceDiffuse => io_surfaceFlux % surfaceDiffuse , & ! hydraulic diffusivity at the surface (m2 s-1)
    ! output: runoff and infiltration
-   scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
-   scalarSurfaceRunoff_IE    => out_surfaceFlx % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
-   scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
-   scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration , & ! surface infiltration (m s-1)
+   scalarSurfaceRunoff       => out_surfaceFlux % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
+   scalarSurfaceRunoff_IE    => out_surfaceFlux % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    => out_surfaceFlux % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
+   scalarSurfaceInfiltration => out_surfaceFlux % scalarSurfaceInfiltration , & ! surface infiltration (m s-1)
    ! output: derivatives in surface infiltration w.r.t. ...
-   scalarSoilControl  => io_surfaceFlx % scalarSoilControl    , & ! soil control on infiltration for derivative
-   dq_dHydStateVec    => out_surfaceFlx % dq_dHydStateVec     , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec    => out_surfaceFlx % dq_dNrgStateVec     , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   scalarSoilControl  => io_surfaceFlux % scalarSoilControl    , & ! soil control on infiltration for derivative
+   dq_dHydStateVec    => out_surfaceFlux % dq_dHydStateVec     , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec    => out_surfaceFlux % dq_dNrgStateVec     , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
    ! output: error control
-   err     => out_surfaceFlx % err    , & ! error code
-   message => out_surfaceFlx % message  & ! error message
+   err     => out_surfaceFlux % err    , & ! error code
+   message => out_surfaceFlux % message  & ! error message
   &)
 
    ! surface runoff iz zero for the head condition
@@ -1494,68 +1494,68 @@ subroutine update_volFracLiq_derivatives
      dq_dNrgStateVec(1) = -(dHydCond_dTemp/2._rkind)*(scalarMatricHeadLiq - upperBoundHead)/(mLayerDepth(1)*0.5_rkind) + dHydCond_dTemp/2._rkind
    end if
 
-   ! * additional assignment statements for surfaceFlx input-output object based on presribed head values *
+   ! * additional assignment statements for surfaceFlux input-output object based on presribed head values *
    ! the infiltration is always constrained by the prescribed head so the maximum infiltration rate is set to missing
-   io_surfaceFlx % xMaxInfilRate    = realMissing ! maximum infiltration rate (m s-1)
+   io_surfaceFlux % xMaxInfilRate    = realMissing ! maximum infiltration rate (m s-1)
    ! no soil ice assumed for prescribed head condition
-   io_surfaceFlx % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
+   io_surfaceFlux % scalarFrozenArea = 0._rkind      ! fraction of area that is considered impermeable due to soil ice (-)
    ! all area is available for infiltration, and to complement this saturated area (i.e., part where saturation excess runoff occurs) is set to zero
-   io_surfaceFlx % scalarInfilArea     = 1._rkind ! fraction of area where water can infiltrate, may be frozen (-)
-   io_surfaceFlx % scalarSaturatedArea = 0._rkind ! fraction of area that is considered saturated (-)
+   io_surfaceFlux % scalarInfilArea     = 1._rkind ! fraction of area where water can infiltrate, may be frozen (-)
+   io_surfaceFlux % scalarSaturatedArea = 0._rkind ! fraction of area that is considered saturated (-)
 
   end associate
- end subroutine update_surfaceFlx_prescribedHead
+ end subroutine update_surfaceFlux_prescribedHead
 
- subroutine update_surfaceFlx_homegrown_infilArea
-  ! **** Update operations for surfaceFlx: homegrown saturation excess runoff condition ****
-  call update_surfaceFlx_liquidFlux_computation_root_layers 
-  call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return 
-  call update_surfaceFlx_liquidFlux_computation_homegrown  ! this calculates infiltration area ignoring if frozen or not, depends on available capacity (depends on ice and root zone)
- end subroutine update_surfaceFlx_homegrown_infilArea
+ subroutine update_surfaceFlux_homegrown_infilArea
+  ! **** Update operations for surfaceFlux: homegrown saturation excess runoff condition ****
+  call update_surfaceFlux_liquidFlux_computation_root_layers 
+  call update_surfaceFlux_liquidFlux_computation_available_capacity; if (return_flag) return 
+  call update_surfaceFlux_liquidFlux_computation_homegrown  ! this calculates infiltration area ignoring if frozen or not, depends on available capacity (depends on ice and root zone)
+ end subroutine update_surfaceFlux_homegrown_infilArea
 
- subroutine update_surfaceFlx_liquidFlux_noinfratemax
-  ! **** Update operations for surfaceFlx: no infiltration excess****
+ subroutine update_surfaceFlux_liquidFlux_noinfratemax
+  ! **** Update operations for surfaceFlux: no infiltration excess****
   associate(&
    ! input: model control
-   surfRun_SE => in_surfaceFlx % surfRun_SE         & ! index defining the saturation excess surface runoff method
+   surfRun_SE => in_surfaceFlux % surfRun_SE         & ! index defining the saturation excess surface runoff method
   &)
-   io_surfaceFlx % xMaxInfilRate = veryBig ! set to a very large number so rainPlusMelt never exceeds this
+   io_surfaceFlux % xMaxInfilRate = veryBig ! set to a very large number so rainPlusMelt never exceeds this
    if (surfRun_SE /= homegrown_SE) then  ! frozen area (depends on ice and root zone)
-    call update_surfaceFlx_liquidFlux_computation_root_layers
+    call update_surfaceFlux_liquidFlux_computation_root_layers
    end if
   end associate
   ! -- main computations - these always need to run
-  call update_surfaceFlx_liquidFlux_computation_frozen_area
- end subroutine update_surfaceFlx_liquidFlux_noinfratemax
+  call update_surfaceFlux_liquidFlux_computation_frozen_area
+ end subroutine update_surfaceFlux_liquidFlux_noinfratemax
 
- subroutine update_surfaceFlx_liquidFlux_calculate_infratemax
-  ! **** Update operations for surfaceFlx: infiltration excess possible - calculate max infiltration rate ****
+ subroutine update_surfaceFlux_liquidFlux_calculate_infratemax
+  ! **** Update operations for surfaceFlux: infiltration excess possible - calculate max infiltration rate ****
   associate(&
    ! input: model control
-   surfRun_SE => in_surfaceFlx % surfRun_SE         & ! index defining the saturation excess surface runoff method
+   surfRun_SE => in_surfaceFlux % surfRun_SE         & ! index defining the saturation excess surface runoff method
   &)
    if (surfRun_SE /= homegrown_SE) then  ! infiltration rate max depends on available capacity (depends on ice and root zone) and frozen area (depends on ice and root zone)
-     call update_surfaceFlx_liquidFlux_computation_root_layers 
-     call update_surfaceFlx_liquidFlux_computation_available_capacity; if (return_flag) return
+     call update_surfaceFlux_liquidFlux_computation_root_layers 
+     call update_surfaceFlux_liquidFlux_computation_available_capacity; if (return_flag) return
    end if
   end associate
   ! -- main computations - these always need to run
-  call update_surfaceFlx_liquidFlux_computation_frozen_area
-  call update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
- end subroutine update_surfaceFlx_liquidFlux_calculate_infratemax
+  call update_surfaceFlux_liquidFlux_computation_frozen_area
+  call update_surfaceFlux_liquidFlux_computation_max_infiltration_rate
+ end subroutine update_surfaceFlux_liquidFlux_calculate_infratemax
 
- subroutine update_surfaceFlx_liquidFlux_computation_root_layers 
-  ! **** Update operations for surfaceFlx: root layer water computation ****
+ subroutine update_surfaceFlux_liquidFlux_computation_root_layers 
+  ! **** Update operations for surfaceFlux: root layer water computation ****
   associate(&
    ! input: model control
-   nRoots              => in_surfaceFlx % nRoots            , & ! number of soil layers with roots (-)
+   nRoots              => in_surfaceFlux % nRoots            , & ! number of soil layers with roots (-)
    ! input: state and diagnostic variables
-   mLayerVolFracLiq    => in_surfaceFlx % mLayerVolFracLiq  , & ! volumetric liquid water content in each soil layer (-)
-   mLayerVolFracIce    => in_surfaceFlx % mLayerVolFracIce  , & ! volumetric ice content in each soil layer (-)
+   mLayerVolFracLiq    => in_surfaceFlux % mLayerVolFracLiq  , & ! volumetric liquid water content in each soil layer (-)
+   mLayerVolFracIce    => in_surfaceFlux % mLayerVolFracIce  , & ! volumetric ice content in each soil layer (-)
    ! input: depth of soil layers (m)
-   mLayerDepth         => in_surfaceFlx % mLayerDepth      , & ! depth of each soil layer (m)
-   iLayerHeight        => in_surfaceFlx % iLayerHeight     , & ! height at the interface of each layer for soil layers only (m)
-   rootingDepth        => in_surfaceFlx % rootingDepth       & ! rooting depth (m)
+   mLayerDepth         => in_surfaceFlux % mLayerDepth      , & ! depth of each soil layer (m)
+   iLayerHeight        => in_surfaceFlux % iLayerHeight     , & ! height at the interface of each layer for soil layers only (m)
+   rootingDepth        => in_surfaceFlux % rootingDepth       & ! rooting depth (m)
   &)
  
    ! define the storage in the root zone (m) and derivatives, first initialize
@@ -1590,17 +1590,17 @@ subroutine update_volFracLiq_derivatives
    endif
 
   end associate
- end subroutine update_surfaceFlx_liquidFlux_computation_root_layers 
+ end subroutine update_surfaceFlux_liquidFlux_computation_root_layers 
 
- subroutine update_surfaceFlx_liquidFlux_computation_available_capacity 
-  ! **** Update operations for surfaceFlx: compute and check available capacity to hold water ****
+ subroutine update_surfaceFlux_liquidFlux_computation_available_capacity 
+  ! **** Update operations for surfaceFlux: compute and check available capacity to hold water ****
   associate(&
    ! input: soil parameters
-   theta_sat    => in_surfaceFlx % theta_sat    , & ! soil porosity (-)
-   rootingDepth => in_surfaceFlx % rootingDepth , & ! rooting depth (m)
+   theta_sat    => in_surfaceFlux % theta_sat    , & ! soil porosity (-)
+   rootingDepth => in_surfaceFlux % rootingDepth , & ! rooting depth (m)
    ! output: error control
-   err     => out_surfaceFlx % err    , & ! error code
-   message => out_surfaceFlx % message  & ! error message
+   err     => out_surfaceFlux % err    , & ! error code
+   message => out_surfaceFlux % message  & ! error message
   &)
    availCapacity = theta_sat*rootingDepth - rootZoneIce
    if (rootZoneLiq > availCapacity+verySmaller) then
@@ -1608,22 +1608,22 @@ subroutine update_volFracLiq_derivatives
    end if
 
   end associate
- end subroutine update_surfaceFlx_liquidFlux_computation_available_capacity 
+ end subroutine update_surfaceFlux_liquidFlux_computation_available_capacity 
 
- subroutine update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
-  ! **** Update operations for surfaceFlx: max infiltration rate and derivatives ****
+ subroutine update_surfaceFlux_liquidFlux_computation_max_infiltration_rate
+  ! **** Update operations for surfaceFlux: max infiltration rate and derivatives ****
   associate(&
    ! input: model control
-   ixInfRateMax => in_surfaceFlx % ixInfRateMax , & ! index defining the maximum infiltration rate method (GreenAmpt, topmodel_GA, noInfiltrationExcess)
+   ixInfRateMax => in_surfaceFlux % ixInfRateMax , & ! index defining the maximum infiltration rate method (GreenAmpt, topmodel_GA, noInfiltrationExcess)
    ! input: transmittance
-   surfaceSatHydCond => in_surfaceFlx % surfaceSatHydCond , & ! saturated hydraulic conductivity at the surface (m s-1)
+   surfaceSatHydCond => in_surfaceFlux % surfaceSatHydCond , & ! saturated hydraulic conductivity at the surface (m s-1)
    ! input: soil parameters
-   zScale_TOPMODEL     => in_surfaceFlx % zScale_TOPMODEL     , & ! scaling factor used to describe decrease in hydraulic conductivity with depth (m)
-   rootingDepth        => in_surfaceFlx % rootingDepth        , & ! rooting depth (m)
-   wettingFrontSuction => in_surfaceFlx % wettingFrontSuction , & ! Green-Ampt wetting front suction (m)
-   mLayerDepth         => in_surfaceFlx % mLayerDepth         , & ! depth of each soil layer (m)
+   zScale_TOPMODEL     => in_surfaceFlux % zScale_TOPMODEL     , & ! scaling factor used to describe decrease in hydraulic conductivity with depth (m)
+   rootingDepth        => in_surfaceFlux % rootingDepth        , & ! rooting depth (m)
+   wettingFrontSuction => in_surfaceFlux % wettingFrontSuction , & ! Green-Ampt wetting front suction (m)
+   mLayerDepth         => in_surfaceFlux % mLayerDepth         , & ! depth of each soil layer (m)
    ! input-output: surface runoff and infiltration flux (m s-1)
-   xMaxInfilRate    => io_surfaceFlx % xMaxInfilRate  & ! maximum infiltration rate (m s-1)
+   xMaxInfilRate    => io_surfaceFlux % xMaxInfilRate  & ! maximum infiltration rate (m s-1)
   &)
    ! define the depth to the wetting front (m) and derivatives
    total_soil_depth = sum(mLayerDepth(:))
@@ -1634,7 +1634,7 @@ subroutine update_volFracLiq_derivatives
    end if
 
    ! process hydraulic conductivity-controlled infiltration rate
-   select case(ixInfRateMax)  ! maximum infiltration rate parameterization (noInfExcess set in update_surfaceFlx)
+   select case(ixInfRateMax)  ! maximum infiltration rate parameterization (noInfExcess set in update_surfaceFlux)
     case(topmodel_GA)
      ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
      hydCondWettingFront = surfaceSatHydCond * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 1._rkind) )
@@ -1663,22 +1663,22 @@ subroutine update_volFracLiq_derivatives
       endif
    end select
   end associate
- end subroutine update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
+ end subroutine update_surfaceFlux_liquidFlux_computation_max_infiltration_rate
 
- subroutine update_surfaceFlx_liquidFlux_computation_homegrown
-  ! **** Update operations for surfaceFlx: infiltrating area (ignoring frozen area) for homegrown saturation excess condition ****
+ subroutine update_surfaceFlux_liquidFlux_computation_homegrown
+  ! **** Update operations for surfaceFlux: infiltrating area (ignoring frozen area) for homegrown saturation excess condition ****
   associate(&
    ! input: model control
-   nSoil            => in_surfaceFlx % nSoil               , & ! number of soil layers
-   nRoots           => in_surfaceFlx % nRoots              , & ! number of layers that contain roots
-   ixIce            => in_surfaceFlx % ixIce               , & ! index of lowest ice layer
-   mLayerVolFracLiq => in_surfaceFlx % mLayerVolFracLiq    , & ! volumetric liquid water content in each soil layer (-)
-   mLayerDepth      => in_surfaceFlx % mLayerDepth         , & ! depth of each soil layer (m)
+   nSoil            => in_surfaceFlux % nSoil               , & ! number of soil layers
+   nRoots           => in_surfaceFlux % nRoots              , & ! number of layers that contain roots
+   ixIce            => in_surfaceFlux % ixIce               , & ! index of lowest ice layer
+   mLayerVolFracLiq => in_surfaceFlux % mLayerVolFracLiq    , & ! volumetric liquid water content in each soil layer (-)
+   mLayerDepth      => in_surfaceFlux % mLayerDepth         , & ! depth of each soil layer (m)
    ! input: soil parameters
-   theta_sat        => in_surfaceFlx % theta_sat           , & ! soil porosity (-)
-   qSurfScale       => in_surfaceFlx % qSurfScale          , & ! scaling factor in the surface runoff parameterization (-)
+   theta_sat        => in_surfaceFlux % theta_sat           , & ! soil porosity (-)
+   qSurfScale       => in_surfaceFlux % qSurfScale          , & ! scaling factor in the surface runoff parameterization (-)
    ! input-output: surface runoff and infiltration flux (m s-1)
-   scalarInfilArea  => io_surfaceFlx % scalarInfilArea        & ! fraction of area where water can infiltrate, may be frozen (-)
+   scalarInfilArea  => io_surfaceFlux % scalarInfilArea        & ! fraction of area where water can infiltrate, may be frozen (-)
   &)
    ! define the infiltrating area and derivatives for the ignoring if frozen or not
    if (qSurfScale < qSurfScaleMax) then
@@ -1709,16 +1709,16 @@ subroutine update_volFracLiq_derivatives
      end if
    end if
   end associate
- end subroutine update_surfaceFlx_liquidFlux_computation_homegrown
+ end subroutine update_surfaceFlux_liquidFlux_computation_homegrown
 
- subroutine update_surfaceFlx_liquidFlux_computation_frozen_area
-  ! **** Update operations for surfaceFlx: get impermeable area due to soil freezing ****
+ subroutine update_surfaceFlux_liquidFlux_computation_frozen_area
+  ! **** Update operations for surfaceFlux: get impermeable area due to soil freezing ****
   associate(&
    ! input: soil parameters
-   soilIceScale        => in_surfaceFlx % soilIceScale       , & ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
-   soilIceCV           => in_surfaceFlx % soilIceCV          , & ! soil ice CV in Gamma distribution used to define frozen area (-)
+   soilIceScale        => in_surfaceFlux % soilIceScale       , & ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
+   soilIceCV           => in_surfaceFlux % soilIceCV          , & ! soil ice CV in Gamma distribution used to define frozen area (-)
    ! output: frozen area
-   scalarFrozenArea    => io_surfaceFlx % scalarFrozenArea     & ! fraction of area that is considered impermeable due to soil ice (-)
+   scalarFrozenArea    => io_surfaceFlux % scalarFrozenArea     & ! fraction of area that is considered impermeable due to soil ice (-)
   &)
    ! define the impermeable area and derivatives due to frozen ground
    if (rootZoneIce > tiny(rootZoneIce)) then  ! (avoid divide by zero)
@@ -1736,28 +1736,28 @@ subroutine update_volFracLiq_derivatives
      scalarFrozenArea = 0._rkind
    end if
   end associate
- end subroutine update_surfaceFlx_liquidFlux_computation_frozen_area
+ end subroutine update_surfaceFlux_liquidFlux_computation_frozen_area
 
- subroutine update_surfaceFlx_liquidFlux_infiltration
-  ! **** Update operations for surfaceFlx: final infiltration and runoff calculations ****
+ subroutine update_surfaceFlux_liquidFlux_infiltration
+  ! **** Update operations for surfaceFlux: final infiltration and runoff calculations ****
   ! local variables
   real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
 
   ! compute infiltration and runoff
   associate(&
    ! input: flux at the upper boundary
-   scalarRainPlusMelt   => in_surfaceFlx % scalarRainPlusMelt, & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
+   scalarRainPlusMelt   => in_surfaceFlux % scalarRainPlusMelt, & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
    ! input-output: surface runoff and infiltration flux (m s-1)
-   xMaxInfilRate       => io_surfaceFlx % xMaxInfilRate    ,   & ! maximum infiltration rate (m s-1)
-   scalarInfilArea     => io_surfaceFlx % scalarInfilArea  ,   & ! fraction of area where water can infiltrate, may be frozen (-)
-   scalarSaturatedArea => io_surfaceFlx % scalarSaturatedArea, & ! fraction of area that is saturated (-)
-   scalarSoilControl   => io_surfaceFlx % scalarSoilControl,   & ! soil control on infiltration for derivative
-   scalarFrozenArea    => io_surfaceFlx % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
+   xMaxInfilRate       => io_surfaceFlux % xMaxInfilRate    ,   & ! maximum infiltration rate (m s-1)
+   scalarInfilArea     => io_surfaceFlux % scalarInfilArea  ,   & ! fraction of area where water can infiltrate, may be frozen (-)
+   scalarSaturatedArea => io_surfaceFlux % scalarSaturatedArea, & ! fraction of area that is saturated (-)
+   scalarSoilControl   => io_surfaceFlux % scalarSoilControl,   & ! soil control on infiltration for derivative
+   scalarFrozenArea    => io_surfaceFlux % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
    ! output: runoff and infiltration 
-   scalarSurfaceRunoff_IE    => out_surfaceFlx % scalarSurfaceRunoff_IE,    & ! infiltration excess surface runoff (m s-1)
-   scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE,    & ! saturation excess surface runoff (m s-1)
-   scalarSurfaceRunoff       => out_surfaceFlx % scalarSurfaceRunoff,       & ! surface runoff (m s-1)
-   scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration  & ! surface infiltration (m s-1)
+   scalarSurfaceRunoff_IE    => out_surfaceFlux % scalarSurfaceRunoff_IE,    & ! infiltration excess surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    => out_surfaceFlux % scalarSurfaceRunoff_SE,    & ! saturation excess surface runoff (m s-1)
+   scalarSurfaceRunoff       => out_surfaceFlux % scalarSurfaceRunoff,       & ! surface runoff (m s-1)
+   scalarSurfaceInfiltration => out_surfaceFlux % scalarSurfaceInfiltration  & ! surface infiltration (m s-1)
   &)
    ! unfrozen infiltration area
    scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
@@ -1793,27 +1793,27 @@ subroutine update_volFracLiq_derivatives
   associate(&
    ! input-output: hydraulic conductivity and diffusivity at the surface
    ! NOTE: intent(inout) because infiltration may only be computed for the first iteration
-   surfaceHydCond => io_surfaceFlx % surfaceHydCond , & ! hydraulic conductivity (m s-1)
-   surfaceDiffuse => io_surfaceFlx % surfaceDiffuse   & ! hydraulic diffusivity at the surface (m2 s-1)
+   surfaceHydCond => io_surfaceFlux % surfaceHydCond , & ! hydraulic conductivity (m s-1)
+   surfaceDiffuse => io_surfaceFlux % surfaceDiffuse   & ! hydraulic diffusivity at the surface (m2 s-1)
   &)
    surfaceHydCond = realMissing
    surfaceDiffuse = realMissing
   end associate
 
- end subroutine update_surfaceFlx_liquidFlux_infiltration
+ end subroutine update_surfaceFlux_liquidFlux_infiltration
 
- subroutine finalize_surfaceFlx
-  ! **** Finalize operations for surfaceFlx ****
+ subroutine finalize_surfaceFlux
+  ! **** Finalize operations for surfaceFlux ****
   ! final error check
   associate(&
-   err     => out_surfaceFlx % err    , & ! error code
-   message => out_surfaceFlx % message  & ! error message
+   err     => out_surfaceFlux % err    , & ! error code
+   message => out_surfaceFlux % message  & ! error message
   &)
-   if(err/=0)then; message=trim(message)//'unanticipated error in surfaceFlx subroutine'; return_flag=.true.; return; end if
+   if(err/=0)then; message=trim(message)//'unanticipated error in surfaceFlux subroutine'; return_flag=.true.; return; end if
   end associate
- end subroutine finalize_surfaceFlx
+ end subroutine finalize_surfaceFlux
 
-end subroutine surfaceFlx
+end subroutine surfaceFlux
 
 ! ***************************************************************************************************************
 ! private subroutine iLayerFlux: compute the fluxes and derivatives at layer interfaces
