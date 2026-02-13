@@ -130,16 +130,16 @@ subroutine eval8summa(&
                       err,message)               ! intent(out):   error control
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! provide access to subroutines
-  USE getVectorz_module, only:varExtract                ! extract variables from the state vector
-  USE getVectorz_module, only:checkFeas                 ! check feasibility of state vector
-  USE updatDiagn_module, only:updatDiagn                ! update diagnostic variables
-  USE computFlux_module, only:soilCmpres                ! compute soil compression
-  USE computFlux_module, only:computFlux                ! compute fluxes given a state vector
-  USE heatCapacity_module,only:heatCapacityAnalytic     ! recompute closed form heat capacity (Cp) and derivatives
-  USE heatCapacity_module,only:computCm                 ! compute Cm and derivatives
-  USE heatCapacity_module, only:computStatMult          ! recompute state multiplier
-  USE computResid_module,only:computResid               ! compute residuals given a state vector
-  USE thermConductivity_module,only:thermConductivity   ! recompute thermal conductivity and derivatives
+  USE getVectorz_module,only:varExtract                ! extract variables from the state vector
+  USE getVectorz_module,only:checkFeas                 ! check feasibility of state vector
+  USE updatDiagn_module,only:updatDiagn                ! update diagnostic variables
+  USE computFlux_module,only:soilCmpres                ! compute soil compression
+  USE computFlux_module,only:computFlux                ! compute fluxes given a state vector
+  USE heat_Cp_Cm_module,only:heatCapacity              ! update heat capacity (Cp) and derivatives
+  USE heat_Cp_Cm_module,only:heatAdvectWat             ! compute heat advected with water (Cm) and derivatives
+  USE heat_Cp_Cm_module,only:stateMultiplier           ! update state multiplier
+  USE computResid_module,only:computResid              ! compute residuals given a state vector
+  USE thermConductivity_module,only:thermConductivity  ! update thermal conductivity and derivatives
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -410,8 +410,8 @@ subroutine eval8summa(&
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     if(updateStateCp)then
-      ! *** compute volumetric heat capacity C_p
-      call heatCapacityAnalytic(&
+      ! recompute volumetric heat capacity Cp
+      call heatCapacity(&
                   ! input: state variables
                   canopyDepth,             & ! intent(in):    canopy depth (m)
                   scalarCanopyIceTrial,    & ! intent(in):    trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -442,8 +442,8 @@ subroutine eval8summa(&
                   err,cmessage)                  ! intent(out):   error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  
-      ! compute multiplier of state vector
-      call computStatMult(&
+      ! recompute multiplier of state vector
+      call stateMultiplier(&
                     ! input
                     heatCapVegTrial,    & ! intent(in):  volumetric heat capacity of vegetation canopy
                     mLayerHeatCapTrial, & ! intent(in):  volumetric heat capacity of soil and snow
@@ -452,8 +452,7 @@ subroutine eval8summa(&
                     sMul,               & ! intent(out): multiplier for state vector (used in the residual calculations)
                     err,cmessage)         ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-    else
-      ! set state heat capacity derivatives to 0 for constant through step
+    else ! set state heat capacity derivatives to 0 for constant through step
       dVolHtCapBulk_dPsi0     = 0._rkind
       dVolHtCapBulk_dTheta    = 0._rkind
       dVolHtCapBulk_dCanWat   = 0._rkind
@@ -486,8 +485,7 @@ subroutine eval8summa(&
                           ! output: error control
                           err,cmessage)                   ! intent(out): error control
       if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
-    else
-      ! set flux heat capacity derivatives to 0 for constant through step
+    else ! set flux heat capacity derivatives to 0 for constant through step
       dThermalC_dWatAbove  = 0._rkind
       dThermalC_dWatBelow  = 0._rkind
       dThermalC_dTempAbove = 0._rkind
@@ -495,8 +493,8 @@ subroutine eval8summa(&
     endif ! updateFluxCp
 
     if(needStateCm)then
-      ! compute C_m
-      call computCm(&
+      ! compute heat advected with water Cm
+      call heatAdvectWat(&
                  ! input: state variables
                  scalarCanopyTempTrial,     & ! intent(in):    trial value of canopy temperature (K)
                  mLayerTempTrial,           & ! intent(in):    trial value of layer temperature (K)
@@ -511,7 +509,7 @@ subroutine eval8summa(&
                  dCm_dTk,                   & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
                  dCm_dTkCanopy,             & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
                  err,cmessage)                ! intent(inout): error control
-    else
+    else ! set Cm and its derivatives to 0 for energy equation without Cm in LHS
       scalarCanopyCmTrial = 0._rkind
       mLayerCmTrial       = 0._rkind
       dCm_dPsi0           = 0._rkind

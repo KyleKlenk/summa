@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module heatCapacity_module
+module heat_Cp_Cm_module
 
 ! data types
 USE nr_type
@@ -65,18 +65,18 @@ USE globalData,only:iname_aquifer    ! named variables for the aquifer
 ! privacy
 implicit none
 private
-public::computStatMult
+public::stateMultiplier
 public::init_heatCapacity
-public::heatCapacityAnalytic
-public::computCm
+public::heatCapacity
+public::heatAdvectWat
 
 contains
 
 
 ! **********************************************************************************************************
-! public subroutine computStatMult: get scale factors
+! public subroutine stateMultiplier: get scale factors for the temperature and water state vector
 ! **********************************************************************************************************
-subroutine computStatMult(&
+subroutine stateMultiplier(&
                       heatCapVeg,              & ! intent(in):  heat capacity for canopy
                       mLayerHeatCap,           & ! intent(in):  heat capacity for snow and soil
                       ! input: data structures
@@ -94,13 +94,9 @@ subroutine computStatMult(&
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message
-  ! --------------------------------------------------------------------------------------------------------------------------------
-  ! local variables
-  ! --------------------------------------------------------------------------------------------------------------------------------
-  ! state subsets
-  integer(i4b)                    :: iLayer                 ! index of layer within the snow+soil domain
+   ! local variables
+   integer(i4b)                    :: iLayer                 ! index of layer within the snow+soil domain
   integer(i4b)                    :: ixStateSubset          ! index within the state subset
-  ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   associate(&
@@ -116,7 +112,7 @@ subroutine computStatMult(&
     )  ! end association with variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message='computStatMult/'
+    err=0; message='stateMultiplier/'
 
     ! -----
     ! * define components of derivative matrices at start of time step (substep)...
@@ -152,24 +148,23 @@ subroutine computStatMult(&
   ! ------------------------------------------------------------------------------------------
 
   end associate
-! end association to variables in the data structure where vector length does not change
-end subroutine computStatMult
+end subroutine stateMultiplier
 
- ! **********************************************************************************************************
- ! public subroutine init_heatCapacity: compute start-of-step heat capacity
- ! **********************************************************************************************************
- subroutine init_heatCapacity(&
-                       ! input: control variables
-                       computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
-                       canopyDepth,             & ! intent(in):    canopy depth (m)
-                       ! input/output: data structures
-                       mpar_data,               & ! intent(in):    model parameters
-                       indx_data,               & ! intent(in):    model layer indices
-                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                       ! output: error control
-                       err,message)               ! intent(out): error control
-  ! --------------------------------------------------------------------------------------------------------------------------------------
+! **********************************************************************************************************
+! public subroutine init_heatCapacity: compute start-of-step heat capacity Cp
+! **********************************************************************************************************
+subroutine init_heatCapacity(&
+                      ! input: control variables
+                      computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
+                      canopyDepth,             & ! intent(in):    canopy depth (m)
+                      ! input/output: data structures
+                      mpar_data,               & ! intent(in):    model parameters
+                      indx_data,               & ! intent(in):    model layer indices
+                      prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                      diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                      ! output: error control
+                      err,message)               ! intent(out): error control
+ ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
  real(rkind),intent(in)          :: canopyDepth            ! depth of the vegetation canopy (m)
@@ -249,11 +244,10 @@ end subroutine computStatMult
  end associate
 end subroutine init_heatCapacity
 
-! **********************************************************************************************************
-! public subroutine heatCapacityAnalytic: compute diagnostic energy variables (heat capacity)
-!   NOTE: computing on whole vector, could just compute on state subset
-! **********************************************************************************************************
-subroutine heatCapacityAnalytic(&
+! **************************************************************************************************************************
+! public subroutine heatCapacity: compute diagnostic energy variable Cp (change in enthTemp with temperature)
+! **************************************************************************************************************************
+subroutine heatCapacity(&
                       ! input: state variables
                       canopyDepth,             & ! intent(in):    canopy depth (m)
                       scalarCanopyIce,         & ! intent(in):    trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -345,7 +339,7 @@ subroutine heatCapacityAnalytic(&
     )  ! end associate statement
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="heatCapacityAnalytic/"
+    err=0; message="heatCapacity/"
 
     ! loop through model state variables
     do iState=1,size(ixMapSubset2Full)
@@ -424,13 +418,12 @@ subroutine heatCapacityAnalytic(&
 
   end associate
 
-end subroutine heatCapacityAnalytic
+end subroutine heatCapacity
 
 ! **********************************************************************************************************
-! public subroutine computCm: compute diagnostic energy variables (change in enthTemp with water)
-!   NOTE: computing on whole vector, could just compute on state subset
+! public subroutine heatAdvectWat: compute diagnostic energy variable Cm (change in enthTemp with water)
 ! **********************************************************************************************************
-subroutine computCm(&
+subroutine heatAdvectWat(&
                       ! input: state variables
                       scalarCanopyTemp,        & ! intent(in):  value of canopy temperature (K)
                       mLayerTemp,              & ! intent(in):  vector of temperature (K)
@@ -498,7 +491,7 @@ subroutine computCm(&
     )  ! end associate statement
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="computCm/"
+    err=0; message="heatAdvectWat/"
 
     ! loop through model state variables
     do iState=1,size(ixMapSubset2Full)
@@ -580,7 +573,7 @@ subroutine computCm(&
 
   end associate
 
-end subroutine computCm
+end subroutine heatAdvectWat
 
 
-end module heatCapacity_module
+end module heat_Cp_Cm_module

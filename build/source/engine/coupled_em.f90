@@ -140,7 +140,7 @@ subroutine coupled_em(&
   USE volicePack_module,only:newsnwfall                         ! compute change in the top snow layer due to throughfall and unloading
   USE volicePack_module,only:volicePack                         ! merge and sub-divide snow layers, if necessary
   USE thermConductivity_module,only:thermConductivity           ! compute thermal conductivity of soil and snow layers  
-  USE heatCapacity_module,only:init_heatCapacity                ! compute initial heat capacity 
+  USE heat_Cp_Cm_module,only:init_heatCapacity                  ! compute initial heat capacity (Cp)
   ! the model solver
   USE indexState_module,only:indexState                         ! define indices for all model state variables and layers
   USE opSplittin_module,only:opSplittin                         ! solve the system of thermodynamic and hydrology equations for a given substep
@@ -853,17 +853,17 @@ subroutine coupled_em(&
                           ! output: error control
                           err=err,message=cmessage) ! intent(out): error control
         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
-        call init_heatCap_thermCond(&
-                        ! input: control variables
-                        computeVegFlux,         & ! intent(in): flag to denote if computing the vegetation flux
-                        diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1), & ! intent(in): canopy depth (m), send in specific value since diag_data may have changed
-                        ! input/output: data structures
-                        mpar_data,              & ! intent(in):    model parameters
-                        indx_data,              & ! intent(in):    model layer indices
-                        prog_data,              & ! intent(in):    model prognostic variables for a local HRU
-                        diag_data,              & ! intent(inout): model diagnostic variables for a local HRU
-                        ! output: error control
-                        err,cmessage)             ! intent(out): error control
+        call init_heatCapacity(&
+                          ! input: control variables
+                          computeVegFlux,         & ! intent(in): flag to denote if computing the vegetation flux
+                          diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1), & ! intent(in): canopy depth (m), send in specific value since diag_data may have changed
+                          ! input/output: data structures
+                          mpar_data,              & ! intent(in):    model parameters
+                          indx_data,              & ! intent(in):    model layer indices
+                          prog_data,              & ! intent(in):    model prognostic variables for a local HRU
+                          diag_data,              & ! intent(inout): model diagnostic variables for a local HRU
+                          ! output: error control
+                          err,cmessage)             ! intent(out): error control
         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
         ! *** compute melt of the "snow without a layer"...
