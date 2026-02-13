@@ -68,24 +68,23 @@ USE mDecisions_module,only:      &
 implicit none
 private
 public :: snowSoilNrgFlux
-! global parameters
-real(rkind),parameter            :: dx=1.e-10_rkind         ! finite difference increment (K)
+
 contains
 ! **********************************************************************************************************
 ! public subroutine snowSoilNrgFlux: compute energy fluxes and derivatives at layer interfaces
 ! **********************************************************************************************************
 subroutine snowSoilNrgFlux(&
                       ! input: model control, fluxes, trial variables, and  derivatives
-                      in_snowSoilNrgFlux,                      & ! intent(in):     model control, fluxes, trial variables, and  derivatives
+                      in_snowSoilNrgFlux,                 & ! intent(in):     model control, fluxes, trial variables, and  derivatives
                       ! input-output: data structures and derivatives
                       mpar_data,                          & ! intent(in):    model parameters
                       indx_data,                          & ! intent(in):    model indices
                       prog_data,                          & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                          & ! intent(in):    model diagnostic variables for a local HRU
                       flux_data,                          & ! intent(inout): model fluxes for a local HRU
-                      io_snowSoilNrgFlux,                      & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+                      io_snowSoilNrgFlux,                 & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
                       ! output: fluxes and derivatives at all layer interfaces and error control
-                      out_snowSoilNrgFlux)                       ! intent(out):   derivatives and error control
+                      out_snowSoilNrgFlux)                  ! intent(out):   derivatives and error control
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control, fluxes, trial variables, and  derivatives
@@ -102,7 +101,6 @@ subroutine snowSoilNrgFlux(&
   type(out_type_snowSoilNrgFlux),intent(inout) :: out_snowSoilNrgFlux         ! output snowSoilNrgFlux arguments
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables
-  !character(LEN=256)                  :: cmessage                   ! error message of downwind routine
   integer(i4b)                        :: nLayers                    ! number of model layers
   integer(i4b)                        :: iLayer                     ! index of model layers
   integer(i4b)                        :: ixLayerDesired(1)          ! layer desired (scalar solution)

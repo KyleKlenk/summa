@@ -75,7 +75,7 @@ set(PRELIM
     ${ENGINE_DIR}/check_icond.f90
     ${ENGINE_DIR}/checkStruc.f90
     ${ENGINE_DIR}/childStruc.f90
-    ${ENGINE_DIR}/conv_funcs.f90
+    ${ENGINE_DIR}/convert_funcs.f90
     ${ENGINE_DIR}/ffile_info.f90
     ${ENGINE_DIR}/read_pinit.f90
     ${ENGINE_DIR}/read_attrb.f90

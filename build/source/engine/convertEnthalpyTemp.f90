@@ -20,18 +20,19 @@
 
 module convertEnthalpyTemp_module
 
-! constants
-USE multiconst, only: gravity, &                          ! gravitational acceleration (m s-1)
-                      Tfreeze, &                          ! freezing point of water (K)
-                      Cp_soil,Cp_water,Cp_ice,Cp_air,&    ! specific heat of soil, water and ice (J kg-1 K-1)
-                      iden_water,iden_ice,iden_air,&      ! intrinsic density of water and ice (kg m-3)
-                      LH_fus                              ! latent heat of fusion (J kg-1)
-
 ! data types
 USE nr_type
 USE data_types,only:var_iLength                    ! var(:)%dat(:)
 USE data_types,only:var_dLength                    ! var(:)%dat(:)
 USE data_types,only:zLookup                        ! z(:)%var(:)%lookup(:)
+
+! constants
+USE multiconst,only:gravity, &                          ! gravitational acceleration (m s-1)
+                    Tfreeze, &                          ! freezing point of water (K)
+                    Cp_soil,Cp_water,Cp_ice,Cp_air,&    ! specific heat of soil, water and ice (J kg-1 K-1)
+                    iden_water,iden_ice,iden_air,&      ! intrinsic density of water and ice (kg m-3)
+                    LH_fus                              ! latent heat of fusion (J kg-1)
+USE globalData,only:verySmall                           ! a small number
 
 ! indices within parameter structure
 USE var_lookup,only:iLookPARAM                     ! named variables to define structure element
@@ -1017,7 +1018,7 @@ subroutine enthalpy2T_snow(&
     vec = 0._rkind
     vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
     if(mLayerEnthalpy>0._rkind)then
-      T = Tfreeze - 1.e-6_rkind ! need to merge layers, don't iterate to find the temperature
+      T = Tfreeze - verySmall ! need to merge layers, don't iterate to find the temperature
     else
       call brent(diff_H_snow, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

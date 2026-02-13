@@ -21,10 +21,9 @@
 module read_icond_module
 USE nr_type
 USE netcdf
-USE globalData,only: ixHRUfile_min,ixHRUfile_max
-USE globalData,only: nTimeDelay   ! number of hours in the time delay histogram
-USE globalData,only: nSpecBand    ! number of spectral bands
-USE globalData,only:verySmaller   ! a smaller number used as an additive constant to check if substantial difference among real numbers
+USE globalData,only:ixHRUfile_min,ixHRUfile_max
+USE globalData,only:nTimeDelay    ! number of hours in the time delay histogram
+USE globalData,only:nSpecBand     ! number of spectral bands
 
 implicit none
 private

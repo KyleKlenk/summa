@@ -21,6 +21,9 @@
 module check_icond_module
 USE nr_type
 
+! constants
+USE globalData,only:verySmall        ! a small number
+
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real number
@@ -340,7 +343,7 @@ contains
    do iLayer=1,nLayers
     h1 = sum(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat(1:iLayer)) ! sum of the depths up to the current layer
     h2 = progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat(iLayer) - progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat(0)  ! difference between snow-atm interface and bottom of layer
-    if(abs(h1 - h2) > 1.e-6_rkind)then
+    if(abs(h1 - h2) > verySmall)then
      write(message,'(a,1x,i0,a,f5.3,a,f5.3)') trim(message)//'mis-match between layer depth and layer height; layer = ', iLayer, '; sum depths = ',h1,'; height = ',h2
      err=20; return
     end if
