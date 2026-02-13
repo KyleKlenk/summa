@@ -144,9 +144,6 @@ subroutine stateMultiplier(&
     ! define the scaling factor and diagonal elements for the aquifer
     where(ixStateType_subset==iname_watAquifer)  sMul = 1._rkind
 
-  ! ------------------------------------------------------------------------------------------
-  ! ------------------------------------------------------------------------------------------
-
   end associate
 end subroutine stateMultiplier
 
