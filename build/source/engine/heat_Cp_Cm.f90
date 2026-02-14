@@ -25,7 +25,6 @@ USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
                     var_dlength         ! data vector with variable length dimension (rkind)
 
@@ -473,7 +472,7 @@ subroutine heatAdvectWat(&
   ! associate variables in data structure
   associate(&
     ! input: coordinate variables
-    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)             ,& ! intent(in): number of snow layers
+    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)             ,& ! intent(in): [i4b] number of snow layers
     snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)     ,& ! intent(in):  [dp] scaling parameter for the snow freezing curve (K-1)
     ! mapping between the full state vector and the state subset
     ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat     ,& ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
