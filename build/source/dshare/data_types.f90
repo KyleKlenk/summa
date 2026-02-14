@@ -1206,15 +1206,15 @@ contains
 
  ! **** snowLiqFlux ****
  subroutine initialize_in_snowLiqFlux(in_snowLiqFlux,nSnow,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial,flux_data)
-  class(in_type_snowLiqFlux),intent(out)   :: in_snowLiqFlux               ! class object for intent(in) snowLiqFlux arguments            
+  class(in_type_snowLiqFlux),intent(out)  :: in_snowLiqFlux              ! class object for intent(in) snowLiqFlux arguments            
   integer(i4b),intent(in)                 :: nSnow                       ! number of snow layers
   logical(lgt),intent(in)                 :: firstFluxCall               ! flag to indicate if we are processing the first flux call
   logical(lgt),intent(in)                 :: scalarSolution              ! flag to denote if implementing the scalar solution
   real(rkind),intent(in)                  :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
   type(var_dlength),intent(in)            :: flux_data                   ! model fluxes for a local HRU
   associate(&
-   scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),         & ! intent(out): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-   scalarCanopyLiqDrainage      => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)) ! intent(out): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+   scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),  & ! intent(out): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+   scalarCanopyLiqDrainage      => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1))  ! intent(out): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
   ! intent(in) arguments
   in_snowLiqFlux % nSnow                  =nSnow                          ! intent(in): number of snow layers
   in_snowLiqFlux % firstFluxCall          =firstFluxCall                  ! intent(in): the first flux call (compute variables that are constant over the iterations)
@@ -1226,7 +1226,7 @@ contains
  end subroutine initialize_in_snowLiqFlux 
 
  subroutine initialize_io_snowLiqFlux(io_snowLiqFlux,flux_data,deriv_data)
-  class(io_type_snowLiqFlux),intent(out)   :: io_snowLiqFlux               ! class object for intent(inout) snowLiqFlux arguments
+  class(io_type_snowLiqFlux),intent(out)  :: io_snowLiqFlux               ! class object for intent(inout) snowLiqFlux arguments
   type(var_dlength),intent(in)            :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(in)            :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
@@ -1238,7 +1238,7 @@ contains
  end subroutine initialize_io_snowLiqFlux
 
  subroutine finalize_io_snowLiqFlux(io_snowLiqFlux,flux_data,deriv_data)
-  class(io_type_snowLiqFlux),intent(in)    :: io_snowLiqFlux               ! class object for intent(inout) snowLiqFlux arguments
+  class(io_type_snowLiqFlux),intent(in)   :: io_snowLiqFlux              ! class object for intent(inout) snowLiqFlux arguments
   type(var_dlength),intent(inout)         :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(inout)         :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
@@ -1251,12 +1251,12 @@ contains
  end subroutine finalize_io_snowLiqFlux
 
  subroutine finalize_out_snowLiqFlux(out_snowLiqFlux,err,cmessage)
-  class(out_type_snowLiqFlux),intent(in)   :: out_snowLiqFlux              ! class object for intent(out) snowLiqFlux arguments
+  class(out_type_snowLiqFlux),intent(in)  :: out_snowLiqFlux             ! class object for intent(out) snowLiqFlux arguments
   integer(i4b),intent(out)                :: err                         ! error code
   character(*),intent(out)                :: cmessage                    ! error message from snowLiqFlux
   ! intent(out) arguments
-  err     =out_snowLiqFlux % err                                          ! intent(out):   error code
-  cmessage=out_snowLiqFlux % cmessage                                     ! intent(out):   error message
+  err     =out_snowLiqFlux % err        ! intent(out):   error code
+  cmessage=out_snowLiqFlux % cmessage   ! intent(out):   error message
  end subroutine finalize_out_snowLiqFlux
  ! **** end snowLiqFlux ****
 
@@ -1264,21 +1264,21 @@ contains
  subroutine initialize_in_soilLiqFlux(in_soilLiqFlux,nSnow,nSoil,nlayers,firstSplitOper,scalarSolution,firstFluxCall,scalarAquiferStorageTrial,&
                                      mLayerTempTrial,mLayerMatricHeadTrial,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,&
                                      flux_data,deriv_data)
-  class(in_type_soilLiqFlux),intent(out) :: in_soilLiqFlux               ! class object for intent(in) soilLiqFlux arguments
-  integer(i4b),intent(in)               :: nSnow                       ! number of snow layers
-  integer(i4b),intent(in)               :: nSoil                       ! number of soil layers
-  integer(i4b),intent(in)               :: nLayers                     ! total number of layers
-  logical(lgt),intent(in)               :: firstSplitOper              ! flag to indicate if we are processing the first flux call in a splitting operation
-  logical(lgt),intent(in)               :: scalarSolution              ! flag to denote if implementing the scalar solution
-  logical(lgt),intent(in)               :: firstFluxCall               ! flag to indicate if we are processing the first flux call
-  real(rkind),intent(in)                :: scalarAquiferStorageTrial   ! trial value of aquifer storage (m)
-  real(rkind),intent(in)                :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)
-  real(rkind),intent(in)                :: mLayerMatricHeadTrial(:)    ! trial value for the total water matric potential (m)
-  real(rkind),intent(in)                :: mLayerMatricHeadLiqTrial(:) ! trial value for the liquid water matric potential (m)
-  real(rkind),intent(in)                :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
-  real(rkind),intent(in)                :: mLayerVolFracIceTrial(:)    ! trial value for volumetric fraction of ice (-)
-  type(var_dlength),intent(in)          :: flux_data                   ! model fluxes for a local HRU
-  type(var_dlength),intent(in)          :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
+  class(in_type_soilLiqFlux),intent(out) :: in_soilLiqFlux              ! class object for intent(in) soilLiqFlux arguments
+  integer(i4b),intent(in)                :: nSnow                       ! number of snow layers
+  integer(i4b),intent(in)                :: nSoil                       ! number of soil layers
+  integer(i4b),intent(in)                :: nLayers                     ! total number of layers
+  logical(lgt),intent(in)                :: firstSplitOper              ! flag to indicate if we are processing the first flux call in a splitting operation
+  logical(lgt),intent(in)                :: scalarSolution              ! flag to denote if implementing the scalar solution
+  logical(lgt),intent(in)                :: firstFluxCall               ! flag to indicate if we are processing the first flux call
+  real(rkind),intent(in)                 :: scalarAquiferStorageTrial   ! trial value of aquifer storage (m)
+  real(rkind),intent(in)                 :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)
+  real(rkind),intent(in)                 :: mLayerMatricHeadTrial(:)    ! trial value for the total water matric potential (m)
+  real(rkind),intent(in)                 :: mLayerMatricHeadLiqTrial(:) ! trial value for the liquid water matric potential (m)
+  real(rkind),intent(in)                 :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
+  real(rkind),intent(in)                 :: mLayerVolFracIceTrial(:)    ! trial value for volumetric fraction of ice (-)
+  type(var_dlength),intent(in)           :: flux_data                   ! model fluxes for a local HRU
+  type(var_dlength),intent(in)           :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
 
   ! intent(in) arguments: model control
   in_soilLiqFlux % nSoil         =nSoil                                         ! intent(in): number of soil layers
@@ -1327,12 +1327,12 @@ contains
  end subroutine initialize_in_soilLiqFlux
 
  subroutine initialize_io_soilLiqFlux(io_soilLiqFlux,nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
-  class(io_type_soilLiqFlux),intent(out) :: io_soilLiqFlux               ! class object for intent(inout) soilLiqFlux arguments
-  integer(i4b),intent(in)               :: nSoil                       ! number of soil layers
-  real(rkind),intent(in)                :: dHydCond_dMatric(nSoil)     ! derivative in hydraulic conductivity w.r.t matric head (s-1)
-  type(var_dlength),intent(in)          :: flux_data                   ! model fluxes for a local HRU
-  type(var_dlength),intent(in)          :: diag_data                   ! diagnostic variables for a local HRU
-  type(var_dlength),intent(in)          :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
+  class(io_type_soilLiqFlux),intent(out) :: io_soilLiqFlux              ! class object for intent(inout) soilLiqFlux arguments
+  integer(i4b),intent(in)                :: nSoil                       ! number of soil layers
+  real(rkind),intent(in)                 :: dHydCond_dMatric(nSoil)     ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+  type(var_dlength),intent(in)           :: flux_data                   ! model fluxes for a local HRU
+  type(var_dlength),intent(in)           :: diag_data                   ! diagnostic variables for a local HRU
+  type(var_dlength),intent(in)           :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
 
   ! intent(inout) arguments: max infiltration rate, frozen area, and surface runoff
   associate(&
@@ -1401,20 +1401,20 @@ contains
  end subroutine initialize_io_soilLiqFlux
 
  subroutine finalize_io_soilLiqFlux(io_soilLiqFlux,nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
-  class(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux               ! class object for intent(inout) soilLiqFlux arguments
-  integer(i4b),intent(in)               :: nSoil                       ! number of soil layers
-  real(rkind),intent(out)               :: dHydCond_dMatric(nSoil)     ! derivative in hydraulic conductivity w.r.t matric head (s-1)
-  type(var_dlength),intent(inout)       :: flux_data                   ! model fluxes for a local HRU
-  type(var_dlength),intent(inout)       :: diag_data                   ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout)       :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
+  class(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux              ! class object for intent(inout) soilLiqFlux arguments
+  integer(i4b),intent(in)                :: nSoil                       ! number of soil layers
+  real(rkind),intent(out)                :: dHydCond_dMatric(nSoil)     ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+  type(var_dlength),intent(inout)        :: flux_data                   ! model fluxes for a local HRU
+  type(var_dlength),intent(inout)        :: diag_data                   ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout)        :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
 
   ! intent(inout) arguments: max infiltration rate, frozen area, and surface runoff
   associate(&
-   scalarMaxInfilRate           => flux_data%var(iLookFLUX%scalarMaxInfilRate)%dat(1), & ! intent(out): [dp] maximum infiltration rate (m s-1)
-   scalarInfilArea              => diag_data%var(iLookDIAG%scalarInfilArea   )%dat(1), & ! intent(out): [dp] fraction of area where water can infiltrate, may be frozen (-)
-   scalarSaturatedArea          => diag_data%var(iLookDIAG%scalarSaturatedArea)%dat(1), & ! intent(out): [dp] fraction of area that is considered saturated (-)
-   scalarFrozenArea             => diag_data%var(iLookDIAG%scalarFrozenArea  )%dat(1), & ! intent(out): [dp] fraction of area that is considered impermeable due to soil ice (-)
-   scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl  )%dat(1), & ! intent(out): [dp] soil control on infiltration for derivative
+   scalarMaxInfilRate     => flux_data%var(iLookFLUX%scalarMaxInfilRate)%dat(1),     & ! intent(out): [dp] maximum infiltration rate (m s-1)
+   scalarInfilArea        => diag_data%var(iLookDIAG%scalarInfilArea   )%dat(1),     & ! intent(out): [dp] fraction of area where water can infiltrate, may be frozen (-)
+   scalarSaturatedArea    => diag_data%var(iLookDIAG%scalarSaturatedArea)%dat(1),    & ! intent(out): [dp] fraction of area that is considered saturated (-)
+   scalarFrozenArea       => diag_data%var(iLookDIAG%scalarFrozenArea  )%dat(1),     & ! intent(out): [dp] fraction of area that is considered impermeable due to soil ice (-)
+   scalarSoilControl      => diag_data%var(iLookDIAG%scalarSoilControl  )%dat(1),    & ! intent(out): [dp] soil control on infiltration for derivative
    scalarSurfaceRunoff    => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),    & ! intent(out): [dp] surface runoff (m s-1)
    scalarSurfaceRunoff_IE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_IE)%dat(1), & ! intent(out): [dp] infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_SE)%dat(1)  ) ! intent(out): [dp] saturation excess surface runoff (m s-1)
@@ -1463,7 +1463,7 @@ contains
 
   ! intent(inout) arguments: transpiration flux derivatives
   associate(&
-   mLayerdTrans_dTCanair        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanair)%dat,  & ! intent(out): derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
+   mLayerdTrans_dTCanair        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanair)%dat, & ! intent(out): derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
    mLayerdTrans_dTCanopy        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanopy)%dat, & ! intent(out): derivatives in the soil layer transpiration flux w.r.t. canopy temperature
    mLayerdTrans_dTGround        => deriv_data%var(iLookDERIV%mLayerdTrans_dTGround)%dat, & ! intent(out): derivatives in the soil layer transpiration flux w.r.t. ground temperature
    mLayerdTrans_dCanWat         => deriv_data%var(iLookDERIV%mLayerdTrans_dCanWat)%dat   ) ! intent(out): derivatives in the soil layer transpiration flux w.r.t. canopy total water
@@ -1475,12 +1475,12 @@ contains
  end subroutine finalize_io_soilLiqFlux
 
  subroutine finalize_out_soilLiqFlux(out_soilLiqFlux,err,cmessage)
-  class(out_type_soilLiqFlux),intent(in) :: out_soilLiqFlux              ! class object for intent(out) soilLiqFlux arguments
-  integer(i4b),intent(out)              :: err                         ! error code
-  character(*),intent(out)              :: cmessage                    ! error message from groundwatr
+  class(out_type_soilLiqFlux),intent(in) :: out_soilLiqFlux             ! class object for intent(out) soilLiqFlux arguments
+  integer(i4b),intent(out)               :: err                         ! error code
+  character(*),intent(out)               :: cmessage                    ! error message from groundwatr
   ! intent(out) arguments
-  err                     =out_soilLiqFlux % err                        ! intent(out):   error code
-  cmessage                =out_soilLiqFlux % cmessage                   ! intent(out):   error message
+  err                     =out_soilLiqFlux % err       ! intent(out):   error code
+  cmessage                =out_soilLiqFlux % cmessage  ! intent(out):   error message
  end subroutine finalize_out_soilLiqFlux
  ! **** end soilLiqFlux ****
 
@@ -1529,12 +1529,12 @@ contains
   integer(i4b),intent(out)              :: err                         ! error code
   character(*),intent(out)              :: cmessage                    ! error message from groundwatr
   associate(&
-   mLayerBaseflow               => flux_data%var(iLookFLUX%mLayerBaseflow)%dat )     ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
+   mLayerBaseflow   => flux_data%var(iLookFLUX%mLayerBaseflow)%dat )     ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
    ! intent(out) arguments
-   mLayerBaseflow    = out_groundwatr % mLayerBaseflow                               ! intent(out):   baseflow from each soil layer (m s-1)
-   dBaseflow_dMatric = out_groundwatr % dBaseflow_dMatric                            ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-   err               = out_groundwatr % err                                          ! intent(out):   error code
-   cmessage          = out_groundwatr % cmessage                                     ! intent(out):   error message
+   mLayerBaseflow    = out_groundwatr % mLayerBaseflow           ! intent(out):   baseflow from each soil layer (m s-1)
+   dBaseflow_dMatric = out_groundwatr % dBaseflow_dMatric        ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+   err               = out_groundwatr % err                      ! intent(out):   error code
+   cmessage          = out_groundwatr % cmessage                 ! intent(out):   error message
   end associate
  end subroutine finalize_out_groundwatr
  ! **** end groundwatr ****
@@ -1621,7 +1621,7 @@ contains
  subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,model_decisions,diag_data,mpar_data,flux_data)
   class(in_type_diagv_node),intent(out) :: in_diagv_node                    ! class object for input diagv_node variables
   integer(i4b),intent(in)               :: iSoil                            ! index of soil layer
-  type(in_type_soilLiqFlux),intent(in)   :: in_soilLiqFlux                    ! input data for soilLiqFlux
+  type(in_type_soilLiqFlux),intent(in)  :: in_soilLiqFlux                   ! input data for soilLiqFlux
   type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
   type(var_dlength),intent(in)          :: diag_data                        ! diagnostic variables for a local HRU
   type(var_dlength),intent(in)          :: mpar_data                        ! model parameters
@@ -1672,16 +1672,16 @@ contains
 
  subroutine finalize_out_diagv_node(out_diagv_node,iSoil,nSoil,io_soilLiqFlux,mLayerDiffuse,iceImpedeFac,&
                                    &dHydCond_dVolLiq,dDiffuse_dVolLiq,dHydCond_dTemp,err,cmessage)
-  class(out_type_diagv_node),intent(in)  :: out_diagv_node ! class object for output diagv_node variables
-  integer(i4b),intent(in)                :: nSoil,iSoil    ! number of soil layers and index
-  type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux  ! input-output class object for soilLiqFlux
-  real(rkind),intent(inout) :: mLayerDiffuse(1:nSoil)      ! diffusivity at layer mid-point (m2 s-1)
-  real(rkind),intent(inout) :: iceImpedeFac(1:nSoil)       ! ice impedence factor at layer mid-points (-)
-  real(rkind),intent(inout) :: dHydCond_dVolLiq(1:nSoil)   ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-  real(rkind),intent(inout) :: dDiffuse_dVolLiq(1:nSoil)   ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-  real(rkind),intent(inout) :: dHydCond_dTemp(1:nSoil)     ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-  integer(i4b),intent(out)  :: err                         ! error code
-  character(*),intent(out)  :: cmessage                    ! error message
+  class(out_type_diagv_node),intent(in)  :: out_diagv_node  ! class object for output diagv_node variables
+  integer(i4b),intent(in)                :: nSoil,iSoil     ! number of soil layers and index
+  type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux ! input-output class object for soilLiqFlux
+  real(rkind),intent(inout) :: mLayerDiffuse(1:nSoil)       ! diffusivity at layer mid-point (m2 s-1)
+  real(rkind),intent(inout) :: iceImpedeFac(1:nSoil)        ! ice impedence factor at layer mid-points (-)
+  real(rkind),intent(inout) :: dHydCond_dVolLiq(1:nSoil)    ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+  real(rkind),intent(inout) :: dDiffuse_dVolLiq(1:nSoil)    ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+  real(rkind),intent(inout) :: dHydCond_dTemp(1:nSoil)      ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+  integer(i4b),intent(out)  :: err                          ! error code
+  character(*),intent(out)  :: cmessage                     ! error message
 
   associate(&
    ! hydraulic conductivity and derivatives
@@ -1714,20 +1714,20 @@ contains
                                     &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                     &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
   class(in_type_surfaceFlux),intent(out) :: in_surfaceFlux ! input object for surfaceFlux
-  integer(i4b),intent(in)               :: nRoots        ! number of soil layers with roots
-  integer(i4b),intent(in)               :: ixIce         ! index of the lowest soil layer that contains ice
-  integer(i4b),intent(in)               :: nSoil         ! number of soil layers
-  integer(i4b),intent(in)               :: ixTop,ixBot     ! top and bottom of the soil layers in concatanated snow-soil vector
+  integer(i4b),intent(in)                :: nRoots         ! number of soil layers with roots
+  integer(i4b),intent(in)                :: ixIce          ! index of the lowest soil layer that contains ice
+  integer(i4b),intent(in)                :: nSoil          ! number of soil layers
+  integer(i4b),intent(in)                :: ixTop,ixBot    ! top and bottom of the soil layers in concatanated snow-soil vector
   type(in_type_soilLiqFlux),intent(in)   :: in_soilLiqFlux ! input data for soilLiqFlux
   type(io_type_soilLiqFlux),intent(in)   :: io_soilLiqFlux ! input-output class object for soilLiqFlux
-  type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
-  type(var_dlength),intent(in)          :: prog_data     ! prognostic variables for a local HRU
-  type(var_dlength),intent(in)          :: mpar_data     ! model parameters
-  type(var_dlength),intent(in)          :: flux_data     ! model fluxes for a local HRU
-  type(var_dlength),intent(in)          :: diag_data     ! diagnostic variables for a local HRU
-  real(rkind),intent(in) :: iLayerHeight(0:nSoil)        ! height of the layer interfaces (m)
-  real(rkind),intent(in) :: dHydCond_dTemp(1:nSoil)      ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-  real(rkind),intent(in) :: iceImpedeFac(1:nSoil)        ! ice impedence factor at layer mid-points (-)
+  type(model_options),intent(in)         :: model_decisions(maxvarDecisions) ! the model decision structure
+  type(var_dlength),intent(in)           :: prog_data      ! prognostic variables for a local HRU
+  type(var_dlength),intent(in)           :: mpar_data      ! model parameters
+  type(var_dlength),intent(in)           :: flux_data      ! model fluxes for a local HRU
+  type(var_dlength),intent(in)           :: diag_data      ! diagnostic variables for a local HRU
+  real(rkind),intent(in) :: iLayerHeight(0:nSoil)          ! height of the layer interfaces (m)
+  real(rkind),intent(in) :: dHydCond_dTemp(1:nSoil)        ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+  real(rkind),intent(in) :: iceImpedeFac(1:nSoil)          ! ice impedence factor at layer mid-points (-)
 
   associate(&
    ! model control
@@ -1818,17 +1818,17 @@ contains
 
   associate(&
    ! soil parameters
-   vGn_alpha           => mpar_data%var(iLookPARAM%vGn_alpha)%dat,         & ! "alpha" parameter (m-1)
-   vGn_n               => mpar_data%var(iLookPARAM%vGn_n)%dat,             & ! "n" parameter (-)
-   vGn_m               => diag_data%var(iLookDIAG%scalarVGn_m)%dat,        & ! "m" parameter (-)
-   theta_sat           => mpar_data%var(iLookPARAM%theta_sat)%dat,         & ! soil porosity (-)
-   theta_res           => mpar_data%var(iLookPARAM%theta_res)%dat,         & ! soil residual volumetric water content (-)
-   qSurfScale          => mpar_data%var(iLookPARAM%qSurfScale)%dat(1),     & ! scaling factor in the surface runoff parameterization (-)
-   zScale_TOPMODEL     => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),& ! TOPMODEL scaling factor (m)
-   rootingDepth        => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),   & ! rooting depth (m)
+   vGn_alpha           => mpar_data%var(iLookPARAM%vGn_alpha)%dat,             & ! "alpha" parameter (m-1)
+   vGn_n               => mpar_data%var(iLookPARAM%vGn_n)%dat,                 & ! "n" parameter (-)
+   vGn_m               => diag_data%var(iLookDIAG%scalarVGn_m)%dat,            & ! "m" parameter (-)
+   theta_sat           => mpar_data%var(iLookPARAM%theta_sat)%dat,             & ! soil porosity (-)
+   theta_res           => mpar_data%var(iLookPARAM%theta_res)%dat,             & ! soil residual volumetric water content (-)
+   qSurfScale          => mpar_data%var(iLookPARAM%qSurfScale)%dat(1),         & ! scaling factor in the surface runoff parameterization (-)
+   zScale_TOPMODEL     => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),    & ! TOPMODEL scaling factor (m)
+   rootingDepth        => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),       & ! rooting depth (m)
    wettingFrontSuction => mpar_data%var(iLookPARAM%wettingFrontSuction)%dat(1),& ! Green-Ampt wetting front suction (m)
-   soilIceScale        => mpar_data%var(iLookPARAM%soilIceScale)%dat(1),& ! scaling factor for depth of soil ice, used to get frozen fraction (m)
-   soilIceCV           => mpar_data%var(iLookPARAM%soilIceCV)%dat(1)    & ! CV of depth of soil ice, used to get frozen fraction (-)
+   soilIceScale        => mpar_data%var(iLookPARAM%soilIceScale)%dat(1),       & ! scaling factor for depth of soil ice, used to get frozen fraction (m)
+   soilIceCV           => mpar_data%var(iLookPARAM%soilIceCV)%dat(1)           & ! CV of depth of soil ice, used to get frozen fraction (-)
   &)
    ! intent(in): soil parameters
    in_surfaceFlux % vGn_alpha           = vGn_alpha(1)        ! van Genuchten "alpha" parameter (m-1)
@@ -1900,11 +1900,11 @@ contains
 
   associate(&
    ! fluxes at layer interfaces and surface runoff
-   xMaxInfilRate    => io_soilLiqFlux % scalarMaxInfilRate, & ! maximum infiltration rate (m s-1)
-   scalarInfilArea  => io_soilLiqFlux % scalarInfilArea,    & ! fraction of area where water can infiltrate, may be frozen (-)
+   xMaxInfilRate       => io_soilLiqFlux % scalarMaxInfilRate,  & ! maximum infiltration rate (m s-1)
+   scalarInfilArea     => io_soilLiqFlux % scalarInfilArea,     & ! fraction of area where water can infiltrate, may be frozen (-)
    scalarSaturatedArea => io_soilLiqFlux % scalarSaturatedArea, & ! fraction of area that is considered saturated (-)
-   scalarFrozenArea => io_soilLiqFlux % scalarFrozenArea,   & ! fraction of area that is considered impermeable due to soil ice (-)
-   scalarSoilControl => io_soilLiqFlux % scalarSoilControl  & ! soil control on infiltration for derivative
+   scalarFrozenArea    => io_soilLiqFlux % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
+   scalarSoilControl   => io_soilLiqFlux % scalarSoilControl    & ! soil control on infiltration for derivative
   &)
    ! intent(inout): hydraulic conductivity and diffusivity at the surface
    iLayerHydCond(0) = io_surfaceFlux % surfaceHydCond         ! hydraulic conductivity at the surface (m s-1) 
@@ -1952,13 +1952,13 @@ contains
  ! **** iLayerFlux ****
  subroutine initialize_in_iLayerFlux(in_iLayerFlux,iLayer,nSoil,ixTop,ixBot,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                     &prog_data,mLayerDiffuse,dHydCond_dTemp,dHydCond_dVolLiq,dDiffuse_dVolLiq)
-  class(in_type_iLayerFlux),intent(out) :: in_iLayerFlux ! class object for input iLayerFlux variables
-  integer(i4b),intent(in)               :: nSoil,iLayer  ! number of soil layers and index
-  integer(i4b),intent(in)               :: ixTop,ixBot     ! top and bottom of the soil layers in concatanated snow-soil vector
-  type(in_type_soilLiqFlux),intent(in)   :: in_soilLiqFlux ! input class object for soilLiqFlux
-  type(io_type_soilLiqFlux),intent(in)   :: io_soilLiqFlux ! input-output class object for soilLiqFlux
+  class(in_type_iLayerFlux),intent(out) :: in_iLayerFlux  ! class object for input iLayerFlux variables
+  integer(i4b),intent(in)               :: nSoil,iLayer   ! number of soil layers and index
+  integer(i4b),intent(in)               :: ixTop,ixBot    ! top and bottom of the soil layers in concatanated snow-soil vector
+  type(in_type_soilLiqFlux),intent(in)  :: in_soilLiqFlux ! input class object for soilLiqFlux
+  type(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux ! input-output class object for soilLiqFlux
   type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
-  type(var_dlength),intent(in)          :: prog_data     ! prognostic variables for a local HRU
+  type(var_dlength),intent(in)          :: prog_data      ! prognostic variables for a local HRU
   real(rkind),intent(in)                :: mLayerDiffuse(1:nSoil)  ! diffusivity at layer mid-point (m2 s-1)
   real(rkind),intent(in) :: dHydCond_dTemp(1:nSoil)   ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
   real(rkind),intent(in) :: dHydCond_dVolLiq(1:nSoil) ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
@@ -2038,16 +2038,16 @@ contains
  subroutine initialize_in_qDrainFlux(in_qDrainFlux,nSoil,ixTop,ixBot,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                     &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
                                     &dHydCond_dVolLiq,dHydCond_dTemp)
-  class(in_type_qDrainFlux),intent(out) :: in_qDrainFlux ! class object for input qDrainFlux variables
-  integer(i4b),intent(in)               :: nSoil         ! number of soil layers
-  integer(i4b),intent(in)               :: ixTop,ixBot     ! top and bottom of the soil layers in concatanated snow-soil vector
-  type(in_type_soilLiqFlux),intent(in)   :: in_soilLiqFlux ! input class object for soilLiqFlux
-  type(io_type_soilLiqFlux),intent(in)   :: io_soilLiqFlux ! input-output class object for soilLiqFlux
+  class(in_type_qDrainFlux),intent(out) :: in_qDrainFlux  ! class object for input qDrainFlux variables
+  integer(i4b),intent(in)               :: nSoil          ! number of soil layers
+  integer(i4b),intent(in)               :: ixTop,ixBot    ! top and bottom of the soil layers in concatanated snow-soil vector
+  type(in_type_soilLiqFlux),intent(in)  :: in_soilLiqFlux ! input class object for soilLiqFlux
+  type(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux ! input-output class object for soilLiqFlux
   type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
-  type(var_dlength),intent(in)          :: prog_data     ! prognostic variables for a local HRU
-  type(var_dlength),intent(in)          :: mpar_data     ! model parameters
-  type(var_dlength),intent(in)          :: flux_data     ! model fluxes for a local HRU
-  type(var_dlength),intent(in)          :: diag_data     ! diagnostic variables for a local HRU
+  type(var_dlength),intent(in)          :: prog_data      ! prognostic variables for a local HRU
+  type(var_dlength),intent(in)          :: mpar_data      ! model parameters
+  type(var_dlength),intent(in)          :: flux_data      ! model fluxes for a local HRU
+  type(var_dlength),intent(in)          :: diag_data      ! diagnostic variables for a local HRU
   real(rkind),intent(in) :: iceImpedeFac(1:nSoil)     ! ice impedence factor at layer mid-points (-)
   real(rkind),intent(in) :: dHydCond_dVolLiq(1:nSoil) ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
   real(rkind),intent(in) :: dHydCond_dTemp(1:nSoil)   ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
@@ -2118,13 +2118,13 @@ contains
  end subroutine initialize_in_qDrainFlux
 
  subroutine finalize_out_qDrainFlux(out_qDrainFlux,nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse,err,cmessage)
-  class(out_type_qDrainFlux),intent(in) :: out_qDrainFlux  ! class object for output qDrainFlux variables
-  integer(i4b),intent(in)   :: nSoil                       ! number of soil layers
+  class(out_type_qDrainFlux),intent(in) :: out_qDrainFlux    ! class object for output qDrainFlux variables
+  integer(i4b),intent(in)   :: nSoil                         ! number of soil layers
   type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux  ! input-output class object for soilLiqFlux
-  real(rkind),intent(inout) :: iLayerHydCond(0:nSoil)      ! hydraulic conductivity at layer interface (m s-1)
-  real(rkind),intent(inout) :: iLayerDiffuse(0:nSoil)      ! diffusivity at layer interface (m2 s-1)
-  integer(i4b),intent(out)  :: err                         ! error code
-  character(*),intent(out)  :: cmessage                    ! error message
+  real(rkind),intent(inout) :: iLayerHydCond(0:nSoil)        ! hydraulic conductivity at layer interface (m s-1)
+  real(rkind),intent(inout) :: iLayerDiffuse(0:nSoil)        ! diffusivity at layer interface (m2 s-1)
+  integer(i4b),intent(out)  :: err                           ! error code
+  character(*),intent(out)  :: cmessage                      ! error message
 
   associate(&
    ! intent(out): drainage flux
