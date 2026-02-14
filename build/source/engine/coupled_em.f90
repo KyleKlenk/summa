@@ -847,7 +847,7 @@ subroutine coupled_em(&
                           prog_data,              & ! intent(in):    model prognostic variables for a local HRU
                           diag_data,              & ! intent(inout): model diagnostic variables for a local HRU
                           ! output: error control
-                          err=err,message=cmessage) ! intent(out): error control
+                          err,cmessage)             ! intent(out): error control
         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
         call init_heatCapacity(&
                           ! input: control variables
