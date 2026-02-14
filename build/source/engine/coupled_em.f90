@@ -840,15 +840,6 @@ subroutine coupled_em(&
         ! *** compute diagnostic variables for each layer...
         ! --------------------------------------------------
         ! NOTE: this needs to be done AFTER volicePack, since layers may have been sub-divided and/or merged
-        call init_thermConductivity(&
-                          ! input/output: data structures
-                          mpar_data,              & ! intent(in):    model parameters
-                          indx_data,              & ! intent(in):    model layer indices
-                          prog_data,              & ! intent(in):    model prognostic variables for a local HRU
-                          diag_data,              & ! intent(inout): model diagnostic variables for a local HRU
-                          ! output: error control
-                          err,cmessage)             ! intent(out): error control
-        if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
         call init_heatCapacity(&
                           ! input: control variables
                           computeVegFlux,         & ! intent(in): flag to denote if computing the vegetation flux
@@ -861,7 +852,16 @@ subroutine coupled_em(&
                           ! output: error control
                           err,cmessage)             ! intent(out): error control
         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
-
+        call init_thermConductivity(&
+                          ! input/output: data structures
+                          mpar_data,              & ! intent(in):    model parameters
+                          indx_data,              & ! intent(in):    model layer indices
+                          prog_data,              & ! intent(in):    model prognostic variables for a local HRU
+                          diag_data,              & ! intent(inout): model diagnostic variables for a local HRU
+                          ! output: error control
+                          err,cmessage)             ! intent(out): error control
+        if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+        
         ! *** compute melt of the "snow without a layer"...
         ! -------------------------------------------------
         ! NOTE: forms a surface melt pond, which drains into the upper-most soil layer through the time step
