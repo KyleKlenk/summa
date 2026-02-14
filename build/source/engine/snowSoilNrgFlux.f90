@@ -128,7 +128,7 @@ subroutine snowSoilNrgFlux(&
     iLayerLiqFluxSnow          => in_snowSoilNrgFlux % iLayerLiqFluxSnow,          & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
     iLayerLiqFluxSoil          => in_snowSoilNrgFlux % iLayerLiqFluxSoil,          & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
     ! input: trial model state variables
-    mLayerTempTrial            => in_snowSoilNrgFlux % mLayerTempTrial,            & ! intent(in):     temperature in each layer at the current iteration (m)
+    mLayerTempTrial            => in_snowSoilNrgFlux % mLayerTempTrial,            & ! intent(in):    temperature in each layer at the current iteration (m)
     ! input: derivatives
     dThermalC_dWatAbove        => in_snowSoilNrgFlux % dThermalC_dWatAbove,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
     dThermalC_dWatBelow        => in_snowSoilNrgFlux % dThermalC_dWatBelow,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
