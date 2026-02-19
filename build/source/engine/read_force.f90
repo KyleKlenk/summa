@@ -472,7 +472,7 @@ contains
  character(len=256)                :: cmessage           ! error message for downwind routine
  integer(i4b)                      :: iyyy,im,id,ih,imin ! date
  integer(i4b)                      :: ih_tz,imin_tz      ! time zone information
- real(rkind)                          :: dsec,dsec_tz       ! seconds
+ real(rkind)                       :: dsec,dsec_tz       ! seconds
  integer(i4b)                      :: varId              ! variable identifier
  integer(i4b)                      :: mode               ! netcdf file mode
  integer(i4b)                      :: attLen             ! attribute length
