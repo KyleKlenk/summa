@@ -157,40 +157,40 @@ contains
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
  implicit none
  ! declare dummy variables
- logical(lgt)  ,intent(in)        :: is_bufferedWrite  ! flag for buffered write
- logical(lgt)  ,intent(in)        :: finalizeStats(:)  ! flags to finalize statistics
- integer(i4b)  ,intent(in)        :: outputTimestep(:) ! output time step
- integer(i4b)  ,intent(in)        :: maxWrite          ! maximum number of steps written
- type(var_info),intent(in)        :: meta(:)           ! meta data
- class(*)      ,intent(in)        :: stat              ! stats data
- class(*)      ,intent(in)        :: timestepData(:)   ! timestep data
- integer(i4b)  ,intent(in)        :: map(:)            ! map into stats child struct
- type(gru_hru_intVec) ,intent(in) :: indx              ! index data
- integer(i4b)  ,intent(out)       :: err               ! error code
- character(*)  ,intent(out)       :: message           ! error message
+ logical(lgt)  ,intent(in)      :: is_bufferedWrite               ! flag for buffered write
+ logical(lgt)  ,intent(in)      :: finalizeStats(:)               ! flags to finalize statistics
+ integer(i4b)  ,intent(in)      :: outputTimestep(:)              ! output time step
+ integer(i4b)  ,intent(in)      :: maxWrite                       ! maximum number of steps written
+ type(var_info),intent(in)      :: meta(:)                        ! meta data
+ class(*)      ,intent(in)      :: stat                           ! stats data
+ class(*)      ,intent(in)      :: timestepData(:)                ! timestep data
+ integer(i4b)  ,intent(in)      :: map(:)                         ! map into stats child struct
+ type(gru_hru_intVec),intent(in):: indx                           ! index data
+ integer(i4b)  ,intent(out)     :: err                            ! error code
+ character(*)  ,intent(out)     :: message                        ! error message
  ! local variables
- integer(i4b)                     :: iGRU              ! grouped response unit counter
- integer(i4b)                     :: iHRU              ! hydrologic response unit counter
- integer(i4b)                     :: iVar              ! variable index
- integer(i4b)                     :: iStat             ! statistics index
- integer(i4b)                     :: iFreq             ! frequency index
- integer(i4b)                     :: iTime             ! time index
- integer(i4b)                     :: ncVarID           ! used only for time
- integer(i4b)                     :: nSnow             ! number of snow layers
- integer(i4b)                     :: nSoil             ! number of soil layers
- integer(i4b)                     :: nLayers           ! total number of layers
- integer(i4b)                     :: ixStart           ! index of the start of data write
- integer(i4b)                     :: nSpace            ! number of spatial data elements
+ integer(i4b)                   :: iGRU                           ! grouped response unit counter
+ integer(i4b)                   :: iHRU                           ! hydrologic response unit counter
+ integer(i4b)                   :: iVar                           ! variable index
+ integer(i4b)                   :: iStat                          ! statistics index
+ integer(i4b)                   :: iFreq                          ! frequency index
+ integer(i4b)                   :: iTime                          ! time index
+ integer(i4b)                   :: ncVarID                        ! used only for time
+ integer(i4b)                   :: nSnow                          ! number of snow layers
+ integer(i4b)                   :: nSoil                          ! number of soil layers
+ integer(i4b)                   :: nLayers                        ! total number of layers
+ integer(i4b)                   :: ixStart                        ! index of the start of data write
+ integer(i4b)                   :: nSpace                         ! number of spatial data elements
  ! output arrays
- integer(i4b)                     :: datLength         ! length of each data vector
- integer(i4b)                     :: maxLength         ! maximum length of each data vector
- real(rkind)                      :: timeBuffer(maxWrite)            ! buffer for all time steps
- real(rkind)                      :: realBuffer(nHRUrun,maxWrite)    ! buffer for all HRUs in the run domain + time steps
- real(rkind)                      :: realArray(nHRUrun,maxLayers+1)  ! real array for all HRUs in the run domain
- integer(i4b)                     :: intArray(nHRUrun,maxLayers+1)   ! integer array for all HRUs in the run domain
- integer(i4b)                     :: dataType          ! type of data
- integer(i4b),parameter           :: ixInteger=1001    ! named variable for integer
- integer(i4b),parameter           :: ixReal=1002       ! named variable for real
+ integer(i4b)                   :: datLength                      ! length of each data vector
+ integer(i4b)                   :: maxLength                      ! maximum length of each data vector
+ real(rkind)                    :: timeBuffer(maxWrite)           ! buffer for all time steps
+ real(rkind)                    :: realBuffer(nHRUrun,maxWrite)   ! buffer for all HRUs in the run domain + time steps
+ real(rkind)                    :: realArray(nHRUrun,maxLayers+1) ! real array for all HRUs in the run domain
+ integer(i4b)                   :: intArray(nHRUrun,maxLayers+1)  ! integer array for all HRUs in the run domain
+ integer(i4b)                   :: dataType                       ! type of data
+ integer(i4b),parameter         :: ixInteger=1001                 ! named variable for integer
+ integer(i4b),parameter         :: ixReal=1002                    ! named variable for real
  ! initialize error control
  err=0;message="writeData/"
 
@@ -275,7 +275,7 @@ contains
        ! identify data structures
        select type(timestepData)
 
-        ! *** HRU structures (indices)
+        ! *** HRU structures (indices, ...)
         class is (gru_hru_int)
          if(iGRU==1) nSpace = nHRUrun
          do iHRU=1,gru_struc(iGRU)%hruCount
@@ -295,7 +295,7 @@ contains
          realBuffer(iGRU,iTime) = timestepData(iTime)%gru(iGRU)%var(map(iVar))
 
         class default; err=20; message=trim(message)//'cannot identify data class'; return
-       end select
+       end select ! time step data structure
 
       end do  ! gru
      end do  ! time
@@ -315,31 +315,29 @@ contains
       err=20; return
      endif
 
-     ! loop through GRUs
+     ! loop through HRUs and GRUs, and place data in the buffer
      do iGRU=1,size(gru_struc)
      
       ! identify data structures
       select type(stat)
 
-      ! *** HRU structures (forcing, prognostic, diagnostic, ...)
-      class is (gru_hru_doubleVec)
-       if(iGRU==1) nSpace = nHRUrun
-       do iHRU=1,gru_struc(iGRU)%hruCount
-        realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iFreq)
-       end do
-      
-      ! *** GRU structures (basin-average variables, ...)
-      class is (gru_doubleVec)
-       if(iGRU==1) nSpace = nGRUrun
-       realBuffer(iGRU,1) = stat%gru(iGRU)%var(map(iVar))%dat(iFreq)
+       ! *** HRU structures (forcing, prognostic, diagnostic, ...)
+       class is (gru_hru_doubleVec)
+        if(iGRU==1) nSpace = nHRUrun
+        do iHRU=1,gru_struc(iGRU)%hruCount
+         realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iFreq)
+        end do ! hru
+       
+       ! *** GRU structures (basin-average variables, ...)
+       class is (gru_doubleVec)
+        if(iGRU==1) nSpace = nGRUrun
+        realBuffer(iGRU,1) = stat%gru(iGRU)%var(map(iVar))%dat(iFreq)
 
-      ! check statistics type
-      class default
-       message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec or gru_doubleVec'
-       err=20; return
-      end select   ! stat
+       ! check statistics type
+       class default; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec or gru_doubleVec'; err=20; return
+      end select  ! stat data structure
 
-     end do  ! (looping through GRUs
+     end do  ! gru
 
      ! write data
      err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nSpace,1),start=(/1,outputTimestep(iFreq)/),count=(/nSpace,1/))
