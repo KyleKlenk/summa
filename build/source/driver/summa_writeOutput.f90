@@ -65,32 +65,12 @@ USE var_lookup,only:iLookVarType              ! named variables for variable typ
 
 ! generic variable types
 USE nr_type                                   ! variable types, etc.
-
-! data types
 USE data_types,only:&
-                    ! final data vectors
-                    dlength,             &    ! var%dat
-                    ilength,             &    ! var%dat
-                    ! no spatial dimension    
-                    var_i,               &    ! x%var(:)            (i4b)
-                    var_i8,              &    ! x%var(:)            (i8b)
-                    var_d,               &    ! x%var(:)            (dp)
-                    var_ilength,         &    ! x%var(:)%dat        (i4b)
-                    var_dlength,         &    ! x%var(:)%dat        (dp)
-                    ! no variable dimension    
-                    hru_i,               &    ! x%hru(:)            (i4b)
-                    hru_d,               &    ! x%hru(:)            (dp)
                     ! gru dimension
-                    gru_int,             &    ! x%gru(:)%var(:)     (i4b)
                     gru_double,          &    ! x%gru(:)%var(:)     (dp)
-                    gru_intVec,          &    ! x%gru(:)%var(:)%dat (i4b)
-                    gru_doubleVec,       &    ! x%gru(:)%var(:)%dat (dp)
                     ! gru+hru dimension
                     gru_hru_int,         &    ! x%gru(:)%hru(:)%var(:)     (i4b)
-                    gru_hru_int8,        &    ! x%gru(:)%hru(:)%var(:)     (i8b)
-                    gru_hru_double,      &    ! x%gru(:)%hru(:)%var(:)     (dp)
-                    gru_hru_intVec,      &    ! x%gru(:)%hru(:)%var(:)%dat (i4b)
-                    gru_hru_doubleVec         ! x%gru(:)%hru(:)%var(:)%dat (dp)
+                    gru_hru_double            ! x%gru(:)%hru(:)%var(:)     (dp)
 
 ! metadata structure
 USE data_types,only:var_info                  ! data type for metadata
@@ -137,12 +117,6 @@ contains
  USE globalData,only:newOutputFile                           ! define option for new output files
  ! buffered write
  USE globalData,only:numtim                                  ! number of time steps
- USE globalData,only:fullIndxSave                            ! x(:)%gru(:)%hru(:)%var(:) -- saved output for indices
- USE globalData,only:fullForcSave                            ! x(:)%gru(:)%hru(:)%var(:) -- saved output for forcing
- USE globalData,only:fullProgSave                            ! x(:)%gru(:)%hru(:)%var(:) -- saved output for prognostic variables
- USE globalData,only:fullDiagSave                            ! x(:)%gru(:)%hru(:)%var(:) -- saved output for diagnostic variables
- USE globalData,only:fullFluxSave                            ! x(:)%gru(:)%hru(:)%var(:) -- saved output for flux variables
- USE globalData,only:fullBvarSave                            ! x(:)%gru(:)%var(:)        -- saved output for basin variables
  ! controls on statistics output
  USE globalData,only:statCounter                             ! time counter for stats
  USE globalData,only:resetStats                              ! flags to reset statistics
@@ -182,12 +156,6 @@ contains
  integer(i4b)                          :: iStruct                    ! index of model structure
  integer(i4b)                          :: iFreq                      ! index of the output frequency
  integer(i4b)                          :: maxWrite                   ! maximum number of time steps written 
- type(gru_hru_int),    allocatable     :: tempIndxStruct             ! Indx temp structure: x%gru(:)%hru(:)%var(:)     (rkind)
- type(gru_hru_double), allocatable     :: tempForcStruct             ! Forc temp structure: x%gru(:)%hru(:)%var(:)     (rkind)
- type(gru_hru_double), allocatable     :: tempProgStruct             ! Prog temp structure: x%gru(:)%hru(:)%var(:)     (rkind)
- type(gru_hru_double), allocatable     :: tempDiagStruct             ! Diag temp structure: x%gru(:)%hru(:)%var(:)     (rkind)
- type(gru_hru_double), allocatable     :: tempFluxStruct             ! Flux temp structure: x%gru(:)%hru(:)%var(:)     (rkind)
- type(gru_double),     allocatable     :: tempBvarStruct             ! Bvar temp structure: x%gru(:)%var(:)            (rkind)
  type(var_info)      , allocatable     :: meta(:)                    ! metadata
  type(extended_info) , allocatable     :: stat_meta(:)               ! statistics metadata (includes only desired variables)
  integer(i4b)        , allocatable     :: child_map(:)               ! index of element in child data structure -- meta(map(ivar)) = stat_meta(ivar)
@@ -334,7 +302,7 @@ contains
  do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
 
-   ! calculate output Statistics
+   ! calculate output statistics
    do iStruct=1,size(structInfo)
     select case(trim(structInfo(iStruct)%structName))
      case('forc'); call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,resetStats,finalizeStats,statCounter,err,cmessage)
@@ -348,7 +316,7 @@ contains
 
   end do  ! (looping through HRUs)
 
-  ! calc basin stats
+  ! calculate basin stats
   call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),statBvar_meta,resetStats,finalizeStats,statCounter,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage)//'[bvar stats]'; return; endif
 

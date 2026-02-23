@@ -238,7 +238,7 @@ MODULE globalData
   ! define data structures for the buffered read
   integer(i4b),save,public                       :: ixStartRead                       ! start index of the data read
   real(rkind),save,public,allocatable            :: fulltimeVec(:)                    ! full time vector in an input file (nRead)
-  type(gru_hru_double),save,public,allocatable   :: fullforcingStruct(:)              ! x(:)%gru(:)%hru(:)%var(:)     -- full model forcing data
+  type(gru_hru_double),save,public,allocatable   :: fullforcingStruct(:)              ! x(:)%gru(:)%hru(:)%var(:) -- full model forcing data
   ! define data structures for the buffered write
   type(gru_hru_int),   save,public,allocatable   :: fullIndxSave(:)                   ! x(:)%gru(:)%hru(:)%var(:) -- saved output for indices
   type(gru_hru_double),save,public,allocatable   :: fullForcSave(:)                   ! x(:)%gru(:)%hru(:)%var(:) -- saved output for forcing
