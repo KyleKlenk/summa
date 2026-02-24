@@ -47,20 +47,18 @@ USE data_types,only:&
                     var_d,               & ! x%var(:)            (dp)
                     var_ilength,         & ! x%var(:)%dat        (i4b)
                     var_dlength,         & ! x%var(:)%dat        (dp)
-                    ! no variable dimension
-                    hru_i,               & ! x%hru(:)            (i4b)
-                    hru_d,               & ! x%hru(:)            (dp)
                     ! gru dimension
                     gru_int,             & ! x%gru(:)%var(:)     (i4b)
-                    gru_double,          & ! x%gru(:)%var(:)     (dp)
+                    gru_int8,            & ! x%gru(:)%var(:)     (i8b)
+                    gru_double,          & ! x%gru(:)%var(:)     (rkind)
                     gru_intVec,          & ! x%gru(:)%var(:)%dat (i4b)
-                    gru_doubleVec,       & ! x%gru(:)%var(:)%dat (dp)
+                    gru_doubleVec,       & ! x%gru(:)%var(:)%dat (rkind)
                     ! gru+hru dimension
                     gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
                     gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     (i8b)
-                    gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
+                    gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (rkind)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
-                    gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
+                    gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (rkind)
 
 ! vector lengths
 USE var_lookup, only: maxvarFreq ! number of output frequencies
@@ -281,6 +279,12 @@ contains
          do iHRU=1,gru_struc(iGRU)%hruCount
           realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = timestepData(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
          end do  ! hru
+        
+        class is (gru_hru_int8)
+         if(iGRU==1) nSpace = nHRUrun
+         do iHRU=1,gru_struc(iGRU)%hruCount
+          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = timestepData(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
+         end do  ! hru
 
         ! *** HRU structures (forcing, prognostic, diagnostic, ...)
         class is (gru_hru_double)
@@ -289,12 +293,21 @@ contains
           realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = timestepData(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
          end do  ! hru
  
+        class is (gru_int)
+         if(iGRU==1) nSpace = nGRUrun
+         realBuffer(iGRU,iTime) = timestepData(iTime)%gru(iGRU)%var(map(iVar))
+
+        class is (gru_int8)
+         if(iGRU==1) nSpace = nGRUrun
+         realBuffer(iGRU,iTime) = timestepData(iTime)%gru(iGRU)%var(map(iVar))
+
         ! *** GRU structures (basin-average variables, ...)
         class is (gru_double)
          if(iGRU==1) nSpace = nGRUrun
          realBuffer(iGRU,iTime) = timestepData(iTime)%gru(iGRU)%var(map(iVar))
 
-        class default; err=20; message=trim(message)//'cannot identify data class'; return
+        class default; err=20; message=trim(message)//'scalarv variables must be of type gru_hru_[double or int*] or gru_[double or int*] ['//trim(meta(iVar)%varName)//']'
+      err=20; return; return
        end select ! time step data structure
 
       end do  ! gru
@@ -334,7 +347,7 @@ contains
         realBuffer(iGRU,1) = stat%gru(iGRU)%var(map(iVar))%dat(iFreq)
 
        ! check statistics type
-       class default; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec or gru_doubleVec'; err=20; return
+       class default; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec or gru_doubleVec ['//trim(meta(iVar)%varName)//']'; err=20; return
       end select  ! stat data structure
 
      end do  ! gru
@@ -360,10 +373,12 @@ contains
 
     ! initialize the data vectors
     select type (timestepData)
-     class is (gru_hru_doubleVec); realArray(:,:) = realMissing;    dataType=ixReal
-     class is (gru_hru_intVec);     intArray(:,:) = integerMissing; dataType=ixInteger
+     class is (gru_hru_doubleVec); nSpace = nHRUrun; realArray(:,:) = realMissing;    dataType=ixReal
+     class is (gru_hru_intVec);     nSpace = nHRUrun; intArray(:,:) = integerMissing; dataType=ixInteger
+     class is (gru_doubleVec);     nSpace = nGRUrun; realArray(:,:) = realMissing;    dataType=ixReal
+     class is (gru_intVec);          nSpace = nGRUrun; intArray(:,:) = integerMissing; dataType=ixInteger
      class default
-      message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec ['//trim(meta(iVar)%varName)//']'
+      message=trim(message)//'data is not scalarv so should be either of type gru_hru_[double or int]Vec or gru_[double or int]Vec ['//trim(meta(iVar)%varName)//']'
       err=20; return
     end select
 
@@ -385,6 +400,7 @@ contains
        case(iLookVarType%ifcToto); datLength = nLayers+1
        case(iLookVarType%ifcSnow); datLength = nSnow+1
        case(iLookVarType%ifcSoil); datLength = nSoil+1
+       case(iLookVarType%routing); datLength = 1000 ! this is a hack to allow for routing variables that have a dimension of length 1000 (not known at compile time)
        case default; cycle
       end select ! vartype
 
@@ -392,7 +408,8 @@ contains
       select type (timestepData)
        class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = timestepData(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
        class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = timestepData(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
-       class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
+       class is (gru_doubleVec); realArray(iGRU,1:datLength) = timestepData(1)%gru(iGRU)%var(iVar)%dat(:); if(iHRU==1) exit ! only need to get the GRU-level data once
+       class is (gru_intVec);     intArray(iGRU,1:datLength) = timestepData(1)%gru(iGRU)%var(iVar)%dat(:); if(iHRU==1) exit ! only need to get the GRU-level data once
       end select
 
      end do  ! HRU loop
@@ -407,13 +424,14 @@ contains
      case(iLookVarType%ifcToto); maxLength = maxLayers+1
      case(iLookVarType%ifcSnow); maxLength = (maxLayers-nSoil)+1
      case(iLookVarType%ifcSoil); maxLength = nSoil+1
+     case(iLookVarType%routing); maxLength = 1000 ! this is a hack to allow for routing variables that have a dimension of length 1000 (not known at compile time)
      case default; cycle
     end select ! vartype
 
     ! write the data vectors
     select case(dataType)
-     case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
-     case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),intArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
+     case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
+     case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),intArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
      case default; err=20; message=trim(message)//'data must be of type integer or real'; return
     end select ! data type
 

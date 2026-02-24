@@ -256,10 +256,6 @@ MODULE data_types
  type, public :: gru_intVec
   type(var_ilength),allocatable          :: gru(:)                        ! gru(:)%var(:)%dat
  endtype gru_intVec
- ! ** integer type of variable length (8 byte)
- type, public :: gru_int8Vec
-  type(var_i8length),allocatable         :: gru(:)                        ! gru(:)%var(:)%dat
- endtype gru_int8Vec
  ! ** double precision type of fixed length
  type, public :: gru_double
   type(var_d),allocatable                :: gru(:)                        ! gru(:)%var(:)
@@ -282,10 +278,6 @@ MODULE data_types
  type, public :: gru_hru_intVec
   type(hru_intVec),allocatable           :: gru(:)                        ! gru(:)%hru(:)%var(:)%dat
  endtype gru_hru_intVec
- ! ** integer type of variable length (8 byte)
- type, public :: gru_hru_int8Vec
-  type(hru_int8Vec),allocatable          :: gru(:)                        ! gru(:)%hru(:)%var(:)%dat
- endtype gru_hru_int8Vec
  ! ** double precision type of fixed length
  type, public :: gru_hru_double
   type(hru_double),allocatable           :: gru(:)                        ! gru(:)%hru(:)%var(:)

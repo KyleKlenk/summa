@@ -59,7 +59,6 @@ module allocspace_progStuct_module
   USE globalData,only: nSpecBand             ! number of spectral bands
   
   ! access variable types
-  USE var_lookup,only:iLookVarType           ! look up structure for variable typed
   USE var_lookup,only:maxvarFreq             ! allocation dimension (output frequency)
   
   ! privacy

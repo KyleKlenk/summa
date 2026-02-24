@@ -60,9 +60,6 @@ USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
 
-! look up structure for variable types
-USE var_lookup,only:iLookVarType
-
 ! constants
 USE multiconst,only:&
                     Tfreeze,        & ! freezing temperature                 (K)
