@@ -44,17 +44,17 @@ USE data_types,only:&
                     dlength,             & ! var%dat
                     ilength,             & ! var%dat
                     ! no spatial dimension
-                    var_i,               & ! x%var(:)            (i4b)
-                    var_i8,              & ! x%var(:)            (i8b)
-                    var_d,               & ! x%var(:)            (dp)
-                    var_ilength,         & ! x%var(:)%dat        (i4b)
-                    var_dlength,         & ! x%var(:)%dat        (dp)
+                    var_i,               & ! x%var(:)                   (i4b)
+                    var_i8,              & ! x%var(:)                   (i8b)
+                    var_d,               & ! x%var(:)                   (rkind)
+                    var_ilength,         & ! x%var(:)%dat               (i4b)
+                    var_dlength,         & ! x%var(:)%dat               (rkind)
                     ! gru dimension
-                    gru_int,             & ! x%gru(:)%var(:)     (i4b)
-                    gru_int8,            & ! x%gru(:)%var(:)     (i8b)
-                    gru_double,          & ! x%gru(:)%var(:)     (rkind)
-                    gru_intVec,          & ! x%gru(:)%var(:)%dat (i4b)
-                    gru_doubleVec,       & ! x%gru(:)%var(:)%dat (rkind)
+                    gru_int,             & ! x%gru(:)%var(:)            (i4b)
+                    gru_int8,            & ! x%gru(:)%var(:)            (i8b)
+                    gru_double,          & ! x%gru(:)%var(:)            (rkind)
+                    gru_intVec,          & ! x%gru(:)%var(:)%dat        (i4b)
+                    gru_doubleVec,       & ! x%gru(:)%var(:)%dat        (rkind)
                     ! gru+hru dimension
                     gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
                     gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     (i8b)
@@ -64,8 +64,7 @@ USE data_types,only:&
 
 ! vector lengths
 USE var_lookup, only: maxvarFreq ! number of output frequencies
-USE var_lookup, only: maxvarStat ! number of statistics
-   
+USE var_lookup, only: maxvarStat ! number of statistics   
 
 implicit none
 private
@@ -79,7 +78,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine writeParam: write model parameters
  ! **********************************************************************************************************
- subroutine writeParam(ispatial,struct,meta,err,message)
+ subroutine writeParam(iSpatial,struct,meta,err,message)
  USE globalData,only:ncid                        ! netcdf file ids
  USE data_types,only:var_info                    ! metadata info
  USE var_lookup,only:iLookSTAT                   ! index in statistics vector
@@ -87,7 +86,7 @@ contains
  implicit none
 
  ! declare input variables
- integer(i4b)  ,intent(in)   :: iSpatial         ! hydrologic response unit
+ integer(i4b)  ,intent(in)   :: iSpatial         ! HRU index or GRU index
  class(*)      ,intent(in)   :: struct           ! data structure
  type(var_info),intent(in)   :: meta(:)          ! metadata structure
  integer(i4b)  ,intent(out)  :: err              ! error code
@@ -107,31 +106,17 @@ contains
   ! initialize message
   message=trim(message)//trim(meta(iVar)%varName)//'/'
 
-  ! HRU data
-  if (iSpatial/=integerMissing) then
-   select type (struct)
-    class is (var_i)
-     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
-    class is (var_i8)
-     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
-    class is (var_d)
-     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
-    class is (var_dlength)
-     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
-    class default; err=20; message=trim(message)//'HRU parameter type must be var_i, var_i8, var_d, or var_dlength ['//trim(meta(iVar)%varName)//']'; return
-   end select
-   call netcdf_err(err,message); if (err/=0) return
-
-  ! GRU data
-  else
-   select type (struct)
-    class is (var_d)
-     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
-    class is (var_i8)
-     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
-    class default; err=20; message=trim(message)//'GRU parameter type must be var_d or var_i8 ['//trim(meta(iVar)%varName)//']'; return
-   end select
-  end if
+  select type (struct)
+   class is (var_i)
+    err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+   class is (var_i8)
+    err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+   class is (var_d)
+    err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+   class is (var_dlength)
+    err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
+   class default; err=20; message=trim(message)//'parameter type must be var_i, var_i8, var_d, or var_dlength'; return
+  end select
   call netcdf_err(err,message); if (err/=0) return
 
   ! re-initialize message
@@ -218,7 +203,8 @@ contains
   ! loop through model variables
   do iVar = 1,size(meta)
 
-   !if(meta(iVar)%varDesire) print*, meta(iVar)%varName
+   ! initialize message
+   message=trim(message)//trim(meta(iVar)%varName)//'/'
 
    ! ****************************************************************************
    ! *** write time information -- instantaneous
@@ -310,7 +296,7 @@ contains
          if(iGRU==1) nSpace = nGRUrun
          realBuffer(iGRU,iTime) = timestepData(iTime)%gru(iGRU)%var(map(iVar))
 
-        class default; err=20; message=trim(message)//'scalarv variables must be of type gru_hru_[double or int*] or gru_[double or int*] ['//trim(meta(iVar)%varName)//']'; return
+        class default; err=20; message=trim(message)//'scalarv variables must be of type gru_hru_[double or int*] or gru_[double or int*]'; return
        end select ! time step data structure
 
       end do  ! gru
@@ -350,7 +336,7 @@ contains
         realBuffer(iGRU,1) = stat%gru(iGRU)%var(map(iVar))%dat(iFreq)
 
        ! check statistics type
-       class default; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec or gru_doubleVec ['//trim(meta(iVar)%varName)//']'; err=20; return
+       class default; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec or gru_doubleVec'; err=20; return
       end select  ! stat data structure
 
      end do  ! gru
@@ -370,7 +356,7 @@ contains
 
     ! cannot get here if buffered write
     if(is_bufferedWrite)then
-     message=trim(message)//'cannot write non-scalar variables in buffered write ['//trim(meta(iVar)%varName)//']'
+     message=trim(message)//'cannot write non-scalar variables in buffered write'
      err=20; return
     endif
 
@@ -381,7 +367,7 @@ contains
      class is (gru_doubleVec);     nSpace = nGRUrun; realArray(:,:) = realMissing;   dataType=ixReal
      class is (gru_intVec);        nSpace = nGRUrun; intArray(:,:) = integerMissing; dataType=ixInteger
      class default
-      message=trim(message)//'data is not scalarv so should be either of type gru_hru_[double or int]Vec or gru_[double or int]Vec ['//trim(meta(iVar)%varName)//']'
+      message=trim(message)//'data is not scalarv so should be either of type gru_hru_[double or int]Vec or gru_[double or int]Vec'
       err=20; return
     end select
 
@@ -406,7 +392,7 @@ contains
        case(iLookVarType%routing); datLength = nTimeDelay
        case default; cycle
        ! case parSoil only in parameters (mpar, not written here) 
-       ! case unknown skipped above but and covers all lookup table (lookup) and control volume (indx)
+       ! case unknown skipped above; covers all lookup table (lookup) and control volume (indx) variables
       end select ! vartype
 
       ! get the data vectors
@@ -446,6 +432,8 @@ contains
    if (err/=0) message=trim(message)//trim(meta(iVar)%varName)//'_'//trim(get_statName(iStat))
    call netcdf_err(err,message); if (err/=0) return
 
+   ! re-initialize message
+   message="writeData/"
   end do ! iVar
  end do ! iFreq
  deallocate(realArray,intArray)
