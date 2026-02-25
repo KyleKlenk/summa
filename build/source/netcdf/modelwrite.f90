@@ -31,10 +31,12 @@ USE nr_type
 USE globalData,only: integerMissing, realMissing
 
 ! provide access to global data
-USE globalData,only:nGRUrun                               ! number of GRUs in the run
-USE globalData,only:nHRUrun                               ! number of HRUs in the run
-USE globalData,only:maxLayers                             ! maximum number of layers
-USE globalData,only:gru_struc                             ! gru->hru mapping structure
+USE globalData,only:nGRUrun                            ! number of GRUs in the run
+USE globalData,only:nHRUrun                            ! number of HRUs in the run
+USE globalData,only:maxLayers                          ! maximum number of layers
+USE globalData,only: nSpecBand                         ! number of spectral bands
+USE globalData,only: nTimeDelay                        ! number of time delay steps
+USE globalData,only:gru_struc                          ! gru->hru mapping structure
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -71,9 +73,6 @@ public::writeParm
 public::writeData
 public::writeTime
 public::writeRestart
-! define dimension lengths
-integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
-
 
 contains
 
@@ -119,7 +118,7 @@ contains
      err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
     class is (var_dlength)
      err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
-    class default; err=20; message=trim(message)//'unknown variable type (with HRU)'; return
+    class default; err=20; message=trim(message)//'HRU parameter type must be var_i, var_i8, var_d, or var_dlength ['//trim(meta(iVar)%varName)//']'; return
    end select
    call netcdf_err(err,message); if (err/=0) return
 
@@ -130,7 +129,7 @@ contains
      err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
     class is (var_i8)
      err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
-    class default; err=20; message=trim(message)//'unknown variable type (no HRU)'; return
+    class default; err=20; message=trim(message)//'GRU parameter type must be var_d or var_i8 ['//trim(meta(iVar)%varName)//']'; return
    end select
   end if
   call netcdf_err(err,message); if (err/=0) return
@@ -184,13 +183,18 @@ contains
  integer(i4b)                   :: maxLength                      ! maximum length of each data vector
  real(rkind)                    :: timeBuffer(maxWrite)           ! buffer for all time steps
  real(rkind)                    :: realBuffer(nHRUrun,maxWrite)   ! buffer for all HRUs in the run domain + time steps
- real(rkind)                    :: realArray(nHRUrun,maxLayers+1) ! real array for all HRUs in the run domain
- integer(i4b)                   :: intArray(nHRUrun,maxLayers+1)  ! integer array for all HRUs in the run domain
+ real(rkind),allocatable        :: realArray(:,:)                 ! real array for all HRUs in the run domain
+ integer(i4b),allocatable       :: intArray(:,:)                  ! integer array for all HRUs in the run domain
  integer(i4b)                   :: dataType                       ! type of data
  integer(i4b),parameter         :: ixInteger=1001                 ! named variable for integer
  integer(i4b),parameter         :: ixReal=1002                    ! named variable for real
  ! initialize error control
  err=0;message="writeData/"
+
+ ! allocate real and integer arrays for non-scalar variables to longest possible length
+ maxLength = max(nSpecBand,nTimeDelay)
+ maxLength = max(maxLength,maxLayers+1)
+ allocate(realArray(nHRUrun,maxLength),intArray(nHRUrun,maxLength))
 
  ! loop through output frequencies
  do iFreq=1,maxvarFreq
@@ -258,7 +262,7 @@ contains
    iStat = meta(iVar)%statIndex(iFreq)
 
    ! check that the variable is desired
-   if (iStat==integerMissing.or.trim(meta(iVar)%varName)=='unknown') cycle
+   if (iStat==integerMissing.or.trim(meta(iVar)%varName)=='unknown') cycle ! can't write unknown variable types currently
 
    ! stats output: only scalar variable type
    if(meta(iVar)%varType==iLookVarType%scalarv) then
@@ -306,8 +310,7 @@ contains
          if(iGRU==1) nSpace = nGRUrun
          realBuffer(iGRU,iTime) = timestepData(iTime)%gru(iGRU)%var(map(iVar))
 
-        class default; err=20; message=trim(message)//'scalarv variables must be of type gru_hru_[double or int*] or gru_[double or int*] ['//trim(meta(iVar)%varName)//']'
-      err=20; return; return
+        class default; err=20; message=trim(message)//'scalarv variables must be of type gru_hru_[double or int*] or gru_[double or int*] ['//trim(meta(iVar)%varName)//']'; return
        end select ! time step data structure
 
       end do  ! gru
@@ -373,10 +376,10 @@ contains
 
     ! initialize the data vectors
     select type (timestepData)
-     class is (gru_hru_doubleVec); nSpace = nHRUrun; realArray(:,:) = realMissing;    dataType=ixReal
-     class is (gru_hru_intVec);     nSpace = nHRUrun; intArray(:,:) = integerMissing; dataType=ixInteger
-     class is (gru_doubleVec);     nSpace = nGRUrun; realArray(:,:) = realMissing;    dataType=ixReal
-     class is (gru_intVec);          nSpace = nGRUrun; intArray(:,:) = integerMissing; dataType=ixInteger
+     class is (gru_hru_doubleVec); nSpace = nHRUrun; realArray(:,:) = realMissing;   dataType=ixReal
+     class is (gru_hru_intVec);    nSpace = nHRUrun; intArray(:,:) = integerMissing; dataType=ixInteger
+     class is (gru_doubleVec);     nSpace = nGRUrun; realArray(:,:) = realMissing;   dataType=ixReal
+     class is (gru_intVec);        nSpace = nGRUrun; intArray(:,:) = integerMissing; dataType=ixInteger
      class default
       message=trim(message)//'data is not scalarv so should be either of type gru_hru_[double or int]Vec or gru_[double or int]Vec ['//trim(meta(iVar)%varName)//']'
       err=20; return
@@ -393,15 +396,17 @@ contains
 
       ! get the length of each data vector
       select case (meta(iVar)%varType)
-       case(iLookVarType%wLength); datLength = maxSpectral
+       case(iLookVarType%wLength); datLength = nSpecBand
        case(iLookVarType%midToto); datLength = nLayers
        case(iLookVarType%midSnow); datLength = nSnow
        case(iLookVarType%midSoil); datLength = nSoil
        case(iLookVarType%ifcToto); datLength = nLayers+1
        case(iLookVarType%ifcSnow); datLength = nSnow+1
        case(iLookVarType%ifcSoil); datLength = nSoil+1
-       case(iLookVarType%routing); datLength = 1000 ! this is a hack to allow for routing variables that have a dimension of length 1000 (not known at compile time)
+       case(iLookVarType%routing); datLength = nTimeDelay
        case default; cycle
+       ! case parSoil only in parameters (mpar, not written here) 
+       ! case unknown skipped above but and covers all lookup table (lookup) and control volume (indx)
       end select ! vartype
 
       ! get the data vectors
@@ -417,23 +422,31 @@ contains
 
     ! get the maximum length of each data vector
     select case (meta(iVar)%varType)
-     case(iLookVarType%wLength); maxLength = maxSpectral
+     case(iLookVarType%wLength); maxLength = nSpecBand
      case(iLookVarType%midToto); maxLength = maxLayers
      case(iLookVarType%midSnow); maxLength = maxLayers-nSoil
      case(iLookVarType%midSoil); maxLength = nSoil
      case(iLookVarType%ifcToto); maxLength = maxLayers+1
      case(iLookVarType%ifcSnow); maxLength = (maxLayers-nSoil)+1
      case(iLookVarType%ifcSoil); maxLength = nSoil+1
-     case(iLookVarType%routing); maxLength = 1000 ! this is a hack to allow for routing variables that have a dimension of length 1000 (not known at compile time)
+     case(iLookVarType%routing); maxLength = nTimeDelay
      case default; cycle
     end select ! vartype
 
     ! write the data vectors
     select case(dataType)
-     case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
-     case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),intArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
+     case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
+     case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),intArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
      case default; err=20; message=trim(message)//'data must be of type integer or real'; return
     end select ! data type
+
+    select type (timestepData)
+     class is (gru_hru_doubleVec)
+     class is (gru_hru_intVec)  
+     class is (gru_doubleVec);     print*, trim(message)//'variable '//trim(meta(iVar)%varName)//' of type gru_doubleVec', maxLength,outputTimestep(iFreq)
+     class is (gru_intVec);        print*, trim(message)//'variable '//trim(meta(iVar)%varName)//' of type gru_intVec'
+     class default; message=trim(message)//'data is not scalarv so should be either of type gru_hru_[double or int]Vec or gru_[double or int]Vec ['//trim(meta(iVar)%varName)//']'; err=20; return
+    end select
 
    end if ! not scalarv
 
@@ -443,6 +456,7 @@ contains
 
   end do ! iVar
  end do ! iFreq
+ deallocate(realArray,intArray)
 
  end subroutine writeData
 

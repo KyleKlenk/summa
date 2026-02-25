@@ -285,7 +285,7 @@ contains
  ! check the need to create a new output file
  if(defNewOutputFile .or. modelTimeStep==1)then
 
-  ! define summa output files
+  ! define summa output files, also writes attr, type, mpar, and bpar which are constant
   call summa_defineOutputFiles(modelTimeStep, summa1_struc, err, cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -392,6 +392,7 @@ contains
     ! ----------------------------------------------------------------------------
 
     ! just keep going if not interested in a data structure
+    ! case('lookup'); cycle ! lookup table is not currently written to output files
     case default; cycle
    end select  ! select data structure
 
