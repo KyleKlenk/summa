@@ -230,10 +230,6 @@ MODULE data_types
  type, public :: hru_intVec
   type(var_ilength),allocatable          :: hru(:)                        ! hru(:)%var(:)%dat
  endtype hru_intVec
- ! ** integer type of variable length (8 byte)
- type, public :: hru_int8Vec
-  type(var_i8length),allocatable         :: hru(:)                        ! hru(:)%var(:)%dat
- endtype hru_int8Vec
  ! ** double precision type of fixed length
  type, public :: hru_double
   type(var_d),allocatable                :: hru(:)                        ! hru(:)%var(:)
