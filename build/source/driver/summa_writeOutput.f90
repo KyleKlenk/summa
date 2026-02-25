@@ -392,7 +392,6 @@ contains
     ! ----------------------------------------------------------------------------
 
     ! just keep going if not interested in a data structure
-    ! case('lookup'); cycle ! lookup table is not currently written to output files
     case default; cycle
    end select  ! select data structure
 
