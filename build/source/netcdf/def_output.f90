@@ -82,7 +82,7 @@ contains
  USE globalData,only:model_decisions                          ! model decisions
  USE globalData,only:ncid
  USE globalData,only:outFreq                                  ! output frequencies
- USE var_lookup,only:maxVarFreq                               ! # of available output frequencies
+ USE var_lookup,only:maxvarFreq                               ! # of available output frequencies
  USE get_ixname_module,only:get_freqName                      ! get name of frequency from frequency index
  ! declare dummy variables
  character(*),intent(in)     :: summaVersion                  ! SUMMA version
@@ -259,10 +259,10 @@ contains
  ! private subroutine def_variab: define variables
  ! **********************************************************************************************************
  subroutine def_variab(ncid,iFreq,spatialDesire,timeDesire,metaData,ivtype,err,message)
- USE var_lookup,only:iLookvarType                   ! look up structure for variable typed
+ USE var_lookup,only:iLookVarType                   ! look up structure for variable typed
  USE data_types,only:var_info                       ! derived type for metaData
  USE var_lookup,only:iLookSTAT                      ! index into stats structure
- USE var_lookup,only:maxVarFreq                     ! # of available output frequencies
+ USE var_lookup,only:maxvarFreq                     ! # of available output frequencies
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixname_module,only:get_statName            ! statistics names for variable defs in output file
  USE globalData,only:nHRUrun                        ! number of HRUs in the current run
@@ -301,7 +301,7 @@ contains
  do iVar = 1,size(metaData)
 
   ! check that the variable is desired
-  if (metaData(iVar)%varType==iLookvarType%unknown) cycle
+  if (metaData(iVar)%varType==iLookVarType%unknown) cycle
   if (metaData(iVar)%statIndex(iFreq)==integerMissing .and. metaData(iVar)%varName/='time') cycle
 
   ! ---------- get the dimension IDs (use cloneStruc, given source) ----------
@@ -323,7 +323,7 @@ contains
    select case(metaData(iVar)%varType)
 
     ! (scalar variable -- many different types)
-    case(iLookvarType%scalarv)
+    case(iLookVarType%scalarv)
      if(spatialDesire==needGRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID,Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, int(timeChunk/gruChunk)+1 /); endif
      if(spatialDesire==needGRU .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID/),                err=err, message=cmessage); writechunk=(/ gruChunk /); endif
      if(spatialDesire==needHRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, int(timeChunk/hruChunk)+1 /); endif
@@ -332,15 +332,15 @@ contains
      if(spatialDesire==  noHRU .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID/) , err=err, message=cmessage);               writechunk=(/ hruChunk, int(timeChunk/hruChunk)+1 /); endif
 
     ! (other variables)
-    case(iLookvarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, wLength_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
-    case(iLookvarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
-    case(iLookvarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
-    case(iLookvarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
-    case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
-    case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
-    case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
-    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID                  /), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk/) ! soil parameters have no time dimension
-    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, routing_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, layerChunk, int(timeChunk/gruChunk)+1 /)
+    case(iLookVarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, wLength_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookVarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookVarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookVarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookVarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookVarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookVarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookVarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID                  /), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk/) ! soil parameters have no time dimension
+    case(iLookVarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, routing_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, layerChunk, int(timeChunk/gruChunk)+1 /)
    end select
    ! check errors
    if(err/=0)then

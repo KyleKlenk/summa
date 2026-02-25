@@ -206,8 +206,8 @@ contains
  if(modelTimeStep==1)then
 
   ! initialize time step index
-  statCounter(1:maxVarFreq) = 1
-  outputTimeStep(1:maxVarFreq) = 1
+  statCounter(1:maxvarFreq) = 1
+  outputTimeStep(1:maxvarFreq) = 1
 
   ! initialize flags to reset/finalize statistics
   resetStats(:)    = .true.   ! start by resetting statistics

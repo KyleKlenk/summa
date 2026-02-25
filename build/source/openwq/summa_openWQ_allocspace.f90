@@ -58,9 +58,6 @@ module allocspace_progStuct_module
   USE globalData,only: nTimeDelay            ! number of timesteps in the time delay histogram
   USE globalData,only: nSpecBand             ! number of spectral bands
   
-  ! access variable types
-  USE var_lookup,only:maxvarFreq             ! allocation dimension (output frequency)
-  
   ! privacy
   implicit none
   private
