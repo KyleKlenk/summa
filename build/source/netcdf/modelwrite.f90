@@ -69,7 +69,7 @@ USE var_lookup, only: maxvarStat ! number of statistics
 
 implicit none
 private
-public::writeParm
+public::writeParam
 public::writeData
 public::writeTime
 public::writeRestart
@@ -77,9 +77,9 @@ public::writeRestart
 contains
 
  ! **********************************************************************************************************
- ! public subroutine writeParm: write model parameters
+ ! public subroutine writeParam: write model parameters
  ! **********************************************************************************************************
- subroutine writeParm(ispatial,struct,meta,err,message)
+ subroutine writeParam(ispatial,struct,meta,err,message)
  USE globalData,only:ncid                        ! netcdf file ids
  USE data_types,only:var_info                    ! metadata info
  USE var_lookup,only:iLookSTAT                   ! index in statistics vector
@@ -96,7 +96,7 @@ contains
  integer(i4b)                :: iVar             ! loop through variables
 
  ! initialize error control
- err=0;message="writeParm/"
+ err=0;message="writeParam/"
 
  ! loop through local column model parameters
  do iVar = 1,size(meta)
@@ -135,10 +135,10 @@ contains
   call netcdf_err(err,message); if (err/=0) return
 
   ! re-initialize message
-  message="writeParm/"
+  message="writeParam/"
  end do  ! looping through local column model parameters
 
- end subroutine writeParm
+ end subroutine writeParam
 
  ! **************************************************************************************
  ! public subroutine writeData: write model time-dependent data for each HRU

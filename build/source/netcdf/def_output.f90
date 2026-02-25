@@ -188,7 +188,7 @@ contains
  subroutine ini_create(nGRU,nHRU,nSoil,infile,ncid,err,message)
  ! variables to define number of steps per file (total number of time steps, step length, etc.)
  USE multiconst,only:secprday           ! number of seconds per day
- ! vector lenghts
+ ! vector lengths
  USE globalData,only: maxLayers                         ! maximum number of layers
  USE globalData,only: nSpecBand                         ! number of spectral bands
  USE globalData,only: nTimeDelay                        ! number of time delay steps
