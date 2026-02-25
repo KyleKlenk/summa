@@ -339,8 +339,8 @@ contains
     case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
     case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
     case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
-    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID                  /), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk/)
-    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                           /), err=err, message=cmessage); writechunk=(/ layerChunk /)
+    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID                  /), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk/) ! soil parameters have no time dimension
+    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, routing_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, layerChunk, int(timeChunk/gruChunk)+1 /)
    end select
    ! check errors
    if(err/=0)then

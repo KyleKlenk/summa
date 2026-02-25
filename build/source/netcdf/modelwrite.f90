@@ -440,14 +440,6 @@ contains
      case default; err=20; message=trim(message)//'data must be of type integer or real'; return
     end select ! data type
 
-    select type (timestepData)
-     class is (gru_hru_doubleVec)
-     class is (gru_hru_intVec)  
-     class is (gru_doubleVec);     print*, trim(message)//'variable '//trim(meta(iVar)%varName)//' of type gru_doubleVec', maxLength,outputTimestep(iFreq)
-     class is (gru_intVec);        print*, trim(message)//'variable '//trim(meta(iVar)%varName)//' of type gru_intVec'
-     class default; message=trim(message)//'data is not scalarv so should be either of type gru_hru_[double or int]Vec or gru_[double or int]Vec ['//trim(meta(iVar)%varName)//']'; err=20; return
-    end select
-
    end if ! not scalarv
 
    ! process error code

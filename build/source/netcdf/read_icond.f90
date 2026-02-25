@@ -60,7 +60,7 @@ contains
  integer(i4b)        ,intent(out)    :: err            ! error code
  character(*)        ,intent(out)    :: message        ! returned error message
  ! locals
- integer(i4b)             :: ncID                      ! netcdf file id
+ integer(i4b)             :: ncid                      ! netcdf file id
  integer(i4b)             :: dimID                     ! netcdf file dimension id
  integer(i4b)             :: fileHRU                   ! number of HRUs in netcdf file
  integer(i4b)             :: snowID, soilID            ! netcdf variable ids
@@ -80,8 +80,8 @@ contains
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  ! get number of HRUs in file (the GRU variable(s), if present, are processed at the end)
- err = nf90_inq_dimid(ncID,"hru",dimId);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID,dimId,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inq_dimid(ncid,"hru",dimId);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncid,dimId,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! allocate storage for reading from file (allocate entire file size, even when doing subdomain run)
  allocate(snowData(fileHRU))
@@ -193,7 +193,7 @@ contains
  integer(i4b)                           :: ncVarID                  ! variable ID in netcdf file
  character(256)                         :: dimName                  ! not used except as a placeholder in call to inq_dim function
  integer(i4b)                           :: dimLen                   ! data dimensions
- integer(i4b)                           :: ncID                     ! netcdf file ID
+ integer(i4b)                           :: ncid                     ! netcdf file ID
  integer(i4b)                           :: ixFile                   ! index in file
  integer(i4b)                           :: iHRU_local               ! index of HRU in the data subset
  integer(i4b)                           :: iHRU_global              ! index of HRU in the netcdf file
@@ -215,12 +215,12 @@ contains
  ! (1) read the file
  ! --------------------------------------------------------------------------------------------------------
  ! open netcdf file
- call nc_file_open(iconFile,nf90_nowrite,ncID,err,cmessage)
+ call nc_file_open(iconFile,nf90_nowrite,ncid,err,cmessage)
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  ! get number of HRUs in file
- err = nf90_inq_dimid(ncID,"hru",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID,dimID,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inq_dimid(ncid,"hru",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncid,dimID,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! loop through prognostic variables
  no_icond_enth=.false.
@@ -234,7 +234,7 @@ contains
      prog_meta(iVar)%varName=='mLayerHeight'                   ) cycle
 
   ! get variable id
-  err = nf90_inq_varid(ncID,trim(prog_meta(iVar)%varName),ncVarID)
+  err = nf90_inq_varid(ncid,trim(prog_meta(iVar)%varName),ncVarID)
   if(err/=nf90_noerr)then
    if(prog_meta(iVar)%varName=='scalarCanairEnthalpy'     .or. &
       prog_meta(iVar)%varName=='scalarCanopyEnthalpy'     .or. &  
@@ -246,10 +246,10 @@ contains
 
   ! get variable dimension IDs
   select case (prog_meta(iVar)%varType)
-   case (iLookVarType%scalarv); err = nf90_inq_dimid(ncID,trim(scalDimName)   ,dimID); call netcdf_err(err,message)
-   case (iLookVarType%midSoil); err = nf90_inq_dimid(ncID,trim(midSoilDimName),dimID); call netcdf_err(err,message)
-   case (iLookVarType%midToto); err = nf90_inq_dimid(ncID,trim(midTotoDimName),dimID); call netcdf_err(err,message)
-   case (iLookVarType%ifcToto); err = nf90_inq_dimid(ncID,trim(ifcTotoDimName),dimID); call netcdf_err(err,message)
+   case (iLookVarType%scalarv); err = nf90_inq_dimid(ncid,trim(scalDimName)   ,dimID); call netcdf_err(err,message)
+   case (iLookVarType%midSoil); err = nf90_inq_dimid(ncid,trim(midSoilDimName),dimID); call netcdf_err(err,message)
+   case (iLookVarType%midToto); err = nf90_inq_dimid(ncid,trim(midTotoDimName),dimID); call netcdf_err(err,message)
+   case (iLookVarType%ifcToto); err = nf90_inq_dimid(ncid,trim(ifcTotoDimName),dimID); call netcdf_err(err,message)
    case default
     message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
     err=20; return
@@ -262,7 +262,7 @@ contains
   endif
 
   ! get the dimension length
-  err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
+  err = nf90_inquire_dimension(ncid,dimID,dimName,dimLen); call netcdf_err(err,message)
   if(err/=0)then; message=trim(message)//': problem getting the dimension length'; return; endif
 
   ! initialize the variable data
@@ -270,7 +270,7 @@ contains
   if(err/=0)then; message=trim(message)//'problem allocating HRU variable data'; return; endif
 
   ! get data
-  err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
+  err = nf90_get_var(ncid,ncVarID,varData); call netcdf_err(err,message)
   if(err/=0)then; message=trim(message)//': problem getting the data for variable '//trim(prog_meta(iVar)%varName); return; endif
 
   ! store data in prognostics structure
@@ -394,19 +394,19 @@ contains
  if(restartFileType/=singleHRU)then
 
   ! get dimension of time delay histogram (TDH) from initial conditions file
-  err = nf90_inq_dimid(ncID,"tdh",dimID);
+  err = nf90_inq_dimid(ncid,"tdh",dimID);
   if(err/=nf90_noerr)then
    write(*,*) 'WARNING: routingRunoffFuture is not in the initial conditions file ... using zeros'  ! previously created in var_derive.f90
    err=nf90_noerr    ! reset this err
 
   else
    ! the state file *does* have the basin variable(s), so process them
-   err = nf90_inquire_dimension(ncID,dimID,len=nTDH);
+   err = nf90_inquire_dimension(ncid,dimID,len=nTDH);
    if(err/=nf90_noerr)then; message=trim(message)//'problem reading tdh dimension from initial condition file/'//trim(nf90_strerror(err)); return; end if
 
    ! get number of GRUs in file
-   err = nf90_inq_dimid(ncID,"gru",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
-   err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
+   err = nf90_inq_dimid(ncid,"gru",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
+   err = nf90_inquire_dimension(ncid,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
 
    ! check vs hardwired value set in globalData.f90
    if(nTDH /= nTimeDelay)then
@@ -421,15 +421,15 @@ contains
     iVar = ndx(i)
 
     ! get tdh dimension Id in file (should be 'tdh')
-    err = nf90_inq_dimid(ncID,trim(tdhDimName), dimID);
+    err = nf90_inq_dimid(ncid,trim(tdhDimName), dimID);
     if(err/=0)then; message=trim(message)//': problem with dimension ids for tdh vars'; return; endif
 
     ! get the tdh dimension length (dimName and dimLen are outputs of this call)
-    err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
+    err = nf90_inquire_dimension(ncid,dimID,dimName,dimLen); call netcdf_err(err,message)
     if(err/=0)then; message=trim(message)//': problem getting the dimension length for tdh vars'; return; endif
 
     ! get tdh-based variable id
-    err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
+    err = nf90_inq_varid(ncid,trim(bvar_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
     if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); return; endif
 
     ! initialize the tdh variable data
@@ -437,7 +437,7 @@ contains
     if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
 
     ! get data
-    err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
+    err = nf90_get_var(ncid,ncVarID,varData); call netcdf_err(err,message)
     if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
     ! store data in basin var (bvar) structure
@@ -459,7 +459,7 @@ contains
   endif  ! end if case for tdh variables being in init. cond. file
  endif  ! end if case for not being a singleHRU run
  
- call nc_file_close(ncID,err,cmessage)
+ call nc_file_close(ncid,err,cmessage)
  if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
 
  end subroutine read_icond
