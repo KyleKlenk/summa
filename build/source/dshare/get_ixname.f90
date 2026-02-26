@@ -423,6 +423,8 @@ contains
   case('idaMinStepSize'           ); get_ixParam = iLookPARAM%idaMinStepSize         ! minimum step size for IDA
   case('idaMaxStepSize'           ); get_ixParam = iLookPARAM%idaMaxStepSize         ! maximum step size for IDA
   case('idaMaxErrTestFail'        ); get_ixParam = iLookPARAM%idaMaxErrTestFail      ! maximum number of error test failures for IDA
+  case('idaMaxDataWindowSteps'    ); get_ixParam = iLookPARAM%idaMaxDataWindowSteps  ! maximum number of steps with event detection for IDA per data window
+  case('idaDetectEvents'          ); get_ixParam = iLookPARAM%idaDetectEvents        ! flag to turn on event detection in IDA, 0=off, 1=on
   case('zmin'                     ); get_ixParam = iLookPARAM%zmin                   ! minimum layer depth (m)
   case('zmax'                     ); get_ixParam = iLookPARAM%zmax                   ! maximum layer depth (m)
   case('zminLayer1'               ); get_ixParam = iLookPARAM%zminLayer1             ! minimum layer depth for the 1st (top) layer (m)
@@ -508,7 +510,7 @@ contains
   ! local properties
   case('scalarCanopyDepth'              ); get_ixDiag = iLookDIAG%scalarCanopyDepth                ! canopy depth (m)
   case('scalarBulkVolHeatCapVeg'        ); get_ixDiag = iLookDIAG%scalarBulkVolHeatCapVeg          ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
-  case('scalarCanopyCm'                 ); get_ixDiag = iLookDIAG%scalarCanopyCm                   ! Cm of canopy (J kg-1 K-1)
+  case('scalarCanopyCm'                 ); get_ixDiag = iLookDIAG%scalarCanopyCm                   ! Cm for vegetation canopy (J kg-1)
   case('scalarCanopyEmissivity'         ); get_ixDiag = iLookDIAG%scalarCanopyEmissivity           ! effective canopy emissivity (-)
   case('scalarRootZoneTemp'             ); get_ixDiag = iLookDIAG%scalarRootZoneTemp               ! average temperature of the root zone (K)
   case('scalarLAI'                      ); get_ixDiag = iLookDIAG%scalarLAI                        ! one-sided leaf area index (m2 m-2)
@@ -524,7 +526,7 @@ contains
   case('scalarVolHtCap_soil'            ); get_ixDiag = iLookDIAG%scalarVolHtCap_soil              ! volumetric heat capacity dry soil (J m-3 K-1)
   case('scalarVolHtCap_water'           ); get_ixDiag = iLookDIAG%scalarVolHtCap_water             ! volumetric heat capacity liquid wat (J m-3 K-1)
   case('mLayerVolHtCapBulk'             ); get_ixDiag = iLookDIAG%mLayerVolHtCapBulk               ! volumetric heat capacity in each layer (J m-3 K-1)
-  case('mLayerCm'                       ); get_ixDiag = iLookDIAG%mLayerCm                         ! Cm of each layer (J kg-1 K-1)
+  case('mLayerCm'                       ); get_ixDiag = iLookDIAG%mLayerCm                         ! Cm for each layer (J m-3)
   case('scalarLambda_drysoil'           ); get_ixDiag = iLookDIAG%scalarLambda_drysoil             ! thermal conductivity of dry soil     (W m-1)
   case('scalarLambda_wetsoil'           ); get_ixDiag = iLookDIAG%scalarLambda_wetsoil             ! thermal conductivity of wet soil     (W m-1)
   case('mLayerThermalC'                 ); get_ixDiag = iLookDIAG%mLayerThermalC                   ! thermal conductivity at the mid-point of each layer (W m-1 K-1)

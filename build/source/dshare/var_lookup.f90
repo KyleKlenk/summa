@@ -328,6 +328,8 @@ MODULE var_lookup
   integer(i4b)    :: idaMinStepSize        = integerMissing    ! minimum step size for IDA
   integer(i4b)    :: idaMaxStepSize        = integerMissing    ! maximum step size for IDA
   integer(i4b)    :: idaMaxErrTestFail     = integerMissing    ! maximum number of error test failures for IDA
+  integer(i4b)    :: idaMaxDataWindowSteps = integerMissing    ! maximum number of steps with event detection for IDA per data window
+  integer(i4b)    :: idaDetectEvents       = integerMissing    ! flag to turn on event detection in IDA, 0=off, 1=on
   integer(i4b)    :: zmin                  = integerMissing    ! minimum layer depth (m)
   integer(i4b)    :: zmax                  = integerMissing    ! maximum layer depth (m)
   integer(i4b)    :: zminLayer1            = integerMissing    ! minimum layer depth for the 1st (top) layer (m)
@@ -389,7 +391,7 @@ MODULE var_lookup
   ! local properties
   integer(i4b)    :: scalarCanopyDepth               = integerMissing ! canopy depth (m)
   integer(i4b)    :: scalarBulkVolHeatCapVeg         = integerMissing ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
-  integer(i4b)    :: scalarCanopyCm                  = integerMissing ! Cm of canopy (J kg-1 K-1)
+  integer(i4b)    :: scalarCanopyCm                  = integerMissing ! Cm for vegetation canopy (J kg-1)
   integer(i4b)    :: scalarCanopyEmissivity          = integerMissing ! effective canopy emissivity (-)
   integer(i4b)    :: scalarRootZoneTemp              = integerMissing ! average temperature of the root zone (K)
   integer(i4b)    :: scalarLAI                       = integerMissing ! one-sided leaf area index (m2 m-2)
@@ -405,7 +407,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarVolHtCap_soil             = integerMissing ! volumetric heat capacity dry soil (J m-3 K-1)
   integer(i4b)    :: scalarVolHtCap_water            = integerMissing ! volumetric heat capacity liquid wat (J m-3 K-1)
   integer(i4b)    :: mLayerVolHtCapBulk              = integerMissing ! volumetric heat capacity in each layer (J m-3 K-1)
-  integer(i4b)    :: mLayerCm                        = integerMissing ! Cm of each layer (J kg-1 K-1)
+  integer(i4b)    :: mLayerCm                        = integerMissing ! Cm for each layer (J m-3)
   integer(i4b)    :: scalarLambda_drysoil            = integerMissing ! thermal conductivity of dry soil     (W m-1 K-1)
   integer(i4b)    :: scalarLambda_wetsoil            = integerMissing ! thermal conductivity of wet soil     (W m-1 K-1)
   integer(i4b)    :: mLayerThermalC                  = integerMissing ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
@@ -936,7 +938,7 @@ MODULE var_lookup
                                                                         151,152,153,154,155,156,157,158,159,160,&
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
-                                                                        181,182,183,184,185,186,187)
+                                                                        181,182,183,184,185,186,187,188,189)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

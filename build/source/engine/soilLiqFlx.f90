@@ -887,7 +887,7 @@ subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
   real(rkind)                      :: S1_max                              ! Maximum storage in the upper layer (m)
   ! FUSE PRMS variables
   real(rkind)                      :: phi_tens                            ! fraction of total storage as tension storage (m)
-  real(rkind)                      :: SatArea_max                              ! maximum saturated area (-)
+  real(rkind)                      :: SatArea_max                         ! maximum saturated area (-)
   real(rkind)                      :: S1_T                                ! tension water content in upper soil layer (m)
   real(rkind)                      :: S1_T_max                            ! maximum tension water content in upper soil layer (m)
   ! FUSE ARNO/VIC variables
@@ -898,11 +898,15 @@ subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
   ! FUSE TOPMODEL variables
   real(rkind)                      :: alpha_topmodel                      ! gamma shape
   real(rkind)                      :: chi_topmodel                        ! gamma scale
+  real(rkind)                      :: lambda                              ! mean for alpha_topmodel
+  real(rkind)                      :: mu                                  ! offset for alpha_topmodel
   real(rkind)                      :: x_crit                              ! critical x (random variable) value
-  real(rkind)                      :: zeta_crit_n                         ! critical topographic index value (power-transfomred)
-  complex(rkind)                   :: lambda_n                            ! mean of the power-transformed topographic index
+  real(rkind),parameter            :: zeta_upper=1.e3_rkind               ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
+  real(rkind)                      :: zeta_crit                           ! critical topographic index value (log space)
+  real(rkind)                      :: zeta_crit_n                         ! critical topographic index value (power-transformed)
   real(rkind)                      :: n_topmodel                          ! TOPMODEL exponent exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
-  ! derivatives
+  complex(rkind)                   :: lambda_n                            ! mean of the power-transformed topographic index
+   ! derivatives
   real(rkind) :: dVolFracLiq_dWat(1:in_surfaceFlx % nSoil)  ! ... vol fraction of liquid w.r.t. water state variable in root layers
   real(rkind) :: dVolFracIce_dWat(1:in_surfaceFlx % nSoil)  ! ... vol fraction of ice w.r.t. water state variable in root layers
   real(rkind) :: dVolFracLiq_dTk(1:in_surfaceFlx % nSoil)   ! ... vol fraction of liquid w.r.t. temperature in root layers
@@ -959,6 +963,8 @@ contains
    dVolFracIce_dTk(:)     = 0._rkind
    dInfilArea_dWat(:)     = 0._rkind
    dInfilArea_dTk(:)      = 0._rkind
+   dInfilRate_dWat(:)     = 0._rkind
+   dInfilRate_dTk(:)      = 0._rkind
    dxMaxInfilRate_dWat(:) = 0._rkind
    dxMaxInfilRate_dTk(:)  = 0._rkind
    dFrozenArea_dWat(:)    = 0._rkind
@@ -1308,13 +1314,7 @@ subroutine update_volFracLiq_derivatives
  subroutine update_surfaceFlx_FUSE_TOPMODEL_infilArea
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- TOPMODEL ****
   ! local variables
-  real(rkind)                      :: lambda                            ! mean
-  real(rkind)                      :: chi_topmodel                      ! scale
-  real(rkind)                      :: mu                                ! offset
-  real(rkind),parameter            :: zeta_upper=1.e3_rkind             ! upper limit of integral (approaches infinity, but ~1000 provides an accurate result) 
-  real(rkind)                      :: zeta_crit                         ! critical topographic index value (log space)
   complex(rkind)                   :: F1,F2                             ! temporary storage for regularized lower incomplete gamma function values
-  ! derivitive values
   real(rkind)                      :: dS1_dLiq(1:in_surfaceFlx % nSoil) ! derivative in S1 w.r.t liquid water content 
   real(rkind)                      :: dzeta_crit_n_dS1                  ! derivative of zeta_crit_n w.r.t S1
   real(rkind)                      :: dzeta_crit_dzeta_crit_n           ! derivative of zeta_crit w.r.t zeta_crit_n
@@ -1595,11 +1595,9 @@ subroutine update_volFracLiq_derivatives
  subroutine update_surfaceFlx_liquidFlux_computation_available_capacity 
   ! **** Update operations for surfaceFlx: compute and check available capacity to hold water ****
   associate(&
-   ! input: depth of each soil layer (m)
-   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of each soil layer (m)
    ! input: soil parameters
-   theta_sat           => in_surfaceFlx % theta_sat   , & ! soil porosity (-)
-   rootingDepth        => in_surfaceFlx % rootingDepth, & ! rooting depth (m)
+   theta_sat    => in_surfaceFlx % theta_sat    , & ! soil porosity (-)
+   rootingDepth => in_surfaceFlx % rootingDepth , & ! rooting depth (m)
    ! output: error control
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
@@ -1623,15 +1621,17 @@ subroutine update_volFracLiq_derivatives
    zScale_TOPMODEL     => in_surfaceFlx % zScale_TOPMODEL     , & ! scaling factor used to describe decrease in hydraulic conductivity with depth (m)
    rootingDepth        => in_surfaceFlx % rootingDepth        , & ! rooting depth (m)
    wettingFrontSuction => in_surfaceFlx % wettingFrontSuction , & ! Green-Ampt wetting front suction (m)
+   mLayerDepth         => in_surfaceFlx % mLayerDepth         , & ! depth of each soil layer (m)
    ! input-output: surface runoff and infiltration flux (m s-1)
    xMaxInfilRate    => io_surfaceFlx % xMaxInfilRate  & ! maximum infiltration rate (m s-1)
   &)
    ! define the depth to the wetting front (m) and derivatives
+   total_soil_depth = sum(mLayerDepth(:))
    depthWettingFront = (rootZoneLiq/availCapacity)*min(rootingDepth,total_soil_depth)
    if(updateInfil)then
      dDepthWettingFront_dWat(:)=( dRootZoneLiq_dWat(:)*min(rootingDepth,total_soil_depth) + dRootZoneIce_dWat(:)*depthWettingFront )/availCapacity
      dDepthWettingFront_dTk(:) =( dRootZoneLiq_dTk(:) *min(rootingDepth,total_soil_depth) + dRootZoneIce_dTk(:)*depthWettingFront  )/availCapacity
-    end if
+   end if
 
    ! process hydraulic conductivity-controlled infiltration rate
    select case(ixInfRateMax)  ! maximum infiltration rate parameterization (noInfExcess set in update_surfaceFlx)
@@ -1741,10 +1741,6 @@ subroutine update_volFracLiq_derivatives
  subroutine update_surfaceFlx_liquidFlux_infiltration
   ! **** Update operations for surfaceFlx: final infiltration and runoff calculations ****
   ! local variables
-  real(rkind) :: surfaceInfiltration      ! surface infiltration
-  real(rkind) :: surfaceRunoff            ! surface runoff 
-  real(rkind) :: surfaceRunoff_IE         ! infiltration excess component of surface runoff 
-  real(rkind) :: surfaceRunoff_SE         ! saturation excess component of surface runoff
   real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
 
   ! compute infiltration and runoff
