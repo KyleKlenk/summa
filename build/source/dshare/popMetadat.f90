@@ -991,10 +991,10 @@ subroutine read_output_file(err,message)
         endif
         if(trim(structName)=='time') then
           if (freqName/='timestep'.or. freqName/='1') then
-            write(*,*)'WARNING: time variable '//trim(varName)//': outputting variable at timestep level since it cannot be aggregated [entered "'//trim(freqName)//'"]'
+            write(*,*)'WARNING: time variable '//trim(varName)//': outputting time at timestep level since it cannot be aggregated [entered "'//trim(freqName)//'"]'
           endif
         else
-          write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting variable in timestep file with no time dimension'
+          write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting parameter in timestep file with no time dimension'
         endif
         iFreq = iLookFREQ%timestep
         freqName = 'timestep'

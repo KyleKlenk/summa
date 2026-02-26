@@ -54,21 +54,28 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
- character(*)        ,intent(in)     :: iconFile       ! name of input (restart) file
- integer(i4b)        ,intent(in)     :: nGRU           ! total # of GRUs in run domain
- type(var_info)      ,intent(in)     :: indx_meta(:)   ! metadata
- integer(i4b)        ,intent(out)    :: err            ! error code
- character(*)        ,intent(out)    :: message        ! returned error message
+ character(*)  ,intent(in)   :: iconFile            ! name of input (restart) file
+ integer(i4b)  ,intent(in)   :: nGRU                ! total # of GRUs in run domain
+ type(var_info),intent(in)   :: indx_meta(:)        ! metadata
+ integer(i4b)  ,intent(out)  :: err                 ! error code
+ character(*)  ,intent(out)  :: message             ! returned error message
  ! locals
- integer(i4b)             :: ncid                      ! netcdf file id
- integer(i4b)             :: dimID                     ! netcdf file dimension id
- integer(i4b)             :: fileHRU                   ! number of HRUs in netcdf file
- integer(i4b)             :: snowID, soilID            ! netcdf variable ids
- integer(i4b)             :: iGRU, iHRU                ! loop indexes
- integer(i4b)             :: iHRU_global               ! index of HRU in the netcdf file
- integer(i4b),allocatable :: snowData(:)               ! number of snow layers in all HRUs
- integer(i4b),allocatable :: soilData(:)               ! number of soil layers in all HRUs
- character(len=256)       :: cmessage                  ! downstream error message
+ integer(i4b)                :: ncid                ! netcdf file id
+ integer(i4b)                :: dimID               ! netcdf file dimension id
+  integer(i4b)               :: varID               ! netcdf variable id
+ integer(i4b)                :: fileGRU             ! number of GRUs in netcdf file
+ integer(i4b)                :: fileHRU             ! number of HRUs in netcdf file
+ integer(i4b)                :: snowID, soilID      ! netcdf variable ids
+ integer(i4b)                :: iGRU, iHRU          ! loop indexes
+ integer(i4b)                :: iHRU_global         ! index of HRU in the netcdf file
+ integer(i4b),allocatable    :: snowData(:)         ! number of snow layers in all HRUs
+ integer(i4b),allocatable    :: soilData(:)         ! number of soil layers in all HRUs
+ character(len=256)          :: cmessage            ! downstream error message
+ integer(i8b),allocatable    :: gru_id(:)           ! GRU id
+ integer(i8b),allocatable    :: hru_id(:)           ! HRU id
+ integer(i4b),allocatable    :: gruid_to_index(:)   ! mapping from gru_id to index in gru_struc
+ integer(i4b),allocatable    :: hrunc_to_index(:,:) ! mapping from hru_nc to index in gru_struc
+
 
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error message
@@ -79,7 +86,7 @@ contains
  call nc_file_open(iconFile,nf90_nowrite,ncid,err,cmessage);
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
- ! get number of HRUs in file (the GRU variable(s), if present, are processed at the end)
+ ! get number of HRUs in file
  err = nf90_inq_dimid(ncid,"hru",dimId);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncid,dimId,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
