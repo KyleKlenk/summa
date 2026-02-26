@@ -83,6 +83,50 @@ contains
  err = nf90_inq_dimid(ncid,"hru",dimId);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncid,dimId,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
+ ! read hru_id from netcdf file
+ allocate(hru_id(fileHRU))
+ err = nf90_inq_varid(ncid,"hruId",varID);     if (err/=0) then; message=trim(message)//'problem finding hruId'; return; end if
+ err = nf90_get_var(ncid,varID,hru_id);        if (err/=0) then; message=trim(message)//'problem reading hruId'; return; end if
+
+ ! check if the file has the GRU dimension
+ err = nf90_inq_dimid(ncid,"gru",dimID);    
+ if(err/=nf90_noerr)then         
+   write(*,*) 'WARNING: GRU is not in the initial conditions file ... assuming HRUs in attribute order'
+   fileGRU = size(gru_struc(:)%gru_id)
+   err=nf90_noerr    ! reset this err
+   allocate(gru_id(fileHRU))
+   gru_id = gru_struc(:)%gru_id
+ else
+   err = nf90_inquire_dimension(ncid,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
+   ! read gru_id from netcdf file
+   allocate(gru_id(fileGRU))
+   err = nf90_inq_varid(ncid,"gruId",varID);   if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
+   err = nf90_get_var(ncid,varID,gru_id);      if (err/=0) then; message=trim(message)//'problem reading gruId'; return; end if
+ end if
+
+ ! Allocate the mapping arrays
+ allocate(gruid_to_index(fileGRU), hrunc_to_index(fileGRU,maxval(gru_struc(:)%hruCount)))
+
+ ! Populate the mapping arrays
+ do i = 1, fileGRU
+   gruid_to_index(i) = -1  ! Initialize with an invalid index
+   do iGRU = 1, nGRU
+     if (gru_struc(iGRU)%gru_id == gru_id(i)) then
+       gruid_to_index(i) = iGRU
+       do j = 1, gru_struc(iGRU)%hruCount
+         hrunc_to_index(i,j) = -1 
+         do iHRU = 1, fileHRU ! assumes HRUs are in GRU order
+           if (gru_struc(iGRU)%hruInfo(j)%hru_id == hru_id(iHRU)) then
+             hrunc_to_index(i,j) = iHRU
+             exit
+           endif
+         end do
+       end do ! HRU id loop
+       exit
+     endif
+   end do
+ end do
+
  ! allocate storage for reading from file (allocate entire file size, even when doing subdomain run)
  allocate(snowData(fileHRU))
  allocate(soilData(fileHRU))
@@ -90,16 +134,16 @@ contains
  soilData = 0
 
  ! get netcdf ids for the variables holding number of snow and soil layers in each hru
- err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),snowid); call netcdf_err(err,message)
- err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),soilid); call netcdf_err(err,message)
+ err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),snowID); call netcdf_err(err,message)
+ err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),soilID); call netcdf_err(err,message)
 
  ! get nSnow and nSoil data (reads entire state file)
- err = nf90_get_var(ncid,snowid,snowData); call netcdf_err(err,message)
- err = nf90_get_var(ncid,soilid,soilData); call netcdf_err(err,message)
+ err = nf90_get_var(ncid,snowID,snowData); call netcdf_err(err,message)
+ err = nf90_get_var(ncid,soilID,soilData); call netcdf_err(err,message)
 
+ ! find the min and max hru indices in the state file
  ixHRUfile_min=huge(1)
  ixHRUfile_max=0
- ! find the min and max hru indices in the state file
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
