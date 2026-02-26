@@ -86,7 +86,7 @@ contains
  err = nf90_inquire_dimension(ncid, hruDimId, len = fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! get runtime GRU dimensions
- if     (present(startGRU)) then
+ if (present(startGRU)) then
   if (nGRU < 1) then; err=20; message=trim(message)//'nGRU < 1 for a startGRU run'; return; end if
   sGRU = startGRU
  elseif (present(checkHRU)) then
@@ -138,40 +138,45 @@ if (allocated(index_map)) then; err=20; message=trim(message)//'index_map is une
 ! allocate first level of gru to hru mapping
 allocate(gru_struc(nGRU))
 
-! set gru to hru mapping
-if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
+! Initialize newly allocated gru_struc elements to safe defaults
+do iGRU = 1, nGRU
+  gru_struc(iGRU)%hruCount = 0
+  gru_struc(iGRU)%gru_id   = 0_i8b
+  gru_struc(iGRU)%gru_nc   = 0
+  if (allocated(gru_struc(iGRU)%hruInfo)) then
+    deallocate(gru_struc(iGRU)%hruInfo)
+  end if
+end do
 
+! set gru to hru mapping
+if (present(checkHRU)) then                                  ! allocate space for single-HRU run
  ! gru to hru mapping
  iGRU = 1
- gru_struc(iGRU)%hruCount             = 1                                                      ! number of HRUs in each GRU
- gru_struc(iGRU)%gru_id               = hru2gru_id(checkHRU)                                   ! set gru id
- gru_struc(iGRU)%gru_nc               = sGRU                                                   ! set gru index within the netcdf file
- allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                   ! allocate second level of gru to hru map
- gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU                                               ! set hru id in attributes netcdf file
- gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                                                      ! set index of hru in run domain
- gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)                                       ! set id of hru
+ gru_struc(iGRU)%hruCount             = 1                    ! number of HRUs in each GRU
+ gru_struc(iGRU)%gru_id               = hru2gru_id(checkHRU) ! set gru id
+ gru_struc(iGRU)%gru_nc               = sGRU                 ! set gru index within the netcdf file
+ allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount)) ! allocate second level of gru to hru map
+ gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU             ! set hru id in attributes netcdf file
+ gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                    ! set index of hru in run domain
+ gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)     ! set id of hru
 
 else ! allocate space for anything except a single HRU run
-
  iHRU = 1
  do iGRU = 1,nGRU
-
   if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
   gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))                 ! number of HRUs in each GRU
 #ifdef NGEN_ACTIVE
   if (gru_struc(iGRU)%hruCount > 1) then; err=20; message=trim(message)//'NGEN currently only supports single-HRU per GRU'; return; end if
   print *, 'GRU id is ', gru_id(iGRU+sGRU-1)
 #endif
-  gru_struc(iGRU)%gru_id            = gru_id(iGRU+sGRU-1)                                      ! set gru id
-  gru_struc(iGRU)%gru_nc            = iGRU+sGRU-1                                              ! set gru index in the netcdf file
-
-  allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                  ! allocate second level of gru to hru map
-  gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id)        ! set hru id in attributes netcdf file
-  gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)                    ! set index of hru in run domain
-  gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)                ! set id of hru
+  gru_struc(iGRU)%gru_id            = gru_id(iGRU+sGRU-1)                               ! set gru id
+  gru_struc(iGRU)%gru_nc            = iGRU+sGRU-1                                       ! set gru index in the netcdf file
+  allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                           ! allocate second level of gru to hru map
+  gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id) ! set hru id in attributes netcdf file
+  gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)             ! set index of hru in run domain
+  gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)         ! set id of hru
   iHRU = iHRU + gru_struc(iGRU)%hruCount
  enddo ! iGRU = 1,nGRU
-
 end if ! not checkHRU
 
 ! set hru to gru mapping
