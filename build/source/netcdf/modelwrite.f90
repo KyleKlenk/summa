@@ -22,7 +22,7 @@ module modelwrite_module
 
 ! NetCDF types
 USE netcdf
-USE netcdf_util_module,only:netcdf_err                    ! netcdf error handling function
+USE netcdf_util_module,only:netcdf_err  ! netcdf error handling function
 
 ! top-level data types
 USE nr_type
@@ -31,12 +31,12 @@ USE nr_type
 USE globalData,only: integerMissing, realMissing
 
 ! provide access to global data
-USE globalData,only:nGRUrun                            ! number of GRUs in the run
-USE globalData,only:nHRUrun                            ! number of HRUs in the run
-USE globalData,only:maxLayers                          ! maximum number of layers
-USE globalData,only: nSpecBand                         ! number of spectral bands
-USE globalData,only: nTimeDelay                        ! number of time delay steps
-USE globalData,only:gru_struc                          ! gru->hru mapping structure
+USE globalData,only:nGRUrun             ! number of GRUs in the run
+USE globalData,only:nHRUrun             ! number of HRUs in the run
+USE globalData,only:maxLayers           ! maximum number of layers
+USE globalData,only:nSpecBand           ! number of spectral bands
+USE globalData,only:nTimeDelay          ! number of timesteps in the time delay histogram
+USE globalData,only:gru_struc           ! gru->hru mapping structure
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&

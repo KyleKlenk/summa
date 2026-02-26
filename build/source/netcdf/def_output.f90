@@ -189,21 +189,21 @@ contains
  ! variables to define number of steps per file (total number of time steps, step length, etc.)
  USE multiconst,only:secprday           ! number of seconds per day
  ! vector lengths
- USE globalData,only: maxLayers                         ! maximum number of layers
- USE globalData,only: nSpecBand                         ! number of spectral bands
- USE globalData,only: nTimeDelay                        ! number of time delay steps
- USE globalData,only: maxSnowLayers                     ! maximum number of snow layers
+ USE globalData,only:maxLayers          ! maximum number of layers
+ USE globalData,only:nSpecBand          ! number of spectral bands
+ USE globalData,only:nTimeDelay         ! number of timesteps in the time delay histogram
+ USE globalData,only:maxSnowLayers      ! maximum number of snow layers
  implicit none
  ! declare dummy variables
- integer(i4b),intent(in)     :: nGRU                       ! number of GRUs
- integer(i4b),intent(in)     :: nHRU                       ! number of HRUs
- integer(i4b),intent(in)     :: nSoil                      ! number of soil layers in the first HRU (used to define fixed length dimensions)
- character(*),intent(in)     :: infile                     ! filename
- integer(i4b),intent(out)    :: ncid                       ! netcdf file id
- integer(i4b),intent(out)    :: err                        ! error code
- character(*),intent(out)    :: message                    ! error message
+ integer(i4b),intent(in)     :: nGRU            ! number of GRUs
+ integer(i4b),intent(in)     :: nHRU            ! number of HRUs
+ integer(i4b),intent(in)     :: nSoil           ! number of soil layers in the first HRU (used to define fixed length dimensions)
+ character(*),intent(in)     :: infile          ! filename
+ integer(i4b),intent(out)    :: ncid            ! netcdf file id
+ integer(i4b),intent(out)    :: err             ! error code
+ character(*),intent(out)    :: message         ! error message
  ! define local variables
- integer(i4b),parameter      :: scalarLength=1             ! length of scalar variable
+ integer(i4b),parameter      :: scalarLength=1  ! length of scalar variable
  ! initialize error control
  err=0;message="ini_create/"
 
