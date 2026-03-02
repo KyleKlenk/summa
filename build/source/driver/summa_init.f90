@@ -207,7 +207,7 @@ subroutine summa_initialize(summa1_struc, err, message)
     if(STATE_PATH == '') then
       restartFile = trim(SETTINGS_PATH)//trim(MODEL_INITCOND)
     else
-        restartFile = trim(STATE_PATH)//trim(MODEL_INITCOND)
+      restartFile = trim(STATE_PATH)//trim(MODEL_INITCOND)
     endif
     call read_icond_nlayers(trim(restartFile),nGRU,indx_meta,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
