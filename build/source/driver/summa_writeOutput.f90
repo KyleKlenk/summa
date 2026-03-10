@@ -151,7 +151,6 @@ contains
  logical(lgt)                          :: defNewOutputFile=.false.   ! flag to define new output files
  logical(lgt)                          :: is_writingOutput=.false.   ! flag to write model output
  logical(lgt)                          :: is_bufferedWrite=.false.   ! flag for buffered write
- integer(i4b)                          :: iTime                      ! indices of time
  integer(i4b)                          :: iGRU,iHRU                  ! indices of GRUs and HRUs
  integer(i4b)                          :: iStruct                    ! index of model structure
  integer(i4b)                          :: iFreq                      ! index of the output frequency
@@ -541,7 +540,6 @@ contains
  ! input variables
  type(struct_info)    , intent(in)    :: structInfo(:)    ! information on the data structures
  type(summa1_type_dec), intent(in)    :: summaStruct      ! master summa data structure
- integer(i4b)         , intent(in)    :: iTime            ! index of time (modelTimeStep)
  ! output variables
  integer(i4b)         , intent(out)   :: err              ! error code
  character(*)         , intent(out)   :: message          ! error message
@@ -586,7 +584,7 @@ contains
     select case(trim(structInfo(iStruct)%structName))
 
      ! get metadata for desired structures
-     case('indx','forc','diag','prog','flux','bvar')  ! restrict attention to the variables that we are interested in
+     case('indx','forc','prog','diag','flux','bvar')  ! restrict attention to the variables that we are interested in
      call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)
      if(ierr>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
@@ -615,8 +613,8 @@ contains
      select case(trim(structInfo(iStruct)%structName))
       case('indx'); fullIndxSave(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = indxStruct%gru(iGRU)%hru(iHRU)%var(pVar)%dat(1)
       case('forc'); fullForcSave(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = forcStruct%gru(iGRU)%hru(iHRU)%var(pVar)
-      case('diag'); fullProgSave(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = progStruct%gru(iGRU)%hru(iHRU)%var(pVar)%dat(1)
-      case('prog'); fullDiagSave(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = diagStruct%gru(iGRU)%hru(iHRU)%var(pVar)%dat(1)
+      case('prog'); fullProgSave(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = progStruct%gru(iGRU)%hru(iHRU)%var(pVar)%dat(1)
+      case('diag'); fullDiagSave(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = diagStruct%gru(iGRU)%hru(iHRU)%var(pVar)%dat(1)
       case('flux'); fullFluxSave(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = fluxStruct%gru(iGRU)%hru(iHRU)%var(pVar)%dat(1)
       case('bvar')  ! GRU-only data structure
        if(iHRU==1)  fullBvarSave(iTime)%gru(iGRU)%var(iVar)           = bvarStruct%gru(iGRU)%var(pVar)%dat(1)
