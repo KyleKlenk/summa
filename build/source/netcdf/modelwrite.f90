@@ -205,7 +205,7 @@ logical(lgt),parameter          :: allowRoutingOutput = .false.   ! flag to allo
   do iVar = 1,size(meta)
 
    ! initialize message
-   message=trim(message)//trim(meta(iVar)%varName)//'/'
+   message=trim(message)//trim(meta(iVar)%varName)
 
    ! ****************************************************************************
    ! *** write time information -- instantaneous
@@ -237,6 +237,7 @@ logical(lgt),parameter          :: allowRoutingOutput = .false.   ! flag to allo
     ! write time
     err = nf90_put_var(ncid(iFreq),ncVarID,(/timeBuffer/),start=(/ixStart/),count=(/maxWrite/))
     call netcdf_err(err,message); if (err/=0) return
+    message="writeData/" ! re-initialize message
     cycle ! move onto the next variable
 
    end if  ! if time
@@ -247,10 +248,11 @@ logical(lgt),parameter          :: allowRoutingOutput = .false.   ! flag to allo
 
    ! define the statistics index
    iStat = meta(iVar)%statIndex(iFreq)
+   message=trim(message)//'_'//trim(get_statName(iStat))
 
    ! check that the variable is desired, currently do not write large variables (unknown and routing) as they are large and slow things down a lot
-   if (iStat==integerMissing.or.trim(meta(iVar)%varName)=='unknown') cycle
-   if (trim(meta(iVar)%varName)=='routing' .and. .not.allowRoutingOutput) cycle ! routing variable write can be turned on with the allowRoutingOutput flag
+   if (iStat==integerMissing .or. meta(iVar)%varType==iLookVarType%unknown .or. meta(iVar)%varType==integerMissing)then; message="writeData/"; cycle; endif 
+   if (meta(iVar)%varType==iLookVarType%routing .and. .not.allowRoutingOutput)then; message="writeData/"; cycle; endif ! routing variable write can be turned on with the allowRoutingOutput flag
 
    ! stats output: only scalar variable type
    if(meta(iVar)%varType==iLookVarType%scalarv) then
@@ -431,11 +433,9 @@ logical(lgt),parameter          :: allowRoutingOutput = .false.   ! flag to allo
    end if ! not scalarv
 
    ! process error code
-   if (err/=0) message=trim(message)//trim(meta(iVar)%varName)//'_'//trim(get_statName(iStat))
    call netcdf_err(err,message); if (err/=0) return
+   message="writeData/" ! re-initialize message
 
-   ! re-initialize message
-   message="writeData/"
   end do ! iVar
  end do ! iFreq
  deallocate(realArray,intArray)
