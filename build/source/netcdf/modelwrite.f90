@@ -394,7 +394,7 @@ logical(lgt),parameter          :: allowRoutingOutput = .false.   ! flag to allo
        case(iLookVarType%routing); datLength = nTimeDelay
        case default; cycle
        ! case parSoil only in parameters (mpar, not written here) 
-       ! case unknown skipped above; covers all lookup table (lookup) and control volume (indx) variables
+       ! case unknown skipped above
       end select ! vartype
 
       ! get the data vectors
