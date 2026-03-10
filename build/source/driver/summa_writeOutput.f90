@@ -540,6 +540,7 @@ contains
  ! input variables
  type(struct_info)    , intent(in)    :: structInfo(:)    ! information on the data structures
  type(summa1_type_dec), intent(in)    :: summaStruct      ! master summa data structure
+ integer(i4b)         , intent(in)    :: iTime            ! index of time (modelTimeStep)
  ! output variables
  integer(i4b)         , intent(out)   :: err              ! error code
  character(*)         , intent(out)   :: message          ! error message
