@@ -151,11 +151,11 @@ subroutine soilLiqFlux(&
   real(rkind),dimension(0:in_soilLiqFlux % nSoil)  :: iLayerHydCond       ! hydraulic conductivity at layer interface (m s-1)
   real(rkind),dimension(0:in_soilLiqFlux % nSoil)  :: iLayerDiffuse       ! diffusivity at layer interface (m2 s-1)
   ! compute surface flux
-  integer(i4b)                                    :: nRoots              ! number of soil layers with roots
-  integer(i4b)                                    :: ixIce               ! index of the lowest soil layer that contains ice
+  integer(i4b)                                     :: nRoots              ! number of soil layers with roots
+  integer(i4b)                                     :: ixIce               ! index of the lowest soil layer that contains ice
   real(rkind),dimension(0:in_soilLiqFlux % nSoil)  :: iLayerHeight        ! height of the layer interfaces (m)
    ! error control
-  logical(lgt)                                    :: return_flag         ! flag for return statements
+  logical(lgt)                                     :: return_flag         ! flag for return statements
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
   ! ** Initialize indices, error control, and get layer information ** 
@@ -801,7 +801,7 @@ contains
      dHydCondMicro_dTemp   = 0._rkind
      dHydCondMicro_dMatric = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
    end if
-   ! combine derivatives
+   ! combine matric derivatives
    dHydCond_dMatric = dHydCondMicro_dMatric + dHydCondMacro_dMatric
 
    ! compute analytical derivative for change in ice impedance factor w.r.t. temperature

@@ -283,7 +283,7 @@ subroutine computResid(&
         mLayerVolFracHyd(iLayer)      = merge(mLayerVolFracWat(iLayer),      mLayerVolFracLiq(iLayer),       (ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_matLayer) )
         ! (compute the residual)
         rVec( ixSnowSoilHyd(iLayer) ) = ( mLayerVolFracHydTrial(iLayer) -  mLayerVolFracHyd(iLayer) ) - ( fVec( ixSnowSoilHyd(iLayer) )*dt + rAdd( ixSnowSoilHyd(iLayer) ) )
-      end do  ! looping through non-missing energy state variables in the snow+soil domain
+      end do  ! looping through non-missing hydrology state variables in the snow+soil domain
     endif
 
     ! compute the residual vector for the aquifer

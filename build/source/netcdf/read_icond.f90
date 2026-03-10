@@ -261,7 +261,6 @@ contains
  character(len=32),parameter            :: tdhDimName    ='tdh'     ! dimension name for time-delay basin variables
  integer(i8b),allocatable               :: gru_id(:)                ! GRU id
  integer(i8b),allocatable               :: hru_id(:)                ! HRU id
- integer(i8b),allocatable               :: glac_id(:,:)             ! glac id
  integer(i4b),allocatable               :: gruid_to_index(:)        ! mapping from gru_id to index in gru_struc
  integer(i4b),allocatable               :: hrunc_to_index(:,:)      ! mapping from hru_nc to index in gru_struc
  ! --------------------------------------------------------------------------------------------------------
@@ -483,7 +482,7 @@ contains
                     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracWat    )%dat(jLayer),& ! intent(out): volumetric fraction of total water (-)
                     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq    )%dat(jLayer),& ! intent(out): volumetric fraction of liquid water (-)
                     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce    )%dat(jLayer),& ! intent(out): volumetric fraction of ice (-)
-                    err,message)                                                                   ! intent(out): error control
+                    err,cmessage)                                                                   ! intent(out): error control
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
    end do  ! looping through soil layers

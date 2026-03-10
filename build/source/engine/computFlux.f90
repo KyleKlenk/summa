@@ -664,10 +664,10 @@ subroutine soilCmpres(&
   if (ixRichards==mixdform) then
     do iLayer=1,size(mLayerMatricHead)
       if (iLayer>=ixTop .and. iLayer<=ixBot) then
-      ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
-      dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
-      ! compute the compressibility term (-) per second
-      compress(iLayer) = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)/dt
+        ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
+        dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
+        ! compute the compressibility term (-) per second
+        compress(iLayer) = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)/dt
       end if
     end do
   else
