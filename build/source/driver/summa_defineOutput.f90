@@ -20,10 +20,6 @@
 
 module summa_defineOutput                     ! used to define model output files
 
-! access missing values
-USE globalData,only:integerMissing            ! missing integer
-USE globalData,only:realMissing               ! missing real number
-
 ! named variables to define new output files
 USE globalData, only: noNewFiles              ! no new output files
 USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every year (start of the USA water year)

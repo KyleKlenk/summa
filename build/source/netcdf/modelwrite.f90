@@ -37,6 +37,7 @@ USE globalData,only:maxLayers           ! maximum number of layers
 USE globalData,only:nSpecBand           ! number of spectral bands
 USE globalData,only:nTimeDelay          ! number of timesteps in the time delay histogram
 USE globalData,only:gru_struc           ! gru->hru mapping structure
+USE globalData,only:allowRoutingOutput  ! flag to allow routing variable output
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -173,7 +174,7 @@ contains
  integer(i4b)                   :: dataType                       ! type of data
  integer(i4b),parameter         :: ixInteger=1001                 ! named variable for integer
  integer(i4b),parameter         :: ixReal=1002                    ! named variable for real
-logical(lgt),parameter          :: allowRoutingOutput = .false.   ! flag to allow routing variable output (currently very large and slow to write, so turned off by default)
+
  ! initialize error control
  err=0;message="writeData/"
 
@@ -360,7 +361,10 @@ logical(lgt),parameter          :: allowRoutingOutput = .false.   ! flag to allo
    else
 
     ! cannot write non-scalar variables in buffered write -- too complicated and slow, so not currently supported
-    if(is_bufferedWrite)then; message="writeData/"; cycle; endif ! for now, just skip instead of demanding an output file change
+    if(is_bufferedWrite)then
+      write(*,*)'WARNING: cannot output non-scalar type data when using the buffered write option (writeFullSeries), skipping variable '//trim(meta(iVar)%varName)
+      message="writeData/"; cycle
+    endif 
 
     ! initialize the data vectors
     select type (dat)

@@ -18,10 +18,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module summa_writeOutput
-! used to define/write output files
+module summa_writeOutput ! used to define/write output files
 
- ! named variables to define new output files
+! missing values
+USE globalData,only:integerMissing            ! missing integer
+
+! named variables to define new output files
 USE globalData, only: noNewFiles              ! no new output files
 USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every year (start of the USA water year)
 
@@ -144,26 +146,27 @@ contains
  integer(i4b),intent(out)              :: err                ! error code
  character(*),intent(out)              :: message            ! error message
  ! local variables
- character(len=256)                    :: timeString                 ! portion of restart file name that contains the write-out time
- character(len=256)                    :: restartFile                ! restart file name
- logical(lgt)                          :: printRestart=.false.       ! flag to print a re-start file
- logical(lgt)                          :: printProgress=.false.      ! flag to print simulation progress
- logical(lgt)                          :: defNewOutputFile=.false.   ! flag to define new output files
- logical(lgt)                          :: is_writingOutput=.false.   ! flag to write model output
- logical(lgt)                          :: is_bufferedWrite=.false.   ! flag for buffered write
- integer(i4b)                          :: iGRU,iHRU                  ! indices of GRUs and HRUs
- integer(i4b)                          :: iStruct                    ! index of model structure
- integer(i4b)                          :: iFreq                      ! index of the output frequency
- integer(i4b)                          :: maxWrite                   ! maximum number of time steps written 
- type(var_info)      , allocatable     :: meta(:)                    ! metadata
- type(extended_info) , allocatable     :: stat_meta(:)               ! statistics metadata (includes only desired variables)
- integer(i4b)        , allocatable     :: child_map(:)               ! index of element in child data structure -- meta(map(ivar)) = stat_meta(ivar)
- class(*)            , allocatable     :: timestepData(:)            ! vector timestep data (unlimited polymorphic structure) 
- class(*)            , allocatable     :: bufferData(:)              ! vector buffer data (unlimited polymorphic structure) 
- class(*)            , allocatable     :: statsData(:)               ! vector stats data (unlimited polymorphic structure)
- ! error control
- integer(i4b)                          :: ierr                       ! error code of downwind routine
- character(LEN=256)                    :: cmessage                   ! error message of downwind routine
+ character(len=256)                    :: timeString                   ! portion of restart file name that contains the write-out time
+ character(len=256)                    :: restartFile                  ! restart file name
+ logical(lgt)                          :: printRestart=.false.         ! flag to print a re-start file
+ logical(lgt)                          :: printProgress=.false.        ! flag to print simulation progress
+ logical(lgt)                          :: defNewOutputFile=.false.     ! flag to define new output files
+ logical(lgt)                          :: is_writingOutput=.false.     ! flag to write model output
+ logical(lgt)                          :: is_bufferedWrite=.false.     ! flag for buffered write
+ integer(i4b)                          :: iGRU,iHRU                    ! indices of GRUs and HRUs
+ integer(i4b)                          :: iVar                         ! index of variable in the data structure
+ integer(i4b)                          :: iStruct                      ! index of model structure
+ integer(i4b)                          :: iFreq                        ! index of the output frequency
+ integer(i4b)                          :: maxWrite                     ! maximum number of time steps written 
+ type(var_info)      , allocatable     :: meta(:)                      ! metadata
+ type(extended_info) , allocatable     :: stat_meta(:)                 ! statistics metadata (includes only desired variables)
+ integer(i4b)        , allocatable     :: child_map(:)                 ! index of element in child data structure -- meta(map(ivar)) = stat_meta(ivar)
+ class(*)            , allocatable     :: timestepData(:)              ! vector timestep data (unlimited polymorphic structure) 
+ class(*)            , allocatable     :: bufferData(:)                ! vector buffer data (unlimited polymorphic structure) 
+ class(*)            , allocatable     :: statsData(:)                 ! vector stats data (unlimited polymorphic structure)
+  ! error control
+ integer(i4b)                          :: ierr                         ! error code of downwind routine
+ character(LEN=256)                    :: cmessage                     ! error message of downwind routine
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -326,16 +329,18 @@ contains
  ! ****************************************************************************
 
  ! NOTE: This is uncommon -- users rarely require integer time variables (iyyy, im, id, ...) because these can be retrieved from julday
-
  ! NOTE: writing integer time variables is currently restricted to the writePerStep option
  if(model_decisions(iLookDECISIONS%write_buff)%iDecision == writePerStep)then
   call writeTime(finalizeStats,outputTimeStep,time_meta,timeStruct%var,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  else
-  if(any(time_meta(:)%varDesire))then
-   message=trim(message)//"currently no capabilities to output integer time data when using the buffered write option (writeFullSeries)"
-   err=10; return
-  endif  ! (if desire integer write)
+  if(is_writingOutput .and. any(time_meta(:)%varDesire))then
+    do iVar = 1, size(time_meta)
+      if(time_meta(iVar)%varDesire)then
+        write(*,*)'WARNING: cannot output time structure data when using the buffered write option (writeFullSeries), skipping variable '//trim(time_meta(iVar)%varName)
+      endif
+    end do
+  endif
  endif  ! (if not the writePerStep option)
 
  ! ****************************************************************************
@@ -350,7 +355,7 @@ contains
    select case(trim(structInfo(iStruct)%structName))
 
     ! define names of desired data structures
-    case('indx','forc','diag','prog','flux','bvar')  ! restrict attention to the variables that we are interested in
+    case('indx','forc','prog','diag','flux','bvar')  ! restrict attention to the variables that we are interested in
 
      ! get metadata for desired structures
      call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)

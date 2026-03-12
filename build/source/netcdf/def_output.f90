@@ -156,19 +156,19 @@ contains
   do iStruct = 1,size(structInfo)
    select case (trim(structInfo(iStruct)%structName))
     case('attr'  ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, outputPrecision, err,cmessage)  ! local attributes HRU
-    case('type'  ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,   err,cmessage)       ! local classification
+    case('type'  ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,        err,cmessage)  ! local classification
     case('mpar'  ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, outputPrecision, err,cmessage)  ! model parameters
     case('bpar'  ); call def_variab(ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, outputPrecision, err,cmessage)  ! basin-average param
-    case('indx'  ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,   err,cmessage)       ! model variables
-    case('deriv' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,deriv_meta,outputPrecision, err,cmessage)  ! model derivatives
-    case('time'  ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta, nf90_int,   err,cmessage)       ! model derivatives
+    case('indx'  ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,        err,cmessage)  ! model variables
+    case('deriv' ); cycle                                                                                         ! model derivatives -- for internal use only, not written to output files
+    case('time'  ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta, nf90_int,        err,cmessage)  ! model derivatives
     case('forc'  ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,forc_meta, outputPrecision, err,cmessage)  ! model forcing data
     case('prog'  ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,prog_meta, outputPrecision, err,cmessage)  ! model prognostics
     case('diag'  ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,diag_meta, outputPrecision, err,cmessage)  ! model diagnostic variables
     case('flux'  ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,flux_meta, outputPrecision, err,cmessage)  ! model fluxes
     case('bvar'  ); call def_variab(ncid(iFreq),iFreq,needGRU,needTime,bvar_meta, outputPrecision, err,cmessage)  ! basin-average variables
     case('id'    ); cycle                                                                                         ! ids -- see write_hru_info()
-    case('lookup'); cycle                                                                                         ! ids -- see write_hru_info()
+    case('lookup'); cycle                                                                                         ! lookup structures -- for internal use only, not written to output files
     case default; err=20; message=trim(message)//'unable to identify lookup structure';
    end select
    ! error handling
