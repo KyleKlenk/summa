@@ -81,7 +81,7 @@ contains
    end select
 
    ! calculate statistics
-   if (meta(iVar)%varName=='time') then
+   if (trim(meta(iVar)%varName)=='time') then
     stat(iVar)%dat(iLookSTAT%inst) = tdata
    else
     call calc_stats(meta(iVar),stat(iVar),tdata,resetStats,finalizeStats,statCounter,err,cmessage)

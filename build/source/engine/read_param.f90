@@ -78,8 +78,8 @@ contains
  integer(i4b)                          :: ncid             ! netcdf id
  integer(i4b)                          :: nDims            ! number of dimensions
  integer(i4b)                          :: nVars            ! number of variables
- integer(i4b)                          :: idimid           ! dimension index
- integer(i4b)                          :: iVarid           ! variable index
+ integer(i4b)                          :: iDimId           ! dimension index
+ integer(i4b)                          :: iVarId           ! variable index
  character(LEN=64)                     :: dimName          ! dimension name
  character(LEN=64)                     :: parName          ! parameter name
  integer(i4b)                          :: dimLength        ! dimension length
@@ -124,13 +124,13 @@ contains
  nGRU_file=integerMissing
 
  ! get the length of the dimensions
- do idimid=1,nDims
+ do iDimId=1,nDims
   ! get the dimension name and length
-  err=nf90_inquire_dimension(ncid, idimid, name=dimName, len=dimLength)
+  err=nf90_inquire_dimension(ncid, iDimId, name=dimName, len=dimLength)
   if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
   ! get the number of HRUs
-  if(dimName=='hru') nHRU_file=dimLength
-  if(dimName=='gru') nGRU_file=dimLength
+  if(trim(dimName)=='hru') nHRU_file=dimLength
+  if(trim(dimName)=='gru') nGRU_file=dimLength
  end do
 
  ! allocate hruID vector
@@ -167,17 +167,17 @@ contains
  ! **********************************************************************************************
 
  ! loop through the parameters in the NetCDF file
- do iVarid=1,nVars
+ do iVarId=1,nVars
 
   ! get the parameter name
-  err=nf90_inquire_variable(ncid, iVarid, name=parName)
+  err=nf90_inquire_variable(ncid, iVarId, name=parName)
   call netcdf_err(err,message); if (err/=nf90_noerr) then; err=20; return; end if
 
   ! special case of the HRU id
   if(trim(parName)=='hruIndex' .or. trim(parName)=='hruId')then
 
    ! read HRUs
-   err=nf90_get_var(ncid, iVarid, hruId)
+   err=nf90_get_var(ncid, iVarId, hruId)
    if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
    ! check HRUs  -- expect HRUs to be in the same order as the local attributes
@@ -224,10 +224,10 @@ contains
  ! **********************************************************************************************
 
  ! loop through the parameters in the NetCDF file
- do iVarid=1,nVars
+ do iVarId=1,nVars
 
   ! get the parameter name
-  err=nf90_inquire_variable(ncid, iVarid, name=parName)
+  err=nf90_inquire_variable(ncid, iVarId, name=parName)
   call netcdf_err(err,message); if (err/=nf90_noerr) then; err=20; return; end if
 
   ! get the local parameters
@@ -239,7 +239,7 @@ contains
    ! **********************************************************************************************
 
    ! get the variable shape
-   err=nf90_inquire_variable(ncid, iVarid, nDims=nDims, dimids=idim_list)
+   err=nf90_inquire_variable(ncid, iVarId, nDims=nDims, dimids=idim_list)
    if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
    ! get the length of the depth dimension (if it exists)
@@ -285,8 +285,8 @@ contains
 
     ! read parameter data
     select case(nDims)
-     case(1); err=nf90_get_var(ncid, iVarid, parVector, start=(/fHRU/), count=(/1/) )
-     case(2); err=nf90_get_var(ncid, iVarid, parVector, start=(/fHRU,1/), count=(/1,nSoil_file/) )
+     case(1); err=nf90_get_var(ncid, iVarId, parVector, start=(/fHRU/), count=(/1/) )
+     case(2); err=nf90_get_var(ncid, iVarId, parVector, start=(/fHRU,1/), count=(/1,nSoil_file/) )
      case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
     end select
 
@@ -330,7 +330,7 @@ contains
    endif
 
    ! read parameter data
-   err=nf90_get_var(ncid, iVarid, parVector )
+   err=nf90_get_var(ncid, iVarId, parVector )
    if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
    ! populate parameter structures

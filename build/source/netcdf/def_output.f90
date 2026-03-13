@@ -302,7 +302,7 @@ contains
 
   ! check that the variable is desired
   if (metaData(iVar)%varType==iLookVarType%unknown) cycle
-  if (metaData(iVar)%statIndex(iFreq)==integerMissing .and. metaData(iVar)%varName/='time') cycle
+  if (metaData(iVar)%statIndex(iFreq)==integerMissing .and. trim(metaData(iVar)%varName)/='time') cycle
 
   ! ---------- get the dimension IDs (use cloneStruc, given source) ----------
   gruChunk  = min(nGRUrun, chunkSize)
@@ -408,7 +408,7 @@ contains
   call netcdf_err(err,message); if (err/=0) return
 
   ! add NetCDF variable ID to metadata structure
-  metaData(iVar)%ncVarID(iFreq) = iVarID
+  metaData(iVar)%ncVarID(iFreq) = iVarId
 
  end do  ! looping through variables
 

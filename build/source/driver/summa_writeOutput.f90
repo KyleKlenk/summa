@@ -607,7 +607,7 @@ contains
     
      ! index in parent structure
      pVar = stat_meta(iVar)%ixParent
-     if(stat_meta(iVar)%varName/=meta(pVar)%varName)then
+     if(trim(stat_meta(iVar)%varName)/=trim(meta(pVar)%varName))then
       message=trim(message)//'variable names do not match'
       err=20; return
      endif

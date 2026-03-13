@@ -175,7 +175,7 @@ contains
    end if
 
    ! check that the variable was found in the correct structure
-   if (structInfo(iStruct)%structName/=typeName) then
+   if (trim(structInfo(iStruct)%structName)/=typeName) then
     message=trim(message)//'variable '//trim(metadata(iVar)%varName)//' from structure '//trim(structInfo(iStruct)%structName)//'_meta is in structure '//trim(typeName)//'_meta'
     err=20; return
    end if

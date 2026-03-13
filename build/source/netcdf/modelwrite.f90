@@ -213,7 +213,7 @@ contains
    ! ****************************************************************************
 
    ! handle time first
-   if(meta(iVar)%varName=='time')then
+   if(trim(meta(iVar)%varName)=='time')then
     message=trim(message)//':' ! add statistic (none) to message 
 
     ! get variable index

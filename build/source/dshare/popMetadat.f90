@@ -920,7 +920,7 @@ subroutine read_output_file(err,message)
     end if
 
     ! set output netcdf file compression level if given. default is level 4.
-    if (varName=='outputCompressionLevel') then
+    if (trim(varName)=='outputCompressionLevel') then
       statName = trim(lineWords(nWords))
       read(statName, *) outputCompressionLevel
       if ((outputCompressionLevel .LT. 0) .or. (outputCompressionLevel .GT. 9)) then
@@ -976,7 +976,7 @@ subroutine read_output_file(err,message)
         else
           freqName = trim(lineWords(freqIndex))
         endif
-        if(structName=='time' .or. structName=='indx') then
+        if(trim(structName)=='time' .or. trim(structName)=='indx') then
           if (freqName/='timestep' .and. freqName/='1') then
             write(*,*)'WARNING: timestep only variable '//trim(varName)//': outputting at timestep level since it cannot be aggregated'
           endif
@@ -990,13 +990,13 @@ subroutine read_output_file(err,message)
         write(*,*)'WARNING: cannot output '//trim(structName)//' structure data, skipping variable '//trim(varName)
         cycle
       case('id') ! gruId and hruId are always written with the call to write_hru_info
-        if(varName/='hruId' .and. varName/='gruId') then
+        if(trim(varName)/='hruId' .and. trim(varName)/='gruId') then
           write(*,*)'WARNING: outputting id structure data gruId and hruId only, skipping variable '//trim(varName)
         endif
         cycle
 
       ! error control
-      case default;  err=20;message=trim(message)//'unable to identify lookup structure '//trim(structName);return
+      case default;  err=20;message=trim(message)//'unable to identify lookup structure'//trim(structName);return
     end select
 
     ! --- identify the desired statistic in the metadata structure  -----------
