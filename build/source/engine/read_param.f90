@@ -250,7 +250,7 @@ contains
     if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
     ! check that it is the depth dimension
-    if(dimName/='depth')then
+    if(trim(dimName)/='depth')then
      message=trim(message)//'expect 2nd dimension of 2-d variable to be depth (dimension name = '//trim(dimName)//')'
      err=20; return
     endif

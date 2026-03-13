@@ -36,17 +36,13 @@ contains
  ! summary of data structures
  USE globalData,only:structInfo
  ! metadata structures
- USE globalData,only:time_meta,forc_meta,attr_meta,type_meta,id_meta  ! metadata structures
- USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta         ! metadata structures
- USE globalData,only:mpar_meta,indx_meta                              ! metadata structures
- USE globalData,only:bpar_meta,bvar_meta                              ! metadata structures
- USE globalData,only:lookup_meta                                      ! metadata structures
+ USE globalData,only:time_meta,forc_meta,attr_meta,type_meta,id_meta     ! metadata structures
+ USE globalData,only:prog_meta,diag_meta,flux_meta,mpar_meta,indx_meta   ! metadata structures
+ USE globalData,only:bpar_meta,bvar_meta,deriv_meta,lookup_meta          ! metadata structures
   ! named variables defining strructure elements
- USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE,iLookID ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookDERIV         ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookPARAM,iLookINDEX                            ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookBPAR,iLookBVAR                              ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookLOOKUP                                      ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE,iLookID    ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookPARAM,iLookINDEX ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookBPAR,iLookBVAR,iLookDERIV,iLookLOOKUP          ! named variables showing the elements of each data structure
  implicit none
  ! dummy variables
  integer(i4b),intent(out)             :: err         ! error code
