@@ -78,7 +78,7 @@ contains
  USE globalData,only:time_meta,forc_meta,attr_meta,type_meta  ! metadata structures
  USE globalData,only:id_meta,prog_meta,diag_meta,flux_meta    ! metadata structures
  USE globalData,only:mpar_meta,indx_meta,bpar_meta,bvar_meta  ! metadata structures
- USE globalData,only:deriv_meta,lookup_meta,grid_meta         ! metadata structures
+ USE globalData,only:deriv_meta,lookup_meta                   ! metadata structures
  USE globalData,only:model_decisions                          ! model decisions
  USE globalData,only:ncid
  USE globalData,only:outFreq                                  ! output frequencies
