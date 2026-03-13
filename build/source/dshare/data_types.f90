@@ -75,10 +75,10 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! define derived type for model variables, including name, description, and units
  type,public :: var_info
-  character(len=64)                      :: varname   = 'empty'           ! variable name
+  character(len=64)                      :: varName   = 'empty'           ! variable name
   character(len=128)                     :: vardesc   = 'empty'           ! variable description
   character(len=64)                      :: varunit   = 'empty'           ! variable units
-  integer(i4b)                           :: vartype   = integerMissing    ! variable type
+  integer(i4b)                           :: varType   = integerMissing    ! variable type
   integer(i4b),dimension(maxvarFreq)     :: ncVarID   = integerMissing    ! netcdf variable id (missing if frequency is not desired)
   integer(i4b),dimension(maxvarFreq)     :: statIndex = integerMissing    ! index of desired statistic for temporal aggregation
   logical(lgt)                           :: varDesire = .false.           ! flag to denote if the variable is desired for model output
@@ -156,7 +156,7 @@ MODULE data_types
  type, public :: gru_hru_z_vLookup
   type(hru_z_vLookup),allocatable        :: gru(:)                        ! gru(:)%hru(:)%z(:)%var(:)%lookup(:)
  endtype gru_hru_z_vLookup
- ! define derived types to hold multivariate data for a single variable (different variables have different length)
+ ! define derived types to hold multiVariate data for a single variable (different variables have different length)
  ! NOTE: use derived types here to facilitate adding the "variable" dimension
  ! ** double precision type
  type, public :: dlength

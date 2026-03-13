@@ -105,7 +105,7 @@ contains
   if (meta(iVar)%statIndex(iLookFREQ%timestep)==integerMissing) cycle
 
   ! initialize message
-  message=trim(message)//trim(meta(iVar)%varName)//'/'
+  message=trim(message)//trim(meta(iVar)%varName)//':'
 
   select type (struct)
    class is (var_i)
@@ -213,7 +213,7 @@ contains
    ! ****************************************************************************
 
    ! handle time first
-   if (meta(iVar)%varName=='time')then
+   if(meta(iVar)%varName=='time')then
     message=trim(message)//':' ! add statistic (none) to message 
 
     ! get variable index
@@ -399,7 +399,7 @@ contains
        case default; cycle
        ! case parSoil only in parameters (mpar, not written here) 
        ! case unknown skipped above
-      end select ! vartype
+      end select ! varType
 
       ! get the data vectors
       select type (dat)
@@ -423,7 +423,7 @@ contains
      case(iLookVarType%ifcSoil); maxLength = nSoil+1
      case(iLookVarType%routing); maxLength = nTimeDelay
      case default; cycle
-    end select ! vartype
+    end select ! varType
 
     ! write the data vectors
     select case(dataType)
@@ -497,7 +497,7 @@ contains
  end subroutine writeTime
 
  ! *********************************************************************************************************
- ! public subroutine printRestartFile: print a re-start file
+ ! public subroutine writeRestart: print a re-start file
  ! *********************************************************************************************************
  subroutine writeRestart(filename,         & ! intent(in): name of restart file
                          nGRU,             & ! intent(in): number of GRUs
@@ -628,14 +628,14 @@ contains
 
   ! define variable
   select case(prog_meta(iVar)%varType)
-   case(iLookVarType%scalarv);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,  scalDimID /),ncVarID(iVar))
-   case(iLookVarType%wLength);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,  specDimID /),ncVarID(iVar))
-   case(iLookVarType%midSoil);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,midSoilDimID/),ncVarID(iVar))
-   case(iLookVarType%midToto);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,midTotoDimID/),ncVarID(iVar))
-   case(iLookVarType%ifcSoil);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,ifcSoilDimID/),ncVarID(iVar))
-   case(iLookVarType%ifcToto);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,ifcTotoDimID/),ncVarID(iVar))
-   case(iLookVarType%midSnow); if (maxSnow>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,midSnowDimID/),ncVarID(iVar))
-   case(iLookVarType%ifcSnow); if (maxSnow>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,ifcSnowDimID/),ncVarID(iVar))
+   case(iLookVarType%scalarv);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,  scalDimID /),ncVarID(iVar))
+   case(iLookVarType%wLength);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,  specDimID /),ncVarID(iVar))
+   case(iLookVarType%midSoil);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midSoilDimID/),ncVarID(iVar))
+   case(iLookVarType%midToto);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midTotoDimID/),ncVarID(iVar))
+   case(iLookVarType%ifcSoil);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcSoilDimID/),ncVarID(iVar))
+   case(iLookVarType%ifcToto);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcTotoDimID/),ncVarID(iVar))
+   case(iLookVarType%midSnow); if (maxSnow>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midSnowDimID/),ncVarID(iVar))
+   case(iLookVarType%ifcSnow); if (maxSnow>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcSnowDimID/),ncVarID(iVar))
   end select
 
   ! check errors
@@ -703,7 +703,7 @@ contains
 
     ! error check
     if(.not.okLength)then
-     message=trim(message)//'bad vector length for variable '//trim(prog_meta(iVar)%varname)
+     message=trim(message)//'bad vector length for variable '//trim(prog_meta(iVar)%varName)
      err=20; return
     endif
 

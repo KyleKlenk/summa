@@ -96,7 +96,7 @@ contains
  integer(i4b),intent(out)    :: err                           ! error code
  character(*),intent(out)    :: message                       ! error message
  ! local variables
- integer(i4b)                :: ivar                          ! loop through model decisions
+ integer(i4b)                :: iVar                          ! loop through model decisions
  integer(i4b)                :: iFreq                         ! loop through output frequencies
  integer(i4b)                :: iStruct                       ! loop through structure types
  character(len=32)           :: fstring                       ! string to hold model output freuqnecy

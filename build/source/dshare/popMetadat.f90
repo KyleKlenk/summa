@@ -49,7 +49,7 @@ subroutine popMetadat(err,message)
   USE var_lookup, only: iLookLOOKUP         ! named variables for lookup tables
   USE var_lookup, only: maxvarFreq          ! number of output frequencies
   USE var_lookup, only: maxvarStat          ! number of statistics
-  USE get_ixName_module,only:get_ixVarType  ! to turn vartype strings to integers
+  USE get_ixName_module,only:get_ixVarType  ! to turn varType strings to integers
   
   implicit none
   ! dummy variables
@@ -815,7 +815,6 @@ subroutine read_output_file(err,message)
   USE globalData,only:prog_meta                 ! data structure for local prognostic (state) variables
   USE globalData,only:diag_meta                 ! data structure for local diagnostic variables
   USE globalData,only:flux_meta                 ! data structure for local flux variables
-  USE globalData,only:deriv_meta                ! data structure for local flux derivatives
   USE globalData,only:outputPrecision           ! data structure for output precision
   USE globalData,only:outputCompressionLevel    ! data structure for output netcdf deflate level
   ! structures of named variables
@@ -903,9 +902,9 @@ subroutine read_output_file(err,message)
     varName = trim(lineWords(nameIndex))
 
     ! user cannot control time output
-    if (trim(varName)=='time') cycle
+    if (varName=='time') cycle
     ! set precision if it is given
-    if (trim(varName)=='outputPrecision') then
+    if (varName=='outputPrecision') then
       statName = trim(lineWords(nWords))
       if (statName=='single' .or. statName=='float') then
         outputPrecision = nf90_float
@@ -921,7 +920,7 @@ subroutine read_output_file(err,message)
     end if
 
     ! set output netcdf file compression level if given. default is level 4.
-    if (trim(varName)=='outputCompressionLevel') then
+    if (varName=='outputCompressionLevel') then
       statName = trim(lineWords(nWords))
       read(statName, *) outputCompressionLevel
       if ((outputCompressionLevel .LT. 0) .or. (outputCompressionLevel .GT. 9)) then
@@ -943,7 +942,7 @@ subroutine read_output_file(err,message)
 
     ! process time-varying variables
     select case(trim(structName))
-      case('indx','forc','prog','diag','flux','bvar')
+      case('forc','prog','diag','flux','bvar')
 
         ! * ensure that the frequency index exists for time varying variables
         if(nWords<freqIndex)then
@@ -971,15 +970,15 @@ subroutine read_output_file(err,message)
         endif
 
       ! time and temporally constant variables always outputted at timestep level (no aggregation)
-      case('bpar','attr','type','mpar','time')
+      case('bpar','attr','type','mpar','time','indx')
         if(nWords<freqIndex) then
           freqName = 'empty'
         else
           freqName = trim(lineWords(freqIndex))
         endif
-        if(trim(structName)=='time') then
+        if(structName=='time' .or. structName=='indx') then
           if (freqName/='timestep' .and. freqName/='1') then
-            write(*,*)'WARNING: time variable '//trim(varName)//': outputting time at timestep level since it cannot be aggregated [entered "'//trim(freqName)//'"]'
+            write(*,*)'WARNING: timestep only variable '//trim(varName)//': outputting at timestep level since it cannot be aggregated'
           endif
         else
           write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting parameter in timestep file with no time dimension'
@@ -991,13 +990,13 @@ subroutine read_output_file(err,message)
         write(*,*)'WARNING: cannot output '//trim(structName)//' structure data, skipping variable '//trim(varName)
         cycle
       case('id') ! gruId and hruId are always written with the call to write_hru_info
-        if(trim(varName)/='hruId' .and. trim(varName)/='gruId') then
+        if(varName/='hruId' .and. varName/='gruId') then
           write(*,*)'WARNING: outputting id structure data gruId and hruId only, skipping variable '//trim(varName)
         endif
         cycle
 
       ! error control
-      case default;  err=20;message=trim(message)//'unable to identify lookup structure'//trim(structName);return
+      case default;  err=20;message=trim(message)//'unable to identify lookup structure '//trim(structName);return
     end select
 
     ! --- identify the desired statistic in the metadata structure  -----------
@@ -1037,7 +1036,7 @@ subroutine read_output_file(err,message)
         do iStat = 1,maxVarStat
           if (lineWords(freqIndex + 2*iStat)=='1') then
             statFlag(iStat)=.true.
-            statName = get_statName(istat)
+            statName = get_statName(iStat)
           end if
         end do
         ! check actually defined the statistic (and only defined one statistic)
@@ -1064,21 +1063,16 @@ subroutine read_output_file(err,message)
     varType = -1_i4b ! initialize variable type (only need for temporally varying structures)
     ! identify data structure
     select case (trim(structName))
+      
+      ! time and index structures -- request instantaneous, timestep-level output (no aggregation possible)
+      case('time' ); time_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; time_meta(vDex)%varDesire=.true. ! time variable 
+      case('indx' ); indx_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; indx_meta(vDex)%varDesire=.true. ! index variables
 
       ! temporally constant structures -- request instantaneous timestep-level output (no aggregation)
-      case('time' ); time_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; time_meta(vDex)%varDesire=.true.   ! timing data
-      case('bpar' ); bpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; bpar_meta(vDex)%varDesire=.true.   ! basin parameters
-      case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true.   ! local attributes
-      case('type' ); type_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true.   ! local classification
-      case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true.   ! model parameters
-
-      ! index structures -- can only be output at the model time step
-      case('indx' ); indx_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; indx_meta(vDex)%varDesire=.true.
-       if(iFreq/=iLookFREQ%timestep)then
-         message=trim(message)//'index variables can only be output at model timestep'&
-                             //' [evaluating variable "'//trim(varName)//'" for output frequency "'//trim(freqName)//'"]'
-         err=20; return
-       endif
+      case('bpar' ); bpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; bpar_meta(vDex)%varDesire=.true. ! basin parameters
+      case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true. ! local attributes
+      case('type' ); type_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true. ! local classification
+      case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true. ! model parameters
 
       ! temporally varying structures
       case('forc' ); call popStat(forc_meta(vDex), iFreq, iStat, err, cmessage); varType = forc_meta(vDex)%varType    ! model forcing data

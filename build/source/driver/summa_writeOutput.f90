@@ -20,9 +20,6 @@
 
 module summa_writeOutput ! used to define/write output files
 
-! missing values
-USE globalData,only:integerMissing            ! missing integer
-
 ! named variables to define new output files
 USE globalData, only: noNewFiles              ! no new output files
 USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every year (start of the USA water year)
@@ -102,7 +99,7 @@ contains
  USE mDecisions_module,only:mDecisions                       ! module to read model decisions
  USE summa_alarms,only:summa_setWriteAlarms                  ! set alarms to control model output
  USE summa_defineOutput,only:summa_defineOutputFiles         ! define summa output files
- USE modelwrite_module,only:writeRestart                     ! module to write model Restart
+ USE modelwrite_module,only:writeRestart                     ! module to write model restart
  USE modelwrite_module,only:writeData                        ! module to write model output
  USE modelwrite_module,only:writeTime                        ! module to write model time
  USE output_stats,only:calcStats                             ! module for compiling output statistics
@@ -160,7 +157,7 @@ contains
  integer(i4b)                          :: maxWrite                     ! maximum number of time steps written 
  type(var_info)      , allocatable     :: meta(:)                      ! metadata
  type(extended_info) , allocatable     :: stat_meta(:)                 ! statistics metadata (includes only desired variables)
- integer(i4b)        , allocatable     :: child_map(:)                 ! index of element in child data structure -- meta(map(ivar)) = stat_meta(ivar)
+ integer(i4b)        , allocatable     :: child_map(:)                 ! index of element in child data structure -- meta(map(iVar)) = stat_meta(iVar)
  class(*)            , allocatable     :: timestepData(:)              ! vector timestep data (unlimited polymorphic structure) 
  class(*)            , allocatable     :: bufferData(:)                ! vector buffer data (unlimited polymorphic structure) 
  class(*)            , allocatable     :: statsData(:)                 ! vector stats data (unlimited polymorphic structure)
@@ -341,7 +338,7 @@ contains
       endif
     end do
   endif
- endif  ! (if not the writePerStep option)
+ endif  ! (if the writePerStep option)
 
  ! ****************************************************************************
  ! *** write variables for each HRU
@@ -557,7 +554,7 @@ contains
  integer(i4b)                         :: pVar             ! index of "parent" variable (i.e., index in the data structure)
  type(var_info)       , allocatable   :: meta(:)          ! metadata
  type(extended_info)  , allocatable   :: stat_meta(:)     ! statistics metadata (includes only desired variables)
- integer(i4b)         , allocatable   :: child_map(:)     ! index of element in child data structure -- meta(map(ivar)) = stat_meta(ivar) 
+ integer(i4b)         , allocatable   :: child_map(:)     ! index of element in child data structure -- meta(map(iVar)) = stat_meta(iVar) 
  ! error control
  integer(i4b)                         :: ierr             ! local error code
  character(len=256)                   :: cmessage         ! error message of the downwind routine
@@ -610,7 +607,7 @@ contains
     
      ! index in parent structure
      pVar = stat_meta(iVar)%ixParent
-     if(trim(stat_meta(iVar)%varName) /= trim(meta(pVar)%varName))then
+     if(stat_meta(iVar)%varName/=meta(pVar)%varName)then
       message=trim(message)//'variable names do not match'
       err=20; return
      endif

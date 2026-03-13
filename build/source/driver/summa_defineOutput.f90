@@ -136,9 +136,13 @@ contains
   end do  ! (looping through HRUs)
 
   ! write GRU parameters
-  call writeParam(iGRU,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
+  do iStruct=1,size(structInfo)
+   select case(trim(structInfo(iStruct)%structName))
+    case('bpar'); call writeParam(iGRU,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
+   end select
+  end do  ! (looping through structures)
+  if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
+  
  end do  ! (looping through GRUs)
 
  ! end associate statements
