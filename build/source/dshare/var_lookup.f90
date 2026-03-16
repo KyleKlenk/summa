@@ -838,8 +838,7 @@ MODULE var_lookup
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
- ! (13) structure for looking up the type of a model variable (this is only needed for backward
- ! compatability, and should be removed eventually)
+ ! (13) structure for looking up the type of a model variable
  ! ***********************************************************************************************************
 #ifdef ACTORS_ACTIVE
  type, public, bind(C) :: iLook_varType
@@ -980,7 +979,7 @@ MODULE var_lookup
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =iLook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13)
- ! named variables in varibale type structure
+ ! named variables in variable type structure
  type(iLook_varType), public,parameter :: iLookVarType  =iLook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12)
  ! number of possible output statistics
