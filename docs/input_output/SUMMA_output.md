@@ -13,7 +13,7 @@ SUMMA output files can have the following dimensions (as defined in `build/sourc
 | gru       | dimension for the GRUs | Variables and parameters that vary by GRU |
 | hru       | dimension for the HRUs | Variables and parameters that vary by HRU |
 | depth     | dimension for soil depth | Variables and parameters that are defined for a fixed number of layers |
-| scalar    | dimension for scalar variables | Scalar variables and parameters (degenerate dimension) |
+| scalarv   | dimension for scalar variables | Scalar variables and parameters (degenerate dimension) |
 | spectral  | dimension for the number of spectral bands | Variables and parameters that vary for different spectral regimes |
 | time      | dimension for the time step | Time-varying variables and parameters |
 | tdh       | dimension for the time delay routing vectors | Variables and parameters that are held in memory as part of routing routines |
