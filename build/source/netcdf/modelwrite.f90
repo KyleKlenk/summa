@@ -426,6 +426,7 @@ contains
     end select ! varType
 
     ! write the data vectors
+    if(maxLength <= 0) cycle ! skip if there are no layers
     select case(dataType)
      case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
      case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),intArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
@@ -554,7 +555,6 @@ contains
  integer(i4b)                       :: ncSoilID      ! index variable id
  integer(i4b)                       :: nSoil         ! number of soil layers
  integer(i4b)                       :: nSnow         ! number of snow layers
- integer(i4b)                       :: maxSnow       ! maximum number of snow layers
  integer(i4b)                       :: maxSoil       ! maximum number of soil layers
  integer(i4b)                       :: nLayers       ! number of total layers
  integer(i4b),parameter             :: nSpectral=2   ! number of spectal bands
@@ -600,25 +600,22 @@ contains
  ! maximum number of soil layers
  maxSoil = gru_struc(1)%hruInfo(1)%nSoil
 
- ! maximum number of snow layers
- maxSnow = maxSnowLayers
-
  ! create file
  err = nf90_create(trim(filename),NF90_NETCDF4,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if(err/=0)return
 
  ! define dimensions
-                err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU       ,    gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
-                err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU       ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
-                err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
-                err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar    ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
-                err = nf90_def_dim(ncid,trim(specDimName)   ,nSpectral  ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
-                err = nf90_def_dim(ncid,trim(midSoilDimName),maxSoil    ,midSoilDimID); message='iCreate[ifcSoil]' ; call netcdf_err(err,message); if(err/=0)return
-                err = nf90_def_dim(ncid,trim(midTotoDimName),maxLayers  ,midTotoDimID); message='iCreate[midToto]' ; call netcdf_err(err,message); if(err/=0)return
-                err = nf90_def_dim(ncid,trim(ifcSoilDimName),maxSoil+1  ,ifcSoilDimID); message='iCreate[ifcSoil]' ; call netcdf_err(err,message); if(err/=0)return
-                err = nf90_def_dim(ncid,trim(ifcTotoDimName),maxLayers+1,ifcTotoDimID); message='iCreate[ifcToto]' ; call netcdf_err(err,message); if(err/=0)return
- if (maxSnow>0) err = nf90_def_dim(ncid,trim(midSnowDimName),maxSnow    ,midSnowDimID); message='iCreate[ifcSnow]' ; call netcdf_err(err,message); if(err/=0)return
- if (maxSnow>0) err = nf90_def_dim(ncid,trim(ifcSnowDimName),maxSnow+1  ,ifcSnowDimID); message='iCreate[ifcSnow]' ; call netcdf_err(err,message); if(err/=0)return
+                     err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU             ,    gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
+                     err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU             ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
+                     err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay       ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
+                     err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar          ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
+                     err = nf90_def_dim(ncid,trim(specDimName)   ,nSpectral        ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
+                     err = nf90_def_dim(ncid,trim(midSoilDimName),maxSoil          ,midSoilDimID); message='iCreate[midSoil]' ; call netcdf_err(err,message); if(err/=0)return
+                     err = nf90_def_dim(ncid,trim(midTotoDimName),maxLayers        ,midTotoDimID); message='iCreate[midToto]' ; call netcdf_err(err,message); if(err/=0)return
+                     err = nf90_def_dim(ncid,trim(ifcSoilDimName),maxSoil+1        ,ifcSoilDimID); message='iCreate[ifcSoil]' ; call netcdf_err(err,message); if(err/=0)return
+                     err = nf90_def_dim(ncid,trim(ifcTotoDimName),maxLayers+1      ,ifcTotoDimID); message='iCreate[ifcToto]' ; call netcdf_err(err,message); if(err/=0)return
+ if(maxSnowLayers>0) err = nf90_def_dim(ncid,trim(midSnowDimName),maxSnowLayers    ,midSnowDimID); message='iCreate[midSnow]' ; call netcdf_err(err,message); if(err/=0)return
+ if(maxSnowLayers>0) err = nf90_def_dim(ncid,trim(ifcSnowDimName),maxSnowLayers+1  ,ifcSnowDimID); message='iCreate[ifcSnow]' ; call netcdf_err(err,message); if(err/=0)return
  ! re-initialize error control
  err=0; message='writeRestart/'
 
@@ -628,14 +625,14 @@ contains
 
   ! define variable
   select case(prog_meta(iVar)%varType)
-   case(iLookVarType%scalarv);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,  scalDimID /),ncVarID(iVar))
-   case(iLookVarType%wLength);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,  specDimID /),ncVarID(iVar))
-   case(iLookVarType%midSoil);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midSoilDimID/),ncVarID(iVar))
-   case(iLookVarType%midToto);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midTotoDimID/),ncVarID(iVar))
-   case(iLookVarType%ifcSoil);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcSoilDimID/),ncVarID(iVar))
-   case(iLookVarType%ifcToto);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcTotoDimID/),ncVarID(iVar))
-   case(iLookVarType%midSnow); if (maxSnow>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midSnowDimID/),ncVarID(iVar))
-   case(iLookVarType%ifcSnow); if (maxSnow>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcSnowDimID/),ncVarID(iVar))
+   case(iLookVarType%scalarv);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,  scalDimID /),ncVarID(iVar))
+   case(iLookVarType%wLength);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,  specDimID /),ncVarID(iVar))
+   case(iLookVarType%midSoil);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midSoilDimID/),ncVarID(iVar))
+   case(iLookVarType%midToto);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midTotoDimID/),ncVarID(iVar))
+   case(iLookVarType%ifcSoil);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcSoilDimID/),ncVarID(iVar))
+   case(iLookVarType%ifcToto);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcTotoDimID/),ncVarID(iVar))
+   case(iLookVarType%midSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midSnowDimID/),ncVarID(iVar))
+   case(iLookVarType%ifcSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcSnowDimID/),ncVarID(iVar))
   end select
 
   ! check errors
@@ -739,7 +736,7 @@ contains
  end do  ! iGRU loop
 
  ! write HRU dimension and ID for file
- call write_hru_info(ncid, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+ call write_hru_info(ncid, gruDimID, hruDimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  ! close file
  call nc_file_close(ncid,err,cmessage)

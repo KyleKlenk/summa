@@ -28,6 +28,7 @@ USE globalData, only: numtim                  ! number of model time steps
 USE globalData, only: outputPrecision         ! data structure for output precision
 USE globalData, only: chunkSize               ! size of chunks to write
 USE globalData, only: outputCompressionLevel  ! netcdf deflate level
+
 implicit none
 private
 public :: def_output
@@ -176,7 +177,7 @@ contains
   end do ! iStruct
 
   ! write HRU dimension and ID for each output file
-  call write_hru_info(ncid(iFreq), err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+  call write_hru_info(ncid(iFreq), gru_DimID, hru_DimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  end do ! iFreq
 
@@ -193,6 +194,7 @@ contains
  USE globalData,only:nSpecBand          ! number of spectral bands
  USE globalData,only:nTimeDelay         ! number of timesteps in the time delay histogram
  USE globalData,only:maxSnowLayers      ! maximum number of snow layers
+ USE globalData,only:allowRoutingOutput ! flag to allow routing variable output
  implicit none
  ! declare dummy variables
  integer(i4b),intent(in)     :: nGRU            ! number of GRUs
@@ -213,19 +215,19 @@ contains
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions
- err = nf90_def_dim(ncid, trim(     gru_DimName), nGRU,                gru_DimID); message='iCreate[gru]';      call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU,                hru_DimID); message='iCreate[hru]';      call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited, timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(   depth_DimName), nSoil,             depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(  scalar_DimName), scalarLength,     scalar_DimID); message='iCreate[scalar]';   call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( wLength_DimName), nSpecBand,       wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( routing_DimName), nTimeDelay,      routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( midSnow_DimName), maxSnowLayers,   midSnow_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( midSoil_DimName), nSoil,           midSoil_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( midToto_DimName), maxLayers,       midToto_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1, ifcSnow_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( ifcSoil_DimName), nSoil+1,         ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1,     ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
+                        err = nf90_def_dim(ncid, trim(     gru_DimName), nGRU,                gru_DimID); message='iCreate[gru]';      call netcdf_err(err,message); if (err/=0) return
+                        err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU,                hru_DimID); message='iCreate[hru]';      call netcdf_err(err,message); if (err/=0) return
+                        err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited, timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
+                        err = nf90_def_dim(ncid, trim(   depth_DimName), nSoil,             depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
+                        err = nf90_def_dim(ncid, trim(  scalar_DimName), scalarLength,     scalar_DimID); message='iCreate[scalar]';   call netcdf_err(err,message); if (err/=0) return
+                        err = nf90_def_dim(ncid, trim( wLength_DimName), nSpecBand,       wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
+ if(allowRoutingOutput) err = nf90_def_dim(ncid, trim( routing_DimName), nTimeDelay,      routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
+ if(maxSnowLayers>0)    err = nf90_def_dim(ncid, trim( midSnow_DimName), maxSnowLayers,   midSnow_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
+                        err = nf90_def_dim(ncid, trim( midSoil_DimName), nSoil,           midSoil_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
+                        err = nf90_def_dim(ncid, trim( midToto_DimName), maxLayers,       midToto_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
+ if(maxSnowLayers>0)    err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1, ifcSnow_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
+                        err = nf90_def_dim(ncid, trim( ifcSoil_DimName), nSoil+1,         ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
+                        err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1,     ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
 
  ! Leave define mode of NetCDF files
  err = nf90_enddef(ncid);  message='nf90_enddef'; call netcdf_err(err,message); if (err/=0) return
@@ -420,10 +422,12 @@ contains
  ! **********************************************************************************************************
  ! public subroutine write_hru_info: write HRU dimension and IDs
  ! **********************************************************************************************************
- subroutine write_hru_info(ncid, err, message)
+ subroutine write_hru_info(ncid, gruDimID, hruDimID, err, message)
  use globalData,only:gru_struc                    ! gru-hru mapping structures
  ! input
  integer(i4b),intent(in)     :: ncid              ! netcdf file id
+ integer(i4b),intent(in)     :: gruDimID          ! GRU dimension ID
+ integer(i4b),intent(in)     :: hruDimID          ! HRU dimension ID
  ! output
  integer(i4b),intent(out)    :: err               ! error code
  character(*),intent(out)    :: message           ! error message
@@ -442,22 +446,22 @@ contains
  err = nf90_redef(ncid); call netcdf_err(err, message); if (err/=nf90_NoErr) return
 
  ! define HRU var
- err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, (/hru_DimID/), hruVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, (/hruDimID/), hruVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruVarID, 'long_name', 'hruId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_unit';     call netcdf_err(err,message); return; end if
 
  ! define GRU var
- err = nf90_def_var(ncid, trim(gru_DimName), nf90_int, (/gru_DimID/), gruVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruVar'  ;  call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, trim(gru_DimName), nf90_int, (/gruDimID/), gruVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruVar'  ;  call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruVarID, 'long_name', 'gruId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruVar_unit';     call netcdf_err(err,message); return; end if
 
 ! define hruId var
- err = nf90_def_var(ncid, 'hruId', nf90_int64, (/hru_DimID/), hruIdVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruIdVar' ; call netcdf_err(err,message); return; end if 
+ err = nf90_def_var(ncid, 'hruId', nf90_int64, (/hruDimID/), hruIdVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruIdVar' ; call netcdf_err(err,message); return; end if 
  err = nf90_put_att(ncid, hruIdVarID, 'long_name', 'ID defining the hydrologic response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_unit';   call netcdf_err(err,message); return; end if
 
  ! define gruId var
- err = nf90_def_var(ncid, 'gruId', nf90_int64, (/gru_DimID/), gruIdVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruIdVar' ; call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, 'gruId', nf90_int64, (/gruDimID/), gruIdVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruIdVar' ; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruIdVarID, 'long_name', 'ID defining the grouped (basin) response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_unit';   call netcdf_err(err,message); return; end if
 

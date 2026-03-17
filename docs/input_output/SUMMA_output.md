@@ -17,12 +17,12 @@ SUMMA output files can have the following dimensions (as defined in `build/sourc
 | spectral  | dimension for the number of spectral bands | Variables and parameters that vary for different spectral regimes |
 | time      | dimension for the time step | Time-varying variables and parameters |
 | tdh       | dimension for the time delay routing vectors | Variables and parameters that are held in memory as part of routing routines |
-| midSnow   | dimension for midSnow | Time-varying variables and parameters at the mid-point of each snow layer |
-| midSoil   | dimension for midSoil | Time-varying variables and parameters at the mid-point of each soil layer |
-| midToto   | dimension for midToto | Time-varying variables and parameters at the mid-point of each layer in the combined soil and snow profile |
-| ifcSnow   | dimension for ifcSnow | Time-varying variables and parameters at the interfaces between snow layers (including top and bottom) |
-| ifcSoil   | dimension for ifcSoil | Time-varying variables and parameters at the interfaces between soil layers (including top and bottom) |
-| ifcToto   | dimension for ifcToto | Time-varying variables and parameters at the interfaces between all layers in the combined soil and snow profile (including top and bottom) |
+| midSnow   | dimension for midSnow | Variables and parameters at the mid-point of each snow layer |
+| midSoil   | dimension for midSoil | Variables and parameters at the mid-point of each soil layer |
+| midToto   | dimension for midToto | Variables and parameters at the mid-point of each layer in the combined soil and snow profile |
+| ifcSnow   | dimension for ifcSnow | Variables and parameters at the interfaces between snow layers (including top and bottom) |
+| ifcSoil   | dimension for ifcSoil | Variables and parameters at the interfaces between soil layers (including top and bottom) |
+| ifcToto   | dimension for ifcToto | Variables and parameters at the interfaces between all layers in the combined soil and snow profile (including top and bottom) |
 
 <a id="outfile_restart"></a>
 ## Restart or state file
