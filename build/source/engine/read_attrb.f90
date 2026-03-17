@@ -339,7 +339,7 @@ end subroutine read_dimension
      end do
     end do
 
-   ! for mapping varibles, do nothing (information read above in read_dimension)
+   ! for mapping variables, do nothing (information read above in read_dimension)
    case('hru2gruId','gruId')
     ! get the index of the variable
     varType = idrelated

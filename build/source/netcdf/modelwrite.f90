@@ -718,7 +718,7 @@ contains
     end select
 
     ! error check
-    if (err.ne.0) message=trim(message)//'writing variable:'//trim(prog_meta(iVar)%varName)
+    if (err/=0) message=trim(message)//'writing variable:'//trim(prog_meta(iVar)%varName)
     call netcdf_err(err,message); if (err/=0) return
     err=0; message='writeRestart/'
 

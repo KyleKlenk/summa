@@ -786,7 +786,7 @@ subroutine popMetadat(err,message)
 
   ! read file to define model output (modifies metadata structures)
   call read_output_file(err,cmessage)
-  if (err.ne.0) message=trim(message)//trim(cmessage)
+  if (err/=0) message=trim(message)//trim(cmessage)
 
 end subroutine popMetadat
 
