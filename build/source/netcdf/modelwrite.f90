@@ -426,7 +426,7 @@ contains
     end select ! varType
 
     ! write the data vectors
-    if(maxLength <= 0) cycle ! skip if there are no layers
+    if(maxLength==0) cycle ! skip if there is no length
     select case(dataType)
      case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
      case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),intArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
