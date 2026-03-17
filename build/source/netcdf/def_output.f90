@@ -38,10 +38,10 @@ public :: write_hru_info
 character(len=32),parameter :: gru_DimName      = 'gru'              ! dimension name for the GRUs
 character(len=32),parameter :: hru_DimName      = 'hru'              ! dimension name for the HRUs
 character(len=32),parameter :: depth_DimName    = 'depth'            ! dimension name for soil depth
-character(len=32),parameter :: scalar_DimName   = 'scalar'           ! dimension name for scalar variables
-character(len=32),parameter :: wLength_dimName  = 'spectral_bands'   ! dimension name for the number of spectral bands
+character(len=32),parameter :: scalar_DimName   = 'scalarv'          ! dimension name for scalar variables
+character(len=32),parameter :: wLength_dimName  = 'spectral'         ! dimension name for the number of spectral bands
 character(len=32),parameter :: timestep_DimName = 'time'             ! dimension name for the time step
-character(len=32),parameter :: routing_DimName  = 'timeDelayRouting' ! dimension name for the time delay routing vectors
+character(len=32),parameter :: routing_DimName  = 'tdh'              ! dimension name for the time delay routing vectors
 character(len=32),parameter :: midSnow_DimName  = 'midSnow'          ! dimension name for midSnow
 character(len=32),parameter :: midSoil_DimName  = 'midSoil'          ! dimension name for midSoil
 character(len=32),parameter :: midToto_DimName  = 'midToto'          ! dimension name for midToto
