@@ -301,8 +301,8 @@ The local attributes file contains a `gru` and an `hru` dimension as specified i
 
 | Variable | dimension | type | units | long name | notes |
 |----------|-----------|------|-------|-----------|-------|
-| gruId | hru | int | - | ID defining the grouped (basin) response unit | |
-| hruId | gru | int | - | ID defining the hydrologic response unit | |
+| gruId | gru | int | - | ID defining the grouped (basin) response unit | |
+| hruId | hru | int | - | ID defining the hydrologic response unit | |
 | hru2gruId | hru | int | - | Index of GRU to which the HRU belongs | gruId of the GRU to which the HRU belongs |
 | downHRUindex | hru | int | - | Index of downslope HRU (0 = basin outlet) | Downslope HRU must be within the same GRU. If the value is 0, then there is no exchange to a | neighboring HRU. Setting this value to 0 for all HRUs emulates a series of independent columns |
 | longitude | hru | double | Decimal degree east | Longitude of HRU's centroid | West is negative or greater than 180 |
