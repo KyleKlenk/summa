@@ -71,8 +71,8 @@ contains
  character(len=256)          :: cmessage            ! downstream error message
  integer(i8b),allocatable    :: gru_id(:)           ! GRU id
  integer(i8b),allocatable    :: hru_id(:)           ! HRU id
- integer(i4b),allocatable    :: gruid_to_index(:)   ! mapping from gru_id to index in gru_struc
- integer(i4b),allocatable    :: hrunc_to_index(:,:) ! mapping from hru_nc to index in gru_struc
+ integer(i4b),allocatable    :: index_to_gruid(:)   ! mapping from index to gru_id in gru_struc
+ integer(i4b),allocatable    :: index_to_hrunc(:,:) ! mapping from index to hru_nc in gru_struc
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error message
  err=0
@@ -122,19 +122,19 @@ contains
  end if
 
  ! Allocate the mapping arrays
- allocate(gruid_to_index(fileGRU), hrunc_to_index(fileGRU,maxval(gru_struc(:)%hruCount)))
+ allocate(index_to_gruid(nGRUU), index_to_hrunc(nGRU,maxval(gru_struc(:)%hruCount)))
 
  ! Populate the mapping arrays
- do i = 1, fileGRU
-   gruid_to_index(i) = -1  ! Initialize with an invalid index
-   do iGRU = 1, nGRU
+ do iGRU = 1, nGRU
+   index_to_gruid(iGRU) = -1  ! Initialize with an invalid index
+   do i = 1, fileGRU
      if (gru_struc(iGRU)%gru_id == gru_id(i)) then
-       gruid_to_index(i) = iGRU
-       do j = 1, gru_struc(iGRU)%hruCount
-         hrunc_to_index(i,j) = -1 
-         do iHRU = 1, fileHRU ! assumes HRUs are in GRU order
-           if (gru_struc(iGRU)%hruInfo(j)%hru_id == hru_id(iHRU)) then
-             hrunc_to_index(i,j) = iHRU
+       index_to_gruid(iGRU) = i
+       do iHRU = 1, gru_struc(iGRU)%hruCount
+         index_to_hrunc(iGRU,iHRU) = -1 
+         do j = 1, fileHRU
+           if (gru_struc(iGRU)%hruInfo(iHRU)%hru_id == hru_id(j)) then
+             index_to_hrunc(iGRU,iHRU) = j
              exit
            endif
          end do
@@ -169,11 +169,9 @@ contains
  end do
 
  ! loop over grus in current run to update snow/soil layer information
- do i = 1,fileGRU
-  iGRU = gruid_to_index(i)
-  do j = 1,gru_struc(iGRU)%hruCount
-   iHRU = hrunc_to_index(i,j)- minval(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
-   iHRU_global = hrunc_to_index(i,j)
+ do iGRU = 1,nGRU
+  do iHRU = 1,gru_struc(iGRU)%hruCount
+   iHRU_global = index_to_hrunc(iGRU,iHRU) ! index of HRU in the netcdf file
    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(iHRU_global)
    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(iHRU_global)
   end do
@@ -185,7 +183,7 @@ contains
 
  ! cleanup
  deallocate(snowData,soilData)
- deallocate(gru_id,hru_id,gruid_to_index,hrunc_to_index)
+ deallocate(gru_id,hru_id,index_to_gruid,index_to_hrunc)
 
  end subroutine read_icond_nlayers
 
@@ -260,8 +258,8 @@ contains
  character(len=32),parameter            :: tdhDimName    ='tdh'     ! dimension name for time-delay basin variables
  integer(i8b),allocatable               :: gru_id(:)                ! GRU id
  integer(i8b),allocatable               :: hru_id(:)                ! HRU id
- integer(i4b),allocatable               :: gruid_to_index(:)        ! mapping from gru_id to index in gru_struc
- integer(i4b),allocatable               :: hrunc_to_index(:,:)      ! mapping from hru_nc to index in gru_struc
+ integer(i4b),allocatable               :: index_to_gruid(:)        ! mapping from index to gru_id in gru_struc
+ integer(i4b),allocatable               :: index_to_hrunc(:,:)      ! mapping from index to hru_nc in gru_struc
  ! --------------------------------------------------------------------------------------------------------
  ! Start procedure here
  err=0; message="read_icond/"
@@ -281,10 +279,10 @@ contains
  allocate(hru_id(fileHRU))
  err = nf90_inq_varid(ncid,"hruId",ncVarID)
  if (err/=nf90_noerr)then
-    hru_id = [(gru_struc(iGRU)%hruInfo(:)%hru_id, iGRU=1,nGRU)]
-    err=nf90_noerr    ! reset this err
+   hru_id = [(gru_struc(iGRU)%hruInfo(:)%hru_id, iGRU=1,nGRU)]
+   err=nf90_noerr    ! reset this err
  else
-  ! read hru_id from netcdf file
+   ! read hru_id from netcdf file
    err = nf90_get_var(ncid,ncVarID,hru_id); if (err/=nf90_noerr) then; message=trim(message)//'problem reading hruId'; return; end if
  end if
 
@@ -310,19 +308,19 @@ contains
  end if
 
  ! Allocate the mapping arrays
- allocate(gruid_to_index(fileGRU), hrunc_to_index(fileGRU,maxval(gru_struc(:)%hruCount)))
+ allocate(index_to_gruid(nGRU), index_to_hrunc(nGRU,maxval(gru_struc(:)%hruCount)))
 
  ! Populate the mapping arrays
- do i = 1, fileGRU
-   gruid_to_index(i) = -1  ! Initialize with an invalid index
-   do iGRU = 1, nGRU
+ do iGRU = 1, nGRU
+   index_to_gruid(iGRU) = -1  ! Initialize with an invalid index
+   do i = 1, fileGRU
      if (gru_struc(iGRU)%gru_id == gru_id(i)) then
-       gruid_to_index(i) = iGRU
-       do j = 1, gru_struc(iGRU)%hruCount
-         hrunc_to_index(i,j) = -1 
-         do iHRU = 1, fileHRU ! assumes HRUs are in GRU order
-           if (gru_struc(iGRU)%hruInfo(j)%hru_id == hru_id(iHRU)) then
-             hrunc_to_index(i,j) = iHRU
+       index_to_gruid(iGRU) = i
+       do iHRU = 1, gru_struc(iGRU)%hruCount
+         index_to_hrunc(iGRU,iHRU) = -1 
+         do j = 1, fileHRU
+           if (gru_struc(iGRU)%hruInfo(iHRU)%hru_id == hru_id(j)) then
+             index_to_hrunc(iGRU,iHRU) = j
              exit
            endif
          end do
@@ -382,11 +380,9 @@ contains
   if(err/=nf90_noerr)then; message=trim(message)//': problem getting the data for variable '//trim(prog_meta(iVar)%varName); return; endif
 
   ! store data in prognostics structure
-  do i = 1,fileGRU
-   iGRU = gruid_to_index(i)
-   do j = 1,gru_struc(iGRU)%hruCount
-    iHRU = hrunc_to_index(i,j)- minval(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
-    iHRU_global = hrunc_to_index(i,j)
+  do iGRU = 1,nGRU
+   do iHRU = 1,gru_struc(iGRU)%hruCount
+    iHRU_global = index_to_hrunc(iGRU,iHRU) ! index of HRU in the netcdf file
     ! get the number of layers
     nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow
     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
@@ -434,10 +430,8 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! (3) set number of layers
  ! --------------------------------------------------------------------------------------------------------
- do i = 1,fileGRU
-  iGRU = gruid_to_index(i)
-  do j = 1,gru_struc(iGRU)%hruCount
-   iHRU = hrunc_to_index(i,j)- minval(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
+ do iGRU = 1,nGRU
+  do iHRU = 1,gru_struc(iGRU)%hruCount
 
    ! save the number of layers
    nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow
@@ -456,10 +450,8 @@ contains
  ! (4) update soil layers (diagnostic variables)
  ! --------------------------------------------------------------------------------------------------------
  ! loop through GRUs and HRUs
- do i = 1,fileGRU
-  iGRU = gruid_to_index(i)
-  do j = 1,gru_struc(iGRU)%hruCount
-   iHRU = hrunc_to_index(i,j)- minval(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
+ do iGRU = 1,nGRU
+  do iHRU = 1,gru_struc(iGRU)%hruCount
 
    ! loop through soil layers
    do iLayer = 1,indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
@@ -536,10 +528,10 @@ contains
    if(err/=nf90_noerr)then; message=trim(message)//': problem getting the data'; return; endif
 
    ! store data in basin var (bvar) structure
-   do j = 1,fileGRU
-    iGRU = gruid_to_index(j)
+   do iGRU = 1,nGRU
+    iGRU_global = index_to_gruid(iGRU) ! index of GRU in the netcdf file
     ! put the data into data structures
-    bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData(j,1:nTDH)
+    bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData(iGRU_global,1:nTDH)
     ! check whether the first values is set to nf90_fill_double
     if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
     if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
@@ -554,6 +546,9 @@ contains
  
  call nc_file_close(ncid,err,cmessage)
  if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
+
+ ! cleanup
+ deallocate(gru_id,hru_id,index_to_gruid,index_to_hrunc)
 
  end subroutine read_icond
 
