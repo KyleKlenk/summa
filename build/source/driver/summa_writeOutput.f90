@@ -285,7 +285,7 @@ contains
  if(defNewOutputFile .or. modelTimeStep==1)then
 
   ! define summa output files, also writes attr, type, mpar, and bpar which are constant
-  call summa_defineOutputFiles(modelTimeStep, summa1_struc, err, cmessage)
+  call summa_defineOutputFiles(modelTimeStep, model_decisions(iLookDECISIONS%write_buff)%iDecision == writeFullSeries, summa1_struc, err, cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! re-initialize the indices for model writing

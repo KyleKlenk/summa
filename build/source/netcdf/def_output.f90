@@ -74,7 +74,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine def_output: define model output file
  ! **********************************************************************************************************
- subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nSoil,infile,err,message)
+ subroutine def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nSoil,infile,err,message)
  USE globalData,only:structInfo                               ! information on the data structures
  USE globalData,only:time_meta,forc_meta,attr_meta,type_meta  ! metadata structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,mpar_meta  ! metadata structures
@@ -85,6 +85,7 @@ contains
  USE var_lookup,only:maxvarFreq                               ! # of available output frequencies
  USE get_ixname_module,only:get_freqName                      ! get name of frequency from frequency index
  ! declare dummy variables
+ logical(lgt),intent(in)     :: using_buffer                  ! flag for will do buffered write
  character(*),intent(in)     :: summaVersion                  ! SUMMA version
  character(*),intent(in)     :: buildTime                     ! build time
  character(*),intent(in)     :: gitBranch                     ! git branch
@@ -123,11 +124,15 @@ contains
  ! e.g., xxxxxxxxx_monthly.nc   (for monthly model output)
  do iFreq=1,maxvarFreq
 
-  ! skip frequencies that are not needed
+  ! skip frequencies that are not needed, buffered write only write timestep data
   if(.not.outFreq(iFreq)) cycle
+  fstring = get_freqName(iFreq)
+  if(using_buffer .and. trim(fstring)/='timestep') then
+    write(*,*)'WARNING: can only output timestep data when using the buffered write option (writeFullSeries), skipping frequency '//trim(fstring)
+    cycle
+  endif
 
   ! create file
-  fstring = get_freqName(iFreq)
   fname   = trim(infile)//'_'//trim(fstring)//'.nc'
   call ini_create(nGRU,nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if

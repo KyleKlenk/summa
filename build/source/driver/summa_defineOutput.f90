@@ -42,7 +42,7 @@ public::summa_defineOutputFiles
 contains
 
  ! used to define model output files
- subroutine summa_defineOutputFiles(modelTimeStep, summa1_struc, err, message)
+ subroutine summa_defineOutputFiles(modelTimeStep, is_bufferedWrite, summa1_struc, err, message)
  ! ---------------------------------------------------------------------------------------
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
@@ -66,6 +66,7 @@ contains
  implicit none
  ! dummy variables
  integer(i4b),intent(in)               :: modelTimeStep      ! time step index
+ logical(lgt),intent(in)               :: is_bufferedWrite   ! flag for buffered write
  type(summa1_type_dec),intent(inout)   :: summa1_struc       ! master summa data structure
  integer(i4b),intent(out)              :: err                ! error code
  character(*),intent(out)              :: message            ! error message
@@ -117,7 +118,7 @@ contains
  ! *****************************************************************************
 
  ! define the file
- call def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,cmessage)
+ call def_output(is_bufferedWrite,summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! write parameters for each HRU
