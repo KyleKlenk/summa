@@ -127,7 +127,7 @@ contains
  allocate(index_to_hrunc(nGRU,maxval(gru_struc(:)%hruCount)))
 
  ! Populate the mapping arrays
- if(.has_gru_id .and. has_hru_id)then
+ if(has_gru_id .and. has_hru_id)then
    ! if the file has both gru_id and hru_id, use these to populate the mapping arrays
    do iGRU = 1, nGRU
      do i = 1, fileGRU
@@ -257,6 +257,7 @@ contains
  character(256)                         :: dimName                  ! not used except as a placeholder in call to inq_dim function
  integer(i4b)                           :: dimLen                   ! data dimensions
  integer(i4b)                           :: ncid                     ! netcdf file ID
+ integer(i4b)                           :: iGRU_global              ! index of GRU in the netcdf file
  integer(i4b)                           :: iHRU_global              ! index of HRU in the netcdf file
  real(rkind),allocatable                :: varData(:,:)             ! variable data storage
  integer(i4b)                           :: nSoil, nSnow, nToto      ! # layers
@@ -325,7 +326,7 @@ contains
  allocate(index_to_gruid(nGRU), index_to_hrunc(nGRU,maxval(gru_struc(:)%hruCount)))
 
  ! Populate the mapping arrays
- if(.has_gru_id .and. has_hru_id)then
+ if(has_gru_id .and. has_hru_id)then
    ! if the file has both gru_id and hru_id, use these to populate the mapping arrays
    do iGRU = 1, nGRU
      index_to_gruid(iGRU) = -1  ! Initialize with an invalid index
