@@ -138,10 +138,10 @@ contains
  ! ---------------------------------------------------------------------------------------
  implicit none
  ! dummy variables
- integer(i4b),intent(in)               :: modelTimeStep      ! time step index
- type(summa1_type_dec),intent(inout)   :: summa1_struc       ! master summa data structure
- integer(i4b),intent(out)              :: err                ! error code
- character(*),intent(out)              :: message            ! error message
+ integer(i4b),intent(in)               :: modelTimeStep                ! time step index
+ type(summa1_type_dec),intent(inout)   :: summa1_struc                 ! master summa data structure
+ integer(i4b),intent(out)              :: err                          ! error code
+ character(*),intent(out)              :: message                      ! error message
  ! local variables
  character(len=256)                    :: timeString                   ! portion of restart file name that contains the write-out time
  character(len=256)                    :: restartFile                  ! restart file name

@@ -42,7 +42,7 @@ public::summa_defineOutputFiles
 contains
 
  ! used to define model output files
- subroutine summa_defineOutputFiles(modelTimeStep, is_bufferedWrite, summa1_struc, err, message)
+ subroutine summa_defineOutputFiles(modelTimeStep, using_buffer, summa1_struc, err, message)
  ! ---------------------------------------------------------------------------------------
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
@@ -66,7 +66,7 @@ contains
  implicit none
  ! dummy variables
  integer(i4b),intent(in)               :: modelTimeStep      ! time step index
- logical(lgt),intent(in)               :: is_bufferedWrite   ! flag for buffered write
+ logical(lgt),intent(in)               :: using_buffer       ! flag for will do buffered write
  type(summa1_type_dec),intent(inout)   :: summa1_struc       ! master summa data structure
  integer(i4b),intent(out)              :: err                ! error code
  character(*),intent(out)              :: message            ! error message
@@ -118,13 +118,13 @@ contains
  ! *****************************************************************************
 
  ! define the file
- call def_output(is_bufferedWrite,summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,cmessage)
+ call def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! write parameters for each HRU
+ ! write parameters with no time dimension
  do iGRU=1,nGRU
 
-  ! write HRU parameters
+  ! write HRU parameters, all written to timestep frequency file
   do iHRU=1,gru_struc(iGRU)%hruCount
    do iStruct=1,size(structInfo)
     select case(trim(structInfo(iStruct)%structName))
@@ -136,7 +136,7 @@ contains
    end do  ! (looping through structures)
   end do  ! (looping through HRUs)
 
-  ! write GRU parameters
+  ! write GRU parameters, all written to timestep frequency file
   do iStruct=1,size(structInfo)
    select case(trim(structInfo(iStruct)%structName))
     case('bpar'); call writeParam(iGRU,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
