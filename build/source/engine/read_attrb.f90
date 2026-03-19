@@ -84,21 +84,21 @@ contains
 
  ! get runtime GRU dimensions
  if (present(startGRU)) then
-  if (nGRU < 1) then; err=20; message=trim(message)//'nGRU < 1 for a startGRU run'; return; end if
-  sGRU = startGRU
+   if (nGRU < 1) then; err=20; message=trim(message)//'nGRU < 1 for a startGRU run'; return; end if
+   sGRU = startGRU
  elseif (present(checkHRU)) then
-  nGRU = 1
+   nGRU = 1
  else
-  sGRU = 1
-  nGRU = fileGRU
+   sGRU = 1
+   nGRU = fileGRU
  endif
 
  ! check dimensions
  if (present(startGRU)) then
-  if(startGRU + nGRU - 1  > fileGRU) then; err=20; message=trim(message)//'startGRU + nGRU is larger than then the GRU dimension'; return; end if
+   if(startGRU + nGRU - 1  > fileGRU) then; err=20; message=trim(message)//'startGRU + nGRU is larger than then the GRU dimension'; return; end if
  end if
  if (present(checkHRU)) then
-  if(checkHRU > fileHRU) then; err=20; message=trim(message)//'checkHRU is larger than then the HRU dimension'; return; end if
+   if(checkHRU > fileHRU) then; err=20; message=trim(message)//'checkHRU is larger than then the HRU dimension'; return; end if
  end if
 
  ! *********************************************************************************************
@@ -137,33 +137,33 @@ allocate(gru_struc(nGRU))
 
 ! set gru to hru mapping
 if (present(checkHRU)) then                                  ! allocate space for single-HRU run
- ! gru to hru mapping
- iGRU = 1
- gru_struc(iGRU)%hruCount             = 1                    ! number of HRUs in each GRU
- gru_struc(iGRU)%gru_id               = hru2gru_id(checkHRU) ! set gru id
- gru_struc(iGRU)%gru_nc               = sGRU                 ! set gru index within the netcdf file
- allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount)) ! allocate second level of gru to hru map
- gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU             ! set hru id in attributes netcdf file
- gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                    ! set index of hru in run domain
- gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)     ! set id of hru
+  ! gru to hru mapping
+  iGRU = 1
+  gru_struc(iGRU)%hruCount             = 1                    ! number of HRUs in each GRU
+  gru_struc(iGRU)%gru_id               = hru2gru_id(checkHRU) ! set gru id
+  gru_struc(iGRU)%gru_nc               = sGRU                 ! set gru index within the netcdf file
+  allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount)) ! allocate second level of gru to hru map
+  gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU             ! set hru id in attributes netcdf file
+  gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                    ! set index of hru in run domain
+  gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)     ! set id of hru
 
 else ! allocate space for anything except a single HRU run
- iHRU = 1
- do iGRU = 1,nGRU
-  if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
-  gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))                 ! number of HRUs in each GRU
+  iHRU = 1
+  do iGRU = 1,nGRU
+    if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
+    gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))                 ! number of HRUs in each GRU
 #ifdef NGEN_ACTIVE
-  if (gru_struc(iGRU)%hruCount > 1) then; err=20; message=trim(message)//'NGEN currently only supports single-HRU per GRU'; return; end if
-  print *, 'GRU id is ', gru_id(iGRU+sGRU-1)
+    if (gru_struc(iGRU)%hruCount > 1) then; err=20; message=trim(message)//'NGEN currently only supports single-HRU per GRU'; return; end if
+    print *, 'GRU id is ', gru_id(iGRU+sGRU-1)
 #endif
-  gru_struc(iGRU)%gru_id            = gru_id(iGRU+sGRU-1)                               ! set gru id
-  gru_struc(iGRU)%gru_nc            = iGRU+sGRU-1                                       ! set gru index in the netcdf file
-  allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                           ! allocate second level of gru to hru map
-  gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id) ! set hru id in attributes netcdf file
-  gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)             ! set index of hru in run domain
-  gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)         ! set id of hru
-  iHRU = iHRU + gru_struc(iGRU)%hruCount
- enddo ! iGRU = 1,nGRU
+    gru_struc(iGRU)%gru_id            = gru_id(iGRU+sGRU-1)                               ! set gru id
+    gru_struc(iGRU)%gru_nc            = iGRU+sGRU-1                                       ! set gru index in the netcdf file
+    allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                           ! allocate second level of gru to hru map
+    gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id) ! set hru id in attributes netcdf file
+    gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)             ! set index of hru in run domain
+    gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)         ! set id of hru
+    iHRU = iHRU + gru_struc(iGRU)%hruCount
+  enddo ! iGRU = 1,nGRU
 end if ! not checkHRU
 
 ! set hru to gru mapping
@@ -273,83 +273,83 @@ end subroutine read_dimension
  iCheck = 1
  do iVar = 1,nVar
 
-  ! inqure about current variable name, type, number of dimensions
-  err = nf90_inquire_variable(ncid,iVar,name=varName)
-  if(err/=nf90_noerr)then; message=trim(message)//'problem inquiring variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
+   ! inqure about current variable name, type, number of dimensions
+   err = nf90_inquire_variable(ncid,iVar,name=varName)
+   if(err/=nf90_noerr)then; message=trim(message)//'problem inquiring variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
 
-  ! find attribute name
-  select case(trim(varName))
+   ! find attribute name
+   select case(trim(varName))
 
-   ! ** categorical data
-   case('vegTypeIndex','soilTypeIndex','slopeTypeIndex','downHRUindex')
+     ! ** categorical data
+     case('vegTypeIndex','soilTypeIndex','slopeTypeIndex','downHRUindex')
 
-    ! get the index of the variable
-    varType = categorical
-    varIndx = get_ixType(varName)
-    checkType(varIndx) = .true.
+      ! get the index of the variable
+      varType = categorical
+      varIndx = get_ixType(varName)
+      checkType(varIndx) = .true.
 
-    ! check that the variable could be identified in the data structure
-    if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
+      ! check that the variable could be identified in the data structure
+      if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
 
-    ! get data from netcdf file and store in vector
-    do iGRU=1,nGRU
-     do iHRU = 1,gru_struc(iGRU)%hruCount
-      err = nf90_get_var(ncid,iVar,categorical_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
-      if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
-      typeStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = categorical_var(1)
-     end do
-    end do
+      ! get data from netcdf file and store in vector
+      do iGRU=1,nGRU
+        do iHRU = 1,gru_struc(iGRU)%hruCount
+          err = nf90_get_var(ncid,iVar,categorical_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
+          if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
+          typeStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = categorical_var(1)
+        end do
+      end do
 
-   ! ** ID related data
-   case('hruId')
-    ! get the index of the variable
-    varType = idrelated
-    varIndx = get_ixId(varName)
-    checkId(varIndx) = .true.
+     ! ** ID related data
+     case('hruId')
+      ! get the index of the variable
+      varType = idrelated
+      varIndx = get_ixId(varName)
+      checkId(varIndx) = .true.
 
-    ! check that the variable could be identified in the data structure
-    if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
+      ! check that the variable could be identified in the data structure
+      if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
 
-    ! get data from netcdf file and store in vector
-    do iGRU=1,nGRU
-     do iHRU = 1,gru_struc(iGRU)%hruCount
-      err = nf90_get_var(ncid,iVar,idrelated_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
-      if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
-      idStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = idrelated_var(1)
-     end do
-    end do
+      ! get data from netcdf file and store in vector
+      do iGRU=1,nGRU
+        do iHRU = 1,gru_struc(iGRU)%hruCount
+          err = nf90_get_var(ncid,iVar,idrelated_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
+          if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
+          idStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = idrelated_var(1)
+        end do
+      end do
 
-   ! ** numerical data
-   case('latitude','longitude','elevation','tan_slope','contourLength','HRUarea','mHeight','aspect')
+     ! ** numerical data
+     case('latitude','longitude','elevation','tan_slope','contourLength','HRUarea','mHeight','aspect')
 
-    ! get the index of the variable
-    varType = numerical
-    varIndx = get_ixAttr(varName)
-    checkAttr(varIndx) = .true.
+      ! get the index of the variable
+      varType = numerical
+      varIndx = get_ixAttr(varName)
+      checkAttr(varIndx) = .true.
 
-    ! check that the variable could be identified in the data structure
-    if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
+      ! check that the variable could be identified in the data structure
+      if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
 
-    ! get data from netcdf file and store in vector
-    do iGRU=1,nGRU
-     do iHRU = 1, gru_struc(iGRU)%hruCount
-      err = nf90_get_var(ncid,iVar,numeric_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
-      if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
-      attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = numeric_var(1)
-     end do
-    end do
+      ! get data from netcdf file and store in vector
+      do iGRU=1,nGRU
+        do iHRU = 1, gru_struc(iGRU)%hruCount
+          err = nf90_get_var(ncid,iVar,numeric_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
+          if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
+          attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = numeric_var(1)
+        end do
+      end do
 
-   ! for mapping variables, do nothing (information read above in read_dimension)
-   case('hru2gruId','gruId')
-    ! get the index of the variable
-    varType = idrelated
-    varIndx = get_ixId(varName)
-    checkId(varIndx) = .true.
+     ! for mapping variables, do nothing (information read above in read_dimension)
+     case('hru2gruId','gruId')
+      ! get the index of the variable
+      varType = idrelated
+      varIndx = get_ixId(varName)
+      checkId(varIndx) = .true.
 
-   ! check that variables are what we expect
-   case default; message=trim(message)//'unknown variable ['//trim(varName)//'] in local attributes file'; err=20; return
+     ! check that variables are what we expect
+     case default; message=trim(message)//'unknown variable ['//trim(varName)//'] in local attributes file'; err=20; return
 
-  end select ! select variable
+   end select ! select variable
 
  end do ! (looping through netcdf local attribute file)
  
@@ -360,9 +360,9 @@ end subroutine read_dimension
    write(*,*) NEW_LINE('A')//'INFO: aspect not found in the input attribute file, continuing ...'//NEW_LINE('A')
 
    do iGRU=1,nGRU
-    do iHRU = 1, gru_struc(iGRU)%hruCount
-     attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = nr_realMissing      ! populate variable with out-of-range value, used later
-    end do
+     do iHRU = 1, gru_struc(iGRU)%hruCount
+       attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = nr_realMissing      ! populate variable with out-of-range value, used later
+     end do
    end do
    checkAttr(varIndx) = .true.
  endif
@@ -372,23 +372,23 @@ end subroutine read_dimension
  ! **********************************************************************************************
  ! check that we have all desired categorical variables
  if(any(.not.checkType))then
-  do iCheck = 1,size(type_meta)
-   if(.not.checkType(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(type_meta(iCheck)%varName)//'] in local attributes file'; return; endif
-  end do
+   do iCheck = 1,size(type_meta)
+     if(.not.checkType(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(type_meta(iCheck)%varName)//'] in local attributes file'; return; endif
+   end do
  endif
 
  ! check that we have all desired ID variables
  if(any(.not.checkId))then
-  do iCheck = 1,size(id_meta)
-   if(.not.checkId(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(id_meta(iCheck)%varName)//'] in local attributes file'; return; endif
-  end do
+   do iCheck = 1,size(id_meta)
+     if(.not.checkId(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(id_meta(iCheck)%varName)//'] in local attributes file'; return; endif
+   end do
  endif
 
  ! check that we have all desired local attributes
  if(any(.not.checkAttr))then
-  do iCheck = 1,size(attr_meta)
-   if(.not.checkAttr(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(attr_meta(iCheck)%varName)//'] in local attributes file'; return; endif
-  end do
+   do iCheck = 1,size(attr_meta)
+     if(.not.checkAttr(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(attr_meta(iCheck)%varName)//'] in local attributes file'; return; endif
+   end do
  endif
 
  ! **********************************************************************************************

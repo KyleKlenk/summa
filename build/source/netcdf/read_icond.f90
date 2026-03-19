@@ -172,19 +172,19 @@ contains
  ixHRUfile_min=huge(1)
  ixHRUfile_max=0
  do iGRU = 1,nGRU
-  do iHRU = 1,gru_struc(iGRU)%hruCount
-   if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-   if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc > ixHRUfile_max) ixHRUfile_max = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-  end do
+   do iHRU = 1,gru_struc(iGRU)%hruCount
+     if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+     if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc > ixHRUfile_max) ixHRUfile_max = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+   end do
  end do
 
  ! loop over grus in current run to update snow/soil layer information
  do iGRU = 1,nGRU
-  do iHRU = 1,gru_struc(iGRU)%hruCount
-   iHRU_global = index_to_hrunc(iGRU,iHRU) ! index of HRU in the netcdf file
-   gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(iHRU_global)
-   gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(iHRU_global)
-  end do
+   do iHRU = 1,gru_struc(iGRU)%hruCount
+     iHRU_global = index_to_hrunc(iGRU,iHRU) ! index of HRU in the netcdf file
+     gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(iHRU_global)
+     gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(iHRU_global)
+   end do
  end do
 
  ! close file
