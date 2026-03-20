@@ -45,8 +45,8 @@ USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:&
   closedForm,    &                      ! use temperature with closed form heat capacity
-  enthalpyFormLU,&                      ! use enthalpy with soil temperature-enthalpy lookup tables
-  enthalpyForm                          ! use enthalpy with soil temperature-enthalpy analytical solution
+  enthalpyForm,  &                      ! use enthalpy with soil temperature-enthalpy lookup tables
+  enthalpyFormAN                        ! use enthalpy with soil temperature-enthalpy analytical solution
 
 ! named variables to define the decisions for snow layers
 USE mDecisions_module,only:&
@@ -180,7 +180,7 @@ contains
  ! decide if computing soil enthalpy lookup tables and vegetation enthalpy lookup tables
  needLookup_soil = .false.
  ! if need enthalpy for either energy backward Euler residual or IDA state variable and not using soil enthalpy hypergeometric function
- if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFormLU) needLookup_soil = .true. 
+ if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyForm) needLookup_soil = .true. 
  ! if using IDA and enthalpy as a state variable, need temperature-enthalpy lookup tables for soil and vegetation
  
  ! get the maximum number of snow layers
@@ -212,7 +212,7 @@ contains
  select case(model_decisions(iLookDECISIONS%nrgConserv)%iDecision)
    case(closedForm) ! ida temperature state variable
      absEnergyFac = 1.e2_rkind ! energy state variable is 2 orders of magnitude larger than mass state variable
-   case(enthalpyFormLU,enthalpyForm) ! ida enthalpy state variable
+   case(enthalpyForm, enthalpyFormAN) ! ida enthalpy state variable
      absEnergyFac = 1.e7_rkind ! energy state variable is 7 orders of magnitude larger than mass state variable
    case default; err=20; message=trim(message)//'unable to identify option for energy conservation'; return
  end select ! (option for energy conservation)
