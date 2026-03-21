@@ -148,7 +148,7 @@ contains
 ! check initial conditions
  checkEnthalpy = .false.
  use_lookup    = .false.
- if(ixNrgConserv\=closedForm) checkEnthalpy = .true. ! check enthalpy either for mixed form energy equation or enthalpy state variable
+ if(ixNrgConserv/=closedForm) checkEnthalpy = .true. ! check enthalpy either for mixed form energy equation or enthalpy state variable
  if(ixNrgConserv==enthalpyForm) use_lookup  = .true. ! use lookup tables for soil temperature-enthalpy instead of analytical solution
  call check_icond(nGRU,                         & ! intent(in):    number of response units
                   progStruct,                   & ! intent(inout): model prognostic variables
