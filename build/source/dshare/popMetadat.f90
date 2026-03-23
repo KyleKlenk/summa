@@ -943,7 +943,6 @@ subroutine read_output_file(err,message)
     ! process time-varying variables
     select case(trim(structName))
       case('forc','prog','diag','flux','bvar')
-
         ! * ensure that the frequency index exists for time varying variables
         if(nWords<freqIndex)then
           message=trim(message)//'must define desired output frequency for time-varing output: variable='//trim(varName)
@@ -977,9 +976,8 @@ subroutine read_output_file(err,message)
           freqName = trim(lineWords(freqIndex))
         endif
         if(trim(structName)=='time' .or. trim(structName)=='indx') then
-          if (freqName/='timestep' .and. freqName/='1') then
-            write(*,*)'WARNING: timestep only variable '//trim(varName)//': outputting at timestep level since it cannot be aggregated'
-          endif
+          if (freqName/='timestep' .and. freqName/='1')&
+          write(*,*)'WARNING: timestep only variable '//trim(varName)//': outputting at timestep level since it cannot be aggregated'
         else
           write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting parameter in timestep file with no time dimension'
         endif
