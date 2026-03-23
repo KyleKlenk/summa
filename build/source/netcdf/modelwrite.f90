@@ -129,7 +129,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeData: write model time-dependent data for each HRU
  ! **************************************************************************************
- subroutine writeData(is_bufferedWrite,finalizeStats,outputTimestep,maxWrite,meta,stat,dat,map,indx,err,message)
+ subroutine writeData(is_bufferedWrite,finalizeStats,outputTimestep,maxWrite,meta,stat,datt,map,indx,err,message)
  USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxvarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -146,7 +146,7 @@ contains
  integer(i4b)  ,intent(in)      :: maxWrite                       ! maximum number of steps written
  type(var_info),intent(in)      :: meta(:)                        ! meta data
  class(*)      ,intent(in)      :: stat                           ! stats data
- class(*)      ,intent(in)      :: dat(:)                         ! timestep or buffer data
+ class(*)      ,intent(in)      :: datt(:)                        ! timestep or buffer data
  integer(i4b)  ,intent(in)      :: map(:)                         ! map into stats child struct
  type(gru_hru_intVec),intent(in):: indx                           ! index data
  integer(i4b)  ,intent(out)     :: err                            ! error code
@@ -224,12 +224,12 @@ contains
     iGRU=1; iHRU=1
 
     ! data bound array access
-    select type(dat) ! forcStruc
+    select type(datt) ! forcStruc
      class is (gru_hru_double) ! x%gru(:)%hru(:)%var(:)
 
       ! put data in time buffer
       do iTime=1,maxWrite
-       timeBuffer(iTime) = dat(iTime)%gru(iGRU)%hru(iHRU)%var(iVar)
+       timeBuffer(iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(iVar)
       end do
 
      ! check we found the class
@@ -267,40 +267,40 @@ contains
       do iGRU=1,size(gru_struc)
 
        ! identify data structures
-       select type(dat)
+       select type(datt)
 
         ! *** HRU structures (indices, ...)
         class is (gru_hru_int)
          if(iGRU==1) nSpace = nHRUrun
          do iHRU=1,gru_struc(iGRU)%hruCount
-          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = dat(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
+          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
          end do  ! hru
         
         class is (gru_hru_int8)
          if(iGRU==1) nSpace = nHRUrun
          do iHRU=1,gru_struc(iGRU)%hruCount
-          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = dat(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
+          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
          end do  ! hru
 
         ! *** HRU structures (forcing, prognostic, diagnostic, ...)
         class is (gru_hru_double)
          if(iGRU==1) nSpace = nHRUrun
          do iHRU=1,gru_struc(iGRU)%hruCount
-          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = dat(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
+          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
          end do  ! hru
  
         class is (gru_int)
          if(iGRU==1) nSpace = nGRUrun
-         realBuffer(iGRU,iTime) = dat(iTime)%gru(iGRU)%var(map(iVar))
+         realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar))
 
         class is (gru_int8)
          if(iGRU==1) nSpace = nGRUrun
-         realBuffer(iGRU,iTime) = dat(iTime)%gru(iGRU)%var(map(iVar))
+         realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar))
 
         ! *** GRU structures (basin-average variables, ...)
         class is (gru_double)
          if(iGRU==1) nSpace = nGRUrun
-         realBuffer(iGRU,iTime) = dat(iTime)%gru(iGRU)%var(map(iVar))
+         realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar))
 
         class default; err=20; message=trim(message)//'scalarv variables must be of type gru_hru_[double or int*] or gru_[double or int*]'; return
        end select ! time step data structure
@@ -367,7 +367,7 @@ contains
     endif 
 
     ! initialize the data vectors
-    select type (dat)
+    select type (datt)
      class is (gru_hru_doubleVec); nSpace = nHRUrun; realArray(:,:) = realMissing;   dataType=ixReal
      class is (gru_hru_intVec);    nSpace = nHRUrun; intArray(:,:) = integerMissing; dataType=ixInteger
      class is (gru_doubleVec);     nSpace = nGRUrun; realArray(:,:) = realMissing;   dataType=ixReal
@@ -402,11 +402,11 @@ contains
       end select ! varType
 
       ! get the data vectors
-      select type (dat)
-       class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
-       class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
-       class is (gru_doubleVec); realArray(iGRU,1:datLength) = dat(1)%gru(iGRU)%var(iVar)%dat(:); if(iHRU==1) exit ! only need to get the GRU-level data once
-       class is (gru_intVec);     intArray(iGRU,1:datLength) = dat(1)%gru(iGRU)%var(iVar)%dat(:); if(iHRU==1) exit ! only need to get the GRU-level data once
+      select type (datt)
+       class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = datt(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+       class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = datt(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+       class is (gru_doubleVec); realArray(iGRU,1:datLength) = datt(1)%gru(iGRU)%var(iVar)%dat(:); if(iHRU==1) exit ! only need to get the GRU-level data once
+       class is (gru_intVec);     intArray(iGRU,1:datLength) = datt(1)%gru(iGRU)%var(iVar)%dat(:); if(iHRU==1) exit ! only need to get the GRU-level data once
       end select
 
      end do  ! HRU loop
@@ -448,7 +448,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeTime: write current time to all files
  ! **************************************************************************************
- subroutine writeTime(finalizeStats,outputTimestep,meta,dat,err,message)
+ subroutine writeTime(finalizeStats,outputTimestep,meta,datt,err,message)
  USE data_types,only:var_info                       ! metadata type
  USE globalData,only:ncid                           ! output file IDs
  USE var_lookup,only:iLookSTAT                      ! index into stat structure
@@ -458,7 +458,7 @@ contains
  logical(lgt)  ,intent(in)     :: finalizeStats(:)  ! flags to finalize statistics
  integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
  type(var_info),intent(in)     :: meta(:)           ! meta data
- integer       ,intent(in)     :: dat(:)            ! timestep data
+ integer       ,intent(in)     :: datt(:)           ! timestep data
  integer(i4b)  ,intent(out)    :: err               ! error code
  character(*)  ,intent(out)    :: message           ! error message
  ! local variables
@@ -487,7 +487,7 @@ contains
    if (err/=0) then; err=20; return; end if
 
    ! add to file
-   err = nf90_put_var(ncid(iFreq),ncVarID,(/dat(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1/))
+   err = nf90_put_var(ncid(iFreq),ncVarID,(/datt(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1/))
    if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
    call netcdf_err(err,message)
    if (err/=0) then; err=20; return; end if
