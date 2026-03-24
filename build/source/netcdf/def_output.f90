@@ -74,7 +74,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine def_output: define model output file
  ! **********************************************************************************************************
- subroutine def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nSoil,infile,err,message)
+ subroutine def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,infile,err,message)
  USE globalData,only:structInfo                               ! information on the data structures
  USE globalData,only:time_meta,forc_meta,attr_meta,type_meta  ! metadata structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,mpar_meta  ! metadata structures
@@ -92,7 +92,6 @@ contains
  character(*),intent(in)     :: gitHash                       ! git hash
  integer(i4b),intent(in)     :: nGRU                          ! number of GRUs
  integer(i4b),intent(in)     :: nHRU                          ! number of HRUs
- integer(i4b),intent(in)     :: nSoil                         ! number of soil layers in the first HRU (used to define fixed length dimensions)
  character(*),intent(in)     :: infile                        ! file suffix
  integer(i4b),intent(out)    :: err                           ! error code
  character(*),intent(out)    :: message                       ! error message
