@@ -250,6 +250,7 @@ subroutine coupled_em(&
   logical(lgt)                         :: bal_soil               ! flag to denote if computed a soil balance
   logical(lgt)                         :: bal_aq                 ! flag to denote if computed an aquifer balance
   integer(i4b)                         :: iVar                   ! loop through model variables
+  real(rkind)                          :: delCanWat              ! change in canopy water (kg m-2)
   real(rkind)                          :: balanceSoilCompress    ! total soil compression (kg m-2)
   real(rkind)                          :: scalarCanopyWatBalError! water balance error for the vegetation canopy (kg m-2)
   real(rkind)                          :: scalarSoilWatBalError  ! water balance error (kg m-2)
@@ -1461,11 +1462,10 @@ subroutine coupled_em(&
       ! -----
       ! * balance checks for the canopy...
       ! ----------------------------------
-      ! if computing the vegetation flux
       if(computeVegFlux)then
-        ! balance checks for the canopy
         ! NOTE: need to put the balance checks in the sub-step loop so that we can recompute if necessary
-        scalarCanopyWatBalError = scalarCanopyWat - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
+        delCanWat = scalarCanopyWat - balanceCanopyWater0 
+        scalarCanopyWatBalError = delCanWat - ( (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
                                   - averageCanopySnowUnloading*data_step - averageCanopyLiqDrainage*data_step + averageCanopySublimation*data_step + averageCanopyEvaporation*data_step)
         if(abs(scalarCanopyWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then
           write(*,'(a,1x,f20.10)') 'data_step                    = ', data_step
@@ -1483,6 +1483,9 @@ subroutine coupled_em(&
           message=trim(message)//'canopy hydrology does not balance'
           err=20; return
         end if
+      else
+        delCanWat = 0._rkind
+        scalarCanopyWatBalError = 0._rkind
       endif  ! if computing the vegetation flux
 
       ! -----
@@ -1526,6 +1529,8 @@ subroutine coupled_em(&
           message=trim(message)//'SWE does not balance'
           err=20; return
         endif  ! if failed mass balance check
+      else
+        delSWE = 0._rkind
       endif  ! if snow layers exist
 
       ! -----
@@ -1535,10 +1540,10 @@ subroutine coupled_em(&
       if(printBalance)then
         if(nSoil>0)then
           write(*,'(a,1x,10(f12.8,1x))') 'liqSoilInit       = ', liqSoilInit
-          write(*,'(a,1x,10(f12.8,1x))') 'volFracLiq        = ', mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoil)
+          write(*,'(a,1x,10(f12.8,1x))') 'volFracLiq        = ', mLayerVolFracLiq(nSnow+1:nSnow+nSoil)
           write(*,'(a,1x,10(f12.8,1x))') 'iLayerLiqFluxSoil = ', flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat*iden_water*data_step
           write(*,'(a,1x,10(f12.8,1x))') 'mLayerLiqFluxSoil = ', flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat*iden_water*data_step
-          write(*,'(a,1x,10(f12.8,1x))') 'change volFracLiq = ', mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoil) - liqSoilInit
+          write(*,'(a,1x,10(f12.8,1x))') 'change volFracLiq = ', mLayerVolFracLiq(nSnow+1:nSnow+nSoil) - liqSoilInit
         endif
         deallocate(liqSoilInit, stat=err)
         if(err/=0)then

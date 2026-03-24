@@ -48,6 +48,7 @@ USE var_lookup,only:iLookID            ! look-up values for hru and gru IDs
 USE var_lookup,only:iLookATTR          ! look-up values for local attributes
 USE var_lookup,only:iLookINDEX         ! look-up values for local column index variables
 USE var_lookup,only:iLookFLUX          ! look-up values for local column model fluxes
+USE var_lookup,only:iLookDIAG          ! look-up values model diagnostic variables
 USE var_lookup,only:iLookBVAR          ! look-up values for basin-average model variables
 
 ! provide access to model decisions
