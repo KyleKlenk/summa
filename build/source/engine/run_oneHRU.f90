@@ -34,7 +34,6 @@ USE data_types,only:&
 ! access vegetation data
 USE globalData,only:greenVegFrac_monthly   ! fraction of green vegetation in each month (0-1)
 USE globalData,only:overwriteRSMIN         ! flag to overwrite RSMIN
-USE globalData,only:maxSoilLayers          ! Maximum Number of Soil Layers
 
 ! provide access to Noah-MP constants
 USE module_sf_noahmplsm,only:isWater       ! parameter for water land cover type
@@ -164,7 +163,7 @@ contains
  call REDPRM(typeData%var(iLookTYPE%vegTypeIndex),      & ! vegetation type index
              typeData%var(iLookTYPE%soilTypeIndex),     & ! soil type
              typeData%var(iLookTYPE%slopeTypeIndex),    & ! slope type index
-             maxSoilLayers,                             & ! number of soil layers
+             10000_i4b,                                 & ! number of soil layers
              urbanVegCategory)                            ! vegetation category for urban areas
 
  ! overwrite the minimum resistance
