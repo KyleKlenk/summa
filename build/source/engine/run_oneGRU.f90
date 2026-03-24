@@ -125,9 +125,6 @@ contains
  character(len=512)                      :: cmessage               ! error message
  integer(i4b)                            :: iHRU                   ! HRU index
  integer(i4b)                            :: jHRU,kHRU              ! index of the hydrologic response unit
- integer(i4b)                            :: nSnow                  ! number of snow layers
- integer(i4b)                            :: nSoil                  ! number of soil layers
- integer(i4b)                            :: nLayers                ! total number of layers
  real(rkind)                             :: fracHRU                ! fractional area of a given HRU (-)
  logical(lgt)                            :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 
@@ -147,6 +144,9 @@ contains
  bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._rkind ! baseflow from the aquifer (m s-1)
  bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._rkind ! transpiration loss from the aquifer (m s-1)
 
+ ! initialize storage change variable
+ bvarData%var(iLookBVAR%basin__StorageChange)%dat(1)    = 0._rkind ! change in total basin storage (m s-1)
+
  ! initialize total inflow for each layer in a soil column
  do iHRU=1,gruInfo%hruCount
   fluxHRU%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._rkind
@@ -156,16 +156,7 @@ contains
  ! loop through HRUs
  do iHRU=1,gruInfo%hruCount
 
-  ! ----- hru initialization ---------------------------------------------------------------------------------------------
-
-  ! update the number of layers
-  nSnow   = indxHRU%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)    ! number of snow layers
-  nSoil   = indxHRU%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)    ! number of soil layers
-  nLayers = indxHRU%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers
-
-  ! set the flag to compute the vegetation flux
-  computeVegFluxFlag = (ixComputeVegFlux(iHRU) == yes)
-
+  computeVegFluxFlag = (ixComputeVegFlux(iHRU) == yes) ! set the flag to compute the vegetation flux
   ! ----- run the model --------------------------------------------------------------------------------------------------
 
   ! simulation for a single HRU
@@ -175,7 +166,7 @@ contains
                   gruInfo%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
                   dt_init(iHRU),                   & ! intent(inout): initial time step
                   computeVegFluxFlag,              & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
-                  nSnow,nSoil,nLayers,             & ! intent(inout): number of snow and soil layers
+                  gruInfo%hruInfo(iHRU),           & ! intent(inout): HRU layer information
                   ! data structures (input)
                   timeVec,                         & ! intent(in):    model time data
                   typeHRU%hru(iHRU),               & ! intent(in):    local classification of soil veg etc. for each HRU
@@ -192,10 +183,6 @@ contains
                   ! error control
                   err,cmessage)                      ! intent(out):   error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-  ! update layer numbers that could be changed in run_oneHRU -- needed for model output
-  gruInfo%hruInfo(iHRU)%nSnow = nSnow
-  gruInfo%hruInfo(iHRU)%nSoil = nSoil
 
   ! save the flag for computing the vegetation fluxes
   if(computeVegFluxFlag)       ixComputeVegFlux(iHRU) = yes
