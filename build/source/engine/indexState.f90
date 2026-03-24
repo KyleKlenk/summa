@@ -213,7 +213,7 @@ contains
  ixStateType(ixNrgLayer) = iname_nrgLayer
 
  ! define the state type for the snow+soil domain (hydrology)
- ixStateType( ixHydLayer(      1:nLayers)   ) = iname_watLayer
+ ixStateType( ixHydLayer(1:nLayers)) = iname_watLayer
  if(nSoil>0) ixStateType( ixHydLayer(nSnow+1:nLayers) ) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
 
  ! define the state type for the aquifer

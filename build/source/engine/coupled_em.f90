@@ -1540,10 +1540,10 @@ subroutine coupled_em(&
       if(printBalance)then
         if(nSoil>0)then
           write(*,'(a,1x,10(f12.8,1x))') 'liqSoilInit       = ', liqSoilInit
-          write(*,'(a,1x,10(f12.8,1x))') 'volFracLiq        = ', mLayerVolFracLiq(nSnow+1:nSnow+nSoil)
+          write(*,'(a,1x,10(f12.8,1x))') 'volFracLiq        = ', mLayerVolFracLiq(nSnow+1:nLayers)
           write(*,'(a,1x,10(f12.8,1x))') 'iLayerLiqFluxSoil = ', flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat*iden_water*data_step
           write(*,'(a,1x,10(f12.8,1x))') 'mLayerLiqFluxSoil = ', flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat*iden_water*data_step
-          write(*,'(a,1x,10(f12.8,1x))') 'change volFracLiq = ', mLayerVolFracLiq(nSnow+1:nSnow+nSoil) - liqSoilInit
+          write(*,'(a,1x,10(f12.8,1x))') 'change volFracLiq = ', mLayerVolFracLiq(nSnow+1:nLayers) - liqSoilInit
         endif
         deallocate(liqSoilInit, stat=err)
         if(err/=0)then
