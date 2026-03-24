@@ -297,7 +297,7 @@ contains
  ! loop through GRUs and HRUs
  do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
-    
+
    ! calculate output statistics
    do iStruct=1,size(structInfo)
     select case(trim(structInfo(iStruct)%structName))
@@ -531,9 +531,6 @@ contains
  integer(i4b)                         :: iVar             ! index of variable
  integer(i4b)                         :: pVar             ! index of "parent" variable (i.e., index in the data structure)
  integer(i4b)                         :: nVar             ! number of variables in the meta data structure
- ! error control
- integer(i4b)                         :: ierr             ! local error code
- character(len=256)                   :: cmessage         ! error message of the downwind routine
  ! associate to elements in the data structure
  ! ----------------------------------------------------------------------------------------------------------------------------
  ! primary data structures
