@@ -56,13 +56,11 @@ USE data_types,only:&
                     var_dlength,         & ! x%var(:)%dat               (rkind)
                     ! gru dimension
                     gru_int,             & ! x%gru(:)%var(:)            (i4b)
-                    gru_int8,            & ! x%gru(:)%var(:)            (i8b)
                     gru_double,          & ! x%gru(:)%var(:)            (rkind)
                     gru_intVec,          & ! x%gru(:)%var(:)%dat        (i4b)
                     gru_doubleVec,       & ! x%gru(:)%var(:)%dat        (rkind)
                     ! gru+hru dimension
                     gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
-                    gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     (i8b)
                     gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (rkind)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
                     gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (rkind)
@@ -265,10 +263,8 @@ contains
      select type (datt)
       class is (gru_hru_double); nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
       class is (gru_hru_int);    nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
-      class is (gru_hru_int8);   nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
       class is (gru_double);     nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
       class is (gru_int);        nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
-      class is (gru_int8);       nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
       class default; err=20; message=trim(message)//'data is not scalarv so should be either of type gru_hru_[double or int] or gru_[double or int]'; return
      end select
 
@@ -281,11 +277,9 @@ contains
          select type (datt)
           class is (gru_hru_double); realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
           class is (gru_hru_int);    realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
-          class is (gru_hru_int8);   realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
           class is (gru_double); realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit ! only need to get the GRU-level data once
           class is (gru_int);    realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit ! only need to get the GRU-level data once
-          class is (gru_int8);   realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit ! only need to get the GRU-level data once
-         end select ! time step data structure
+          end select ! time step data structure
 
         end do  ! HRU loop
        end do  ! GRU loop
@@ -494,7 +488,6 @@ contains
  ! external routines
  USE netcdf_util_module,only:nc_file_close  ! close netcdf file
  USE netcdf_util_module,only:nc_file_open   ! open netcdf file
- USE globalData,only:nTimeDelay             ! number of timesteps in the time delay histogram
  USE def_output_module,only: write_hru_info ! write HRU information to netcdf file
  
  implicit none
