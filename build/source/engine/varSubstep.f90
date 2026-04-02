@@ -32,8 +32,7 @@ USE data_types,only:&
                     model_options,       & ! defines the model decisions
                     in_type_varSubstep,  & ! class for intent(in) arguments
                     io_type_varSubstep,  & ! class for intent(inout) arguments
-                    out_type_varSubstep, & ! class for intent(out) arguments
-                    convergence_stats_data ! convergence stats
+                    out_type_varSubstep    ! class for intent(out) arguments
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -82,10 +81,6 @@ USE mDecisions_module,only:         &
                     enthalpyForm,   & ! use enthalpy with soil temperature-enthalpy lookup tables
                     enthalpyFormAN    ! use enthalpy with soil temperature-enthalpy analytical solution
 
-! split_select_type (includes access to stateFilter procedure)
-USE stateFilter_module,only: split_select_type
-USE stateFilter_module,only: fullyCoupled,stateTypeSplit ! options for ixCoupling
-
 ! safety: set private unless specified otherwise
 implicit none
 private
@@ -101,7 +96,6 @@ subroutine varSubstep(&
                       in_varSubstep,     & ! intent(in)    : model control
                       io_varSubstep,     & ! intent(inout) : model control
                       ! input/output: data structures
-                      split_select,      & ! intent(in)    : operator splitting object
                       model_decisions,   & ! intent(in)    : model decisions
                       lookup_data,       & ! intent(in)    : lookup tables
                       type_data,         & ! intent(in)    : type of vegetation and soil
@@ -115,7 +109,6 @@ subroutine varSubstep(&
                       flux_mean,         & ! intent(inout) : mean model fluxes for a local HRU
                       deriv_data,        & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                       bvar_data,         & ! intent(in)    : model variables for the local basin
-                      conv_data,         & ! intent(inout) : convergence data for a local HRU
                       ! output: model control
                       out_varSubstep)      ! intent(out)   : model control
   ! ---------------------------------------------------------------------------------------
@@ -135,7 +128,6 @@ subroutine varSubstep(&
   type(in_type_varSubstep),intent(in)    :: in_varSubstep             ! model control
   type(io_type_varSubstep),intent(inout) :: io_varSubstep             ! model control
   ! input/output: data structures
-  type(split_select_type),intent(in)     :: split_select              ! class object for selecting operator splitting methods
   type(model_options),intent(in)         :: model_decisions(:)        ! model decisions
   type(zLookup),intent(in)               :: lookup_data               ! lookup tables
   type(var_i),intent(in)                 :: type_data                 ! type of vegetation and soil
@@ -149,7 +141,6 @@ subroutine varSubstep(&
   type(var_dlength),intent(inout)        :: flux_mean                 ! mean model fluxes for a local HRU
   type(var_dlength),intent(inout)        :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
   type(var_dlength),intent(in)           :: bvar_data                 ! model variables for the local basin
-  type(convergence_stats_data),intent(inout) :: conv_data             ! convergence stats for a local HRU
   ! output: model control
   type(out_type_varSubstep),intent(out)  :: out_varSubstep            ! model control
   ! ---------------------------------------------------------------------------------------
@@ -338,7 +329,6 @@ subroutine varSubstep(&
                       computMassBalance, & ! intent(in):    flag to compute mass balance
                       computNrgBalance,  & ! intent(in):    flag to compute energy balance
                       ! input/output: data structures
-                      split_select,      & ! intent(in):    operator splitting object
                       lookup_data,       & ! intent(in):    lookup tables
                       type_data,         & ! intent(in):    type of vegetation and soil
                       attr_data,         & ! intent(in):    spatial attributes
@@ -368,16 +358,6 @@ subroutine varSubstep(&
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                       tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
                       err,cmessage)        ! intent(out):   error code and error message
-
-      ! gather failure stats (for recoverable errors)
-      if (err<0_i4b) then
-       if ((.not.tooMuchMelt).and.(.not.reduceCoupledStep)) then
-        conv_data % low_level_step_reductions = conv_data % low_level_step_reductions + 1_i4b
-        if (split_select % ixCoupling == fullyCoupled) then
-         conv_data % low_level_step_reductions_coupled = conv_data % low_level_step_reductions_coupled + 1_i4b
-        end if
-       end if
-      end if 
 
       if(err/=0)then ! (check for errors, but do not fail yet)
         message=trim(message)//trim(cmessage)
