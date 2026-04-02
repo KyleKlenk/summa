@@ -27,6 +27,12 @@ USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every
 !  model decisions
 USE globalData,only:model_decisions           ! model decision structure
 
+! provide access to global data
+USE globalData,only:maxLayers                 ! maximum number of layers
+USE globalData,only:nSpecBand                 ! number of spectral bands
+USE globalData,only:nTimeDelay                ! number of timesteps in the time delay histogram
+USE globalData,only:allowRoutingOutput        ! flag to allow routing variable output
+
 ! metadata
 USE globalData,only:time_meta                 ! metadata on the model time
 USE globalData,only:forc_meta                 ! metadata on the model forcing data
@@ -154,6 +160,7 @@ contains
  integer(i4b)                          :: iVar                         ! index of variable in the data structure
  integer(i4b)                          :: iStruct                      ! index of model structure
  integer(i4b)                          :: iFreq                        ! index of the output frequency
+ integer(i4b)                          :: maxLengthAll                 ! maxLength all data writing
  integer(i4b)                          :: maxWrite                     ! maximum number of time steps written 
  type(var_info)      , allocatable     :: meta(:)                      ! metadata
  type(extended_info) , allocatable     :: stat_meta(:)                 ! statistics metadata (includes only desired variables)
@@ -271,6 +278,10 @@ contains
    err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
  end select
 
+ ! find longest possible length
+ maxLengthAll = max(nSpecBand,maxLayers+1)
+ if(allowRoutingOutput) maxLengthAll = max(maxLengthAll, nTimeDelay)
+
  ! check if the buffered write
  is_bufferedWrite = (model_decisions(iLookDECISIONS%write_buff)%iDecision == writeFullSeries .and. modelTimeStep == numtim)
 
@@ -370,7 +381,7 @@ contains
       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
       ! will only write the (buffered) timestep data but full routine called for convenience
-      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,meta,statsData(1),bufferData,child_map,indxStruct,ierr,cmessage)
+      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,meta,statsData(1),bufferData,child_map,indxStruct,ierr,cmessage)
       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
      ! ----- write data and statistics structures ---------------------------------
@@ -385,7 +396,7 @@ contains
 
       ! Passes the full metadata structure and the child map (rather than the stats metadata structure) because
       !  we have the option to write out data of types other than statistics.
-      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,meta,statsData(1),timestepData,child_map,indxStruct,ierr,cmessage)
+      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,meta,statsData(1),timestepData,child_map,indxStruct,ierr,cmessage)
       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
      endif  ! (write data and statistics structures)
