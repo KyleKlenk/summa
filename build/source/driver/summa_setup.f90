@@ -191,7 +191,16 @@ contains
  end select ! (option to combine/sub-divide snow layers)
 
  ! get the maximum number of layers
- maxLayers = gru_struc(1)%hruInfo(1)%nSoil + maxSnowLayers
+ maxLayers     = 0
+ maxSoilLayers = 0
+ do iGRU=1,nGRU
+  do iHRU=1,gru_struc(iGRU)%hruCount
+   do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+    maxSoilLayers = max(maxSoilLayers, gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil)
+    maxLayers = max(maxLayers, maxSnowLayers+gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil)
+   end do 
+  end do
+ end do
 
  ! *****************************************************************************
  ! *** read local attributes for each HRU
