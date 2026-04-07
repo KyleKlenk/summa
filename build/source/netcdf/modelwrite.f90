@@ -170,8 +170,8 @@ contains
  integer(i4b)                   :: maxLength                      ! maximum length of each data vector
  real(rkind)                    :: timeBuffer(maxWrite)           ! buffer for all time steps
  real(rkind)                    :: realBuffer(nHRUrun,maxWrite)   ! buffer for all HRUs in the run domain + time steps
- real(rkind),allocatable        :: realArray(nHRUrun,maxLengthAll)! real array for all HRUs in the run domain
- integer(i4b),allocatable       :: intArray(nHRUrun,maxLengthAll) ! integer array for all HRUs in the run domain
+ real(rkind)                    :: realArray(nHRUrun,maxLengthAll)! real array for all HRUs in the run domain
+ integer(i4b)                   :: intArray(nHRUrun,maxLengthAll) ! integer array for all HRUs in the run domain
  integer(i4b)                   :: dataType                       ! type of data
  integer(i4b),parameter         :: ixInteger=1001                 ! named variable for integer
  integer(i4b),parameter         :: ixReal=1002                    ! named variable for real
