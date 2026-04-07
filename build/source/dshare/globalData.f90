@@ -145,7 +145,6 @@ MODULE globalData
                    struct_info('lookup','LOOKUP',maxvarLookup)  /)                  ! the lookup table data structure
   ! fixed model decisions
   logical(lgt)          , parameter, public   :: overwriteRSMIN=.false.             ! flag to overwrite RSMIN
-  integer(i4b)          , parameter, public   :: maxSoilLayers=10000                ! Maximum Number of Soil Layers
 
   ! ----------------------------------------------------------------------------------------------------------------
   ! * part 2: globally constant variables/structures that require initialization
@@ -212,6 +211,7 @@ MODULE globalData
   logical(lgt),dimension(maxvarFreq),save,public :: finalizeStats=.false.             ! flags to finalize statistics
   logical(lgt),save,public                       :: allowRoutingOutput=.false.        ! flag to allow routing variable output (currently very large and slow to write, so turned off by default)
   integer(i4b),save,public                       :: maxLayers                         ! maximum number of layers
+  integer(i4b),save,public                       :: maxSoilLayers                     ! maximum number of soil layers
   integer(i4b),save,public                       :: maxSnowLayers                     ! maximum number of snow layers
   ! define control variables
   integer(i4b),save,public                       :: startGRU                          ! index of the starting GRU for parallelization run

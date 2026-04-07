@@ -94,8 +94,9 @@ contains
  USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
  USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
  USE globalData,only:iRunMode                                ! define the current running mode
- ! output constraints
+! output constraints
  USE globalData,only:maxLayers                               ! maximum number of layers
+ USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
  USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
  ! timing variables
  USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
@@ -195,10 +196,8 @@ contains
  maxSoilLayers = 0
  do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
-   do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-    maxSoilLayers = max(maxSoilLayers, gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil)
-    maxLayers = max(maxLayers, maxSnowLayers+gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil)
-   end do 
+   maxSoilLayers = max(maxSoilLayers, gru_struc(iGRU)%hruInfo(iHRU)%nSoil)
+   maxLayers = max(maxLayers, maxSnowLayers+gru_struc(iGRU)%hruInfo(iHRU)%nSoil)
   end do
  end do
 
