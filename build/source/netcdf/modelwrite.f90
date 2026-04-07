@@ -267,59 +267,57 @@ contains
      ! loop through time, HRUs and GRU
      do iTime=1,maxWrite
       do iGRU=1,size(gru_struc)
-        do iHRU=1,gru_struc(iGRU)%hruCount
+       do iHRU=1,gru_struc(iGRU)%hruCount
 
-         ! get the data vectors
-         select type (datt)
-          class is (gru_hru_double); realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
-          class is (gru_hru_int);    realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
-          class is (gru_double); realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit ! only need to get the GRU-level data once
-          class is (gru_int);    realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit ! only need to get the GRU-level data once
-          end select ! time step data structure
+        ! get the data vectors
+        select type (datt)
+         class is (gru_hru_double); realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
+         class is (gru_hru_int);    realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
+         class is (gru_double); realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit ! only need to get the GRU-level data once
+         class is (gru_int);    realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit ! only need to get the GRU-level data once
+        end select ! time step data structure
 
-        end do  ! HRU loop
-       end do  ! GRU loop
-      end do  ! time loop
+       end do  ! HRU loop
+      end do  ! GRU loop
+     end do  ! time loop
 
-    ! write the data vectors
-    select case (dataType)
-     case(ixReal); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nSpace,1:maxWrite),start=(/1,1/),count=(/nSpace,maxWrite/))
-    end select
-    call netcdf_err(err,message); if (err/=0) return
+     ! write the data vectors
+     select case (dataType)
+      case(ixReal); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nSpace,1:maxWrite),start=(/1,1/),count=(/nSpace,maxWrite/))
+     end select
+     call netcdf_err(err,message); if (err/=0) return
 
     ! ----- writing statistics -------------------------------------------------
-
-    ! check that we are not writing buffered data -- writing statistics
     else
 
      ! check that maxWrite==1
      if(maxWrite/=1)then; message=trim(message)//'expect maxWrite=1 when not writing buffered output';err=20; return; endif
 
-    ! initialize the data vectors
-    select type (stat)
-     class is (gru_hru_doubleVec); nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
-     class is (gru_doubleVec);     nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
-      class default; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec or gru_doubleVec'; err=20; return;err=20; return
-    end select
+     ! initialize the data vectors
+     select type (stat)
+      class is (gru_hru_doubleVec); nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
+      class is (gru_doubleVec);     nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
+       class default; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec or gru_doubleVec'; err=20; return;err=20; return
+     end select
 
-    ! loop thru GRUs and HRUs
-    do iGRU=1,size(gru_struc)
-     do iHRU=1,gru_struc(iGRU)%hruCount
-     
-      ! get the data vectors
-      select type (stat)
-       class is (gru_hru_doubleVec); realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iFreq)
-       class is (gru_doubleVec); realBuffer(iGRU,1) = stat%gru(iGRU)%var(map(iVar))%dat(iFreq); exit ! only need to get the GRU-level data once
-      end select  ! stat data structure
+     ! loop thru GRUs and HRUs
+     do iGRU=1,size(gru_struc)
+      do iHRU=1,gru_struc(iGRU)%hruCount
+      
+       ! get the data vectors
+       select type (stat)
+        class is (gru_hru_doubleVec); realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iFreq)
+        class is (gru_doubleVec); realBuffer(iGRU,1) = stat%gru(iGRU)%var(map(iVar))%dat(iFreq); exit ! only need to get the GRU-level data once
+       end select  ! stat data structure
 
-     end do  ! HRU loop
-    end do  ! GRU loop
+      end do  ! HRU loop
+     end do  ! GRU loop
 
-    ! write the data vectors
-    select case (dataType)
-     case(ixReal); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nSpace,1),start=(/1,outputTimestep(iFreq)/),count=(/nSpace,1/))
-    end select
-    call netcdf_err(err,message); if (err/=0) return
+     ! write the data vectors
+     select case (dataType)
+      case(ixReal); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nSpace,1),start=(/1,outputTimestep(iFreq)/),count=(/nSpace,1/))
+     end select
+     call netcdf_err(err,message); if (err/=0) return
 
     endif  ! (if not buffered write -- statistics)
 
