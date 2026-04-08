@@ -244,7 +244,7 @@ contains
 
  else   ! (if buffered write)
 
-  ! standard case of write one data value per time step
+  ! standard case of write one data value per time step (not used)
   maxWrite = 1
 
  endif  ! (if not buffered write)
@@ -366,9 +366,6 @@ contains
 
    ! ----- write data and statistics structures ---------------------------------
    else
-
-    ! check per step write
-    if(maxWrite/=1)then; err=20; message=trim(message)//'expect maxWrite=1'; return; endif
     ! pass one-step data directly to the scalar writeData overload
     select case(trim(structInfo(iStruct)%structName))
      case('indx'); call writeData_perStep(finalizeStats,outputTimeStep,maxLengthAll,indx_meta,indxStat,indxStruct,indxChild_map,indxStruct,err,cmessage)
