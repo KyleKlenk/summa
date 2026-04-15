@@ -161,9 +161,6 @@ contains
  ! output arrays
  real(rkind)                    :: timeBuffer(maxWrite)           ! buffer for all time steps
  real(rkind)                    :: realBuffer(nHRUrun,maxWrite)   ! buffer for all HRUs in the run domain + time steps
- integer(i4b)                   :: dataType                       ! type of data
- integer(i4b),parameter         :: ixInteger=1001                 ! named variable for integer
- integer(i4b),parameter         :: ixReal=1002                    ! named variable for real
 
  ! initialize error control
  err=0
@@ -234,10 +231,10 @@ contains
 
     ! initialize the data vectors
     select type (datt)
-     class is (gru_hru_double); nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
-     class is (gru_hru_int);    nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
-     class is (gru_double);     nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
-     class is (gru_int);        nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
+     class is (gru_hru_double); nSpace = nHRUrun; realBuffer(:,:) = realMissing
+     class is (gru_hru_int);    nSpace = nHRUrun; realBuffer(:,:) = realMissing
+     class is (gru_double);     nSpace = nGRUrun; realBuffer(:,:) = realMissing
+     class is (gru_int);        nSpace = nGRUrun; realBuffer(:,:) = realMissing
      class default; err=20; message=trim(message)//'data is not scalarv so should be either of type gru_hru_[double or int] or gru_[double or int]'; return
     end select
 
@@ -259,9 +256,7 @@ contains
     end do  ! time loop
 
     ! write the data vectors
-    select case (dataType)
-     case(ixReal); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nSpace,1:maxWrite),start=(/1,1/),count=(/nSpace,maxWrite/))
-    end select
+    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nSpace,1:maxWrite),start=(/1,1/),count=(/nSpace,maxWrite/))
     call netcdf_err(err,message); if (err/=0) return
 
    else ! cannot write non-scalar variables in buffered write -- too complicated and slow, so not currently supported
@@ -384,8 +379,8 @@ contains
 
     ! initialize the data vectors
     select type (stat)
-     class is (gru_hru_doubleVec); nSpace = nHRUrun; realBuffer(:) = realMissing; dataType=ixReal
-     class is (gru_doubleVec);     nSpace = nGRUrun; realBuffer(:) = realMissing; dataType=ixReal
+     class is (gru_hru_doubleVec); nSpace = nHRUrun; realBuffer(:) = realMissing
+     class is (gru_doubleVec);     nSpace = nGRUrun; realBuffer(:) = realMissing
       class default; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec or gru_doubleVec'; err=20; return;err=20; return
     end select
 
@@ -403,9 +398,7 @@ contains
     end do  ! GRU loop
 
     ! write the data vectors
-    select case (dataType)
-     case(ixReal); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nSpace),start=(/1,outputTimestep(iFreq)/),count=(/nSpace,1/))
-    end select
+    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nSpace),start=(/1,outputTimestep(iFreq)/),count=(/nSpace,1/))
     call netcdf_err(err,message); if (err/=0) return
 
    ! ****************************************************************************
