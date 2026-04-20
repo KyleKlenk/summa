@@ -1397,24 +1397,14 @@ contains
   type(var_dlength),intent(inout)        :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
 
   ! intent(inout) arguments: max infiltration rate, frozen area, and surface runoff
-  associate(&
-   scalarMaxInfilRate     => flux_data%var(iLookFLUX%scalarMaxInfilRate)%dat(1),     & ! intent(out): [dp] maximum infiltration rate (m s-1)
-   scalarInfilArea        => diag_data%var(iLookDIAG%scalarInfilArea   )%dat(1),     & ! intent(out): [dp] fraction of area where water can infiltrate, may be frozen (-)
-   scalarSaturatedArea    => diag_data%var(iLookDIAG%scalarSaturatedArea)%dat(1),    & ! intent(out): [dp] fraction of area that is considered saturated (-)
-   scalarFrozenArea       => diag_data%var(iLookDIAG%scalarFrozenArea  )%dat(1),     & ! intent(out): [dp] fraction of area that is considered impermeable due to soil ice (-)
-   scalarSoilControl      => diag_data%var(iLookDIAG%scalarSoilControl  )%dat(1),    & ! intent(out): [dp] soil control on infiltration for derivative
-   scalarSurfaceRunoff    => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),    & ! intent(out): [dp] surface runoff (m s-1)
-   scalarSurfaceRunoff_IE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_IE)%dat(1), & ! intent(out): [dp] infiltration excess surface runoff (m s-1)
-   scalarSurfaceRunoff_SE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_SE)%dat(1)  ) ! intent(out): [dp] saturation excess surface runoff (m s-1)
-   scalarMaxInfilRate      =io_soilLiqFlux % scalarMaxInfilRate       ! intent(inout): maximum infiltration rate (m s-1)
-   scalarInfilArea         =io_soilLiqFlux % scalarInfilArea          ! intent(inout): fraction of area where water can infiltrate, may be frozen (-)
-   scalarSaturatedArea     =io_soilLiqFlux % scalarSaturatedArea      ! intent(inout): fraction of area that is considered saturated (-)
-   scalarFrozenArea        =io_soilLiqFlux % scalarFrozenArea         ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
-   scalarSoilControl       =io_soilLiqFlux % scalarSoilControl        ! intent(inout): soil control on infiltration for derivative
-   scalarSurfaceRunoff     =io_soilLiqFlux % scalarSurfaceRunoff      ! intent(inout): surface runoff (m s-1)
-   scalarSurfaceRunoff_IE  =io_soilLiqFlux % scalarSurfaceRunoff_IE   ! intent(inout): infiltration excess surface runoff (m s-1)
-   scalarSurfaceRunoff_SE  =io_soilLiqFlux % scalarSurfaceRunoff_SE   ! intent(inout): saturation excess surface runoff (m s-1)
-  end associate
+  flux_data%var(iLookFLUX%scalarMaxInfilRate)%dat(1)     = io_soilLiqFlux % scalarMaxInfilRate      ! intent(inout): maximum infiltration rate (m s-1)
+  diag_data%var(iLookDIAG%scalarInfilArea   )%dat(1)     = io_soilLiqFlux % scalarInfilArea         ! intent(inout): fraction of area where water can infiltrate, may be frozen (-)
+  diag_data%var(iLookDIAG%scalarSaturatedArea)%dat(1)    = io_soilLiqFlux % scalarSaturatedArea     ! intent(inout): fraction of area that is considered saturated (-)
+  diag_data%var(iLookDIAG%scalarFrozenArea  )%dat(1)     = io_soilLiqFlux % scalarFrozenArea        ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
+  diag_data%var(iLookDIAG%scalarSoilControl  )%dat(1)    = io_soilLiqFlux % scalarSoilControl       ! intent(inout): soil control on infiltration for derivative
+  flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)    = io_soilLiqFlux % scalarSurfaceRunoff     ! intent(inout): surface runoff (m s-1)
+  flux_data%var(iLookFLUX%scalarSurfaceRunoff_IE)%dat(1) = io_soilLiqFlux % scalarSurfaceRunoff_IE  ! intent(inout): infiltration excess surface runoff (m s-1)
+  flux_data%var(iLookFLUX%scalarSurfaceRunoff_SE)%dat(1) = io_soilLiqFlux % scalarSurfaceRunoff_SE  ! intent(inout): saturation excess surface runoff (m s-1)
 
   ! intent(inout) arguments: derivatives, fluxes, and layer properties
   associate(& 
@@ -1854,7 +1844,7 @@ contains
 
  subroutine initialize_io_surfaceFlux(io_surfaceFlux,nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
   class(io_type_surfaceFlux),intent(out) :: io_surfaceFlux ! input-output object for surfaceFlux
-  integer(i4b),intent(in)               :: nSoil         ! number of soil layers
+  integer(i4b),intent(in)                :: nSoil         ! number of soil layers
   type(io_type_soilLiqFlux),intent(in)   :: io_soilLiqFlux ! input-output class object for soilLiqFlux
   real(rkind),intent(in) :: iLayerHydCond(0:nSoil)       ! hydraulic conductivity at layer interface (m s-1)
   real(rkind),intent(in) :: iLayerDiffuse(0:nSoil)       ! diffusivity at layer interface (m2 s-1)
@@ -1881,7 +1871,7 @@ contains
 
  subroutine finalize_io_surfaceFlux(io_surfaceFlux,nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
   class(io_type_surfaceFlux),intent(in)   :: io_surfaceFlux ! input-output object for surfaceFlux
-  integer(i4b),intent(in)                :: nSoil         ! number of soil layers
+  integer(i4b),intent(in)                 :: nSoil         ! number of soil layers
   type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux ! input-output class object for soilLiqFlux
   real(rkind),intent(inout) :: iLayerHydCond(0:nSoil)     ! hydraulic conductivity at layer interface (m s-1)
   real(rkind),intent(inout) :: iLayerDiffuse(0:nSoil)     ! diffusivity at layer interface (m2 s-1)
