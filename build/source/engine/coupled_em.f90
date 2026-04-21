@@ -22,6 +22,7 @@ module coupled_em_module
 
 ! data types
 USE nr_type
+USE,intrinsic :: ieee_arithmetic
 USE data_types,only:&
                     var_i,               & ! x%var(:)                (i4b)
                     var_d,               & ! x%var(:)                (rkind)
@@ -293,9 +294,7 @@ subroutine coupled_em(&
   err=0; message="coupled_em/"
 
   ! This is the start of a data step for a local HRU
-
   ! get the start time
- ! get the start time
   CALL system_clock(count_rate=count_rate)
   CALL system_clock(i_start)
 
@@ -1593,7 +1592,7 @@ subroutine coupled_em(&
         scalarSoilWatBalError = 0._rkind
       endif ! if soil layers exist
 
-            ! -----
+      ! -----
       ! * balance checks for the aquifer...
       ! ------------------------------------
       ! Currently no balance checks for the aquifer
@@ -1603,7 +1602,10 @@ subroutine coupled_em(&
       ! -----
       ! sum of water changes in all of the domains to get the total water change rate
       ! -------------------------------------------------------
+
       scalarTotalMassChange = ((scalarTotalSoilWat - balanceSoilWater0) + delSWE + delCanWat + (balanceAquifer1-balanceAquifer0))/data_step
+      ! The subtraction arithmetic can raise a sticky IEEE underflow from subnormal cancellation; clear it unconditionally.
+      call ieee_set_flag(ieee_underflow, .false.)
 
       ! -----
       ! save the enthalpy or temperature component of enthalpy, and total enthalpy
