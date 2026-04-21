@@ -343,6 +343,7 @@ contains
  USE netcdf                                            ! netcdf libraries
  USE time_utils_module,only:elapsedSec                 ! calculate the elapsed time
  ! global data
+ USE globalData,only: verySmall                        ! a very small number for underflow checking
  USE globalData,only: nThreads                         ! number of threads
  USE globalData,only: startInit                        ! date/time for the start of the initialization
  USE globalData,only: elapsedInit                      ! elapsed time for the initialization
@@ -361,6 +362,9 @@ contains
  integer(i4b)                       :: localErr        ! local error code
  integer(i4b)                       :: iFreq           ! loop through output frequencies
  real(rkind)                        :: elpSec          ! elapsed seconds
+ logical(lgt),parameter             :: debugUnderflowTrace=.true. ! trace finalize underflow source
+ logical(lgt)                       :: underflowAtEntry ! IEEE underflow flag state on entry to stop_program
+ logical(lgt)                       :: underflowFlag   ! local IEEE underflow flag
 
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed
@@ -386,6 +390,8 @@ contains
 
  ! print elapsed time to read the restart data
  write(outunit,"(/,A,1PG15.7,A)")                                             '  elapsed restart = ', elapsedRestart,        ' s'
+ ! if restart is small make it 0 to avoid underflow issues in the fraction
+ if (elapsedRestart < verySmall) elapsedRestart = 0._rkind
  write(outunit,"(A,1PG15.7)")                                                 ' fraction restart = ', elapsedRestart/elpSec
 
  ! print elapsed time for the data read
