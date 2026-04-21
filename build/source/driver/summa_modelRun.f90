@@ -21,6 +21,8 @@
 module summa_modelRun
 ! calls the model physics
 
+USE,intrinsic :: ieee_arithmetic
+
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real number
@@ -266,6 +268,10 @@ contains
                   bvarStruct%gru(iGRU),         & ! intent(inout): basin-average variables
                   ! error control
                   err,cmessage)                   ! intent(out):   error control
+
+  ! Underflow from subnormal cancellation arithmetic (e.g. near-equal storage differences) is benign in SUMMA;
+  ! clear the sticky IEEE flag here so it does not propagate out of the physics call.
+  call ieee_set_flag(ieee_underflow, .false.)
 
   ! check errors
   call handle_err(err, cmessage)
