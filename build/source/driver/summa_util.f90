@@ -362,9 +362,6 @@ contains
  integer(i4b)                       :: localErr        ! local error code
  integer(i4b)                       :: iFreq           ! loop through output frequencies
  real(rkind)                        :: elpSec          ! elapsed seconds
- logical(lgt),parameter             :: debugUnderflowTrace=.true. ! trace finalize underflow source
- logical(lgt)                       :: underflowAtEntry ! IEEE underflow flag state on entry to stop_program
- logical(lgt)                       :: underflowFlag   ! local IEEE underflow flag
 
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed
