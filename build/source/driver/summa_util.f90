@@ -22,14 +22,14 @@ module summa_util
 ! utilities to manage summa simulation
 
 ! data types
-USE nrtype                              ! high-level data types
+USE nr_type                             ! high-level data types
 
 ! global data
 USE globalData,only:integerMissing      ! missing integer value
 USE globalData,only:realMissing         ! missing double precision value
 
 ! provide access to file IDs
-USE globalData,only:ncid               ! file id of netcdf output file
+USE globalData,only:ncid                ! file id of netcdf output file
 
 ! privacy
 implicit none

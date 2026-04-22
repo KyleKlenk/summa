@@ -45,8 +45,8 @@ USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:&
   closedForm,    &                      ! use temperature with closed form heat capacity
-  enthalpyFormLU,&                      ! use enthalpy with soil temperature-enthalpy lookup tables
-  enthalpyForm                          ! use enthalpy with soil temperature-enthalpy analytical solution
+  enthalpyForm,  &                      ! use enthalpy with soil temperature-enthalpy lookup tables
+  enthalpyFormAN                        ! use enthalpy with soil temperature-enthalpy analytical solution
 
 ! named variables to define the decisions for snow layers
 USE mDecisions_module,only:&
@@ -69,10 +69,10 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
- USE nrtype                                                  ! variable types, etc.
+ USE nr_type                                                 ! variable types, etc.
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! subroutines and functions
- use time_utils_module,only:elapsedSec                       ! calculate the elapsed time
+ USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
  USE mDecisions_module,only:mDecisions                       ! module to read model decisions
  USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
  USE read_attrb_module,only:read_attrb                       ! module to read local attributes
@@ -80,8 +80,8 @@ contains
  USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
  USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
  USE read_param_module,only:read_param                       ! module to read model parameter sets
- USE enthalpyTemp_module,only:T2H_lookup_snWat               ! module to calculate a look-up table for the snow temperature-enthalpy conversion
- USE enthalpyTemp_module,only:T2L_lookup_soil                ! module to calculate a look-up table for the soil temperature-enthalpy conversion
+ USE convertEnthalpyTemp_module,only:T2H_lookup_snWat        ! module to calculate a look-up table for the snow temperature-enthalpy conversion
+ USE convertEnthalpyTemp_module,only:T2L_lookup_soil         ! module to calculate a look-up table for the soil temperature-enthalpy conversion
  USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
  USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
  ! global data structures
@@ -94,9 +94,11 @@ contains
  USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
  USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
  USE globalData,only:iRunMode                                ! define the current running mode
- ! output constraints
+! output constraints
  USE globalData,only:maxLayers                               ! maximum number of layers
+ USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
  USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
+ USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
  ! timing variables
  USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
  USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
@@ -180,7 +182,7 @@ contains
  ! decide if computing soil enthalpy lookup tables and vegetation enthalpy lookup tables
  needLookup_soil = .false.
  ! if need enthalpy for either energy backward Euler residual or IDA state variable and not using soil enthalpy hypergeometric function
- if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFormLU) needLookup_soil = .true. 
+ if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyForm) needLookup_soil = .true. 
  ! if using IDA and enthalpy as a state variable, need temperature-enthalpy lookup tables for soil and vegetation
  
  ! get the maximum number of snow layers
@@ -191,7 +193,14 @@ contains
  end select ! (option to combine/sub-divide snow layers)
 
  ! get the maximum number of layers
- maxLayers = gru_struc(1)%hruInfo(1)%nSoil + maxSnowLayers
+ maxLayers     = 0
+ maxSoilLayers = 0
+ do iGRU=1,nGRU
+  do iHRU=1,gru_struc(iGRU)%hruCount
+   maxSoilLayers = max(maxSoilLayers, gru_struc(iGRU)%hruInfo(iHRU)%nSoil)
+   maxLayers = max(maxLayers, maxSnowLayers+gru_struc(iGRU)%hruInfo(iHRU)%nSoil)
+  end do
+ end do
 
  ! *****************************************************************************
  ! *** read local attributes for each HRU
@@ -212,7 +221,7 @@ contains
  select case(model_decisions(iLookDECISIONS%nrgConserv)%iDecision)
    case(closedForm) ! ida temperature state variable
      absEnergyFac = 1.e2_rkind ! energy state variable is 2 orders of magnitude larger than mass state variable
-   case(enthalpyFormLU,enthalpyForm) ! ida enthalpy state variable
+   case(enthalpyForm, enthalpyFormAN) ! ida enthalpy state variable
      absEnergyFac = 1.e7_rkind ! energy state variable is 7 orders of magnitude larger than mass state variable
    case default; err=20; message=trim(message)//'unable to identify option for energy conservation'; return
  end select ! (option for energy conservation)
@@ -271,8 +280,8 @@ contains
 
    ! copy over to the parameter structure
    ! NOTE: constant for the dat(:) dimension (normally depth)
-   do ivar=1,size(localParFallback)
-    mparStruct%gru(iGRU)%hru(iHRU)%var(ivar)%dat(:) = dparStruct%gru(iGRU)%hru(iHRU)%var(ivar)
+   do iVar=1,size(localParFallback)
+    mparStruct%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:) = dparStruct%gru(iGRU)%hru(iHRU)%var(iVar)
    end do  ! looping through variables
 
   end do  ! looping through HRUs
@@ -361,10 +370,10 @@ contains
 
   ! identify the total basin area for a GRU (m2)
   associate(totalArea => bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1) )
-  totalArea = 0._rkind
-  do iHRU=1,gru_struc(iGRU)%hruCount
-   totalArea = totalArea + attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
-  end do
+   totalArea = 0._rkind
+   do iHRU=1,gru_struc(iGRU)%hruCount
+    totalArea = totalArea + attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
+   end do
   end associate
 
  end do ! GRU
@@ -435,7 +444,7 @@ contains
   !                LAI: Leaf area index (dimensionless)
   !             MAXALB: Upper bound on maximum albedo over deep snow
   !
-  !-----READ IN VEGETAION PROPERTIES FROM VEGPARM.TBL
+  !-----READ IN VEGETATION PROPERTIES FROM VEGPARM.TBL
   !
 
   OPEN(19, FILE=trim(FILENAME_VEGTABLE),FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr)

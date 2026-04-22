@@ -21,7 +21,7 @@
 module opSplittin_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
@@ -716,7 +716,7 @@ subroutine opSplittin(&
    do iVar=1,size(flux_meta)
     if (neededFlux(iVar) .and. any(fluxCount%var(iVar)%dat==0)) then
      print*, 'fluxCount%var(iVar)%dat = ', fluxCount%var(iVar)%dat
-     message=trim(message)//'flux '//trim(flux_meta(iVar)%varname)//' was not computed'
+     message=trim(message)//'flux '//trim(flux_meta(iVar)%varName)//' was not computed'
      err=20; return_flag=.true.; return
     end if
    end do
@@ -1183,33 +1183,38 @@ subroutine opSplittin(&
            if (ixLayerActive(iLayer)/=integerMissing) then
 
             ! get the offset (ixLayerActive=1,2,3,...nLayers, and soil vectors nSnow+1, nSnow+2, ..., nLayers)
-            iOffset = merge(nSnow, 0, flux_meta(iVar)%vartype==iLookVarType%midSoil .or. flux_meta(iVar)%vartype==iLookVarType%ifcSoil)
+            iOffset = merge(nSnow, 0, flux_meta(iVar)%varType==iLookVarType%midSoil .or. flux_meta(iVar)%varType==iLookVarType%ifcSoil)
             jLayer  = iLayer-iOffset
 
             ! identify the minimum layer
-            select case(flux_meta(iVar)%vartype)
+            select case(flux_meta(iVar)%varType)
              case(iLookVarType%ifcToto, iLookVarType%ifcSnow, iLookVarType%ifcSoil); minLayer=merge(jLayer-1, jLayer, jLayer==1)
              case(iLookVarType%midToto, iLookVarType%midSnow, iLookVarType%midSoil); minLayer=jLayer
              case default; minLayer=integerMissing
             end select
 
             ! set desired layers
-            select case(flux_meta(iVar)%vartype)
+            select case(flux_meta(iVar)%varType)
              case(iLookVarType%midToto,iLookVarType%ifcToto);                    fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
              case(iLookVarType%midSnow,iLookVarType%ifcSnow); if (iLayer<=nSnow) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
              case(iLookVarType%midSoil,iLookVarType%ifcSoil); if (iLayer> nSnow) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
             end select
 
             ! add hydrology states for scalar variables
-            if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%vartype==iLookVarType%scalarv) then
+            if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%varType==iLookVarType%scalarv) then
              select case(iDomainSplit)
-              case(snowSplit); if(iLayer==nSnow)   fluxMask%var(iVar)%dat = desiredFlux
-              case(soilSplit); 
-                if(iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge & ! soil drainage, aq recharge changes with the bottom layer
-                   .or. iVar==iLookFLUX%scalarSoilBaseflow) then                                   ! soil baseflow changes with all layers, so compute after bottom layer
-                  if(iLayer==nLayers) fluxMask%var(iVar)%dat = desiredFlux
-                else ! other scalar variables in the soil domain change with the surface layer
-                  if(iLayer==nSnow+1) fluxMask%var(iVar)%dat = desiredFlux
+              case(snowSplit) ! snow scalar variables change with the bottom layer
+                if(nSnow>0 .and. iLayer==nSnow) fluxMask%var(iVar)%dat = desiredFlux
+              case(soilSplit)
+                if(nSoil>0)then
+                  if(iLayer==nLayers)then 
+                    ! soil drainage, aq recharge, soil baseflow changes with all layers, so compute after bottom layer
+                    if((iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge &
+                     .or. iVar==iLookFLUX%scalarSoilBaseflow)) fluxMask%var(iVar)%dat = desiredFlux
+                  ! other scalar variables in the soil domain change with the surface layer
+                  elseif(iLayer==nSnow+1)then
+                    fluxMask%var(iVar)%dat = desiredFlux
+                  end if
                 end if
              end select
             end if  ! if hydrology split and scalar
@@ -1228,7 +1233,7 @@ subroutine opSplittin(&
 
     ! define if the flux is desired
     if (desiredFlux) neededFlux(iVar)=.true.
-    if ( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 ) print*,'computing flux', trim(flux_meta(iVar)%varname)
+    if ( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 ) print*,'computing flux', trim(flux_meta(iVar)%varName)
 
    end do  ! end looping through fluxes
 

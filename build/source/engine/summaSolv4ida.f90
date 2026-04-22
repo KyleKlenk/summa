@@ -18,18 +18,23 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module summaSolve4ida_module
+module summaSolv4ida_module
 
 
 !======= Inclusions ===========
 USE, intrinsic :: iso_c_binding
-USE nrtype
+USE nr_type
 USE type4ida
+USE data_types,only:&
+                    var_i,        & ! data vector (i4b)
+                    var_d,        & ! data vector (rkind)
+                    var_ilength,  & ! data vector with variable length dimension (i4b)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
+                    model_options   ! defines the model decisions
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
-USE globalData,only:verySmaller     ! a smaller number used as an additive constant to check if substantial difference among real numbers
 
 ! access matrix information
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
@@ -41,7 +46,9 @@ USE globalData,only: kl             ! number of sub-diagonal bands
 USE globalData,only:flux_meta       ! metadata on the model fluxes
 
 ! constants
-USE multiconst,only: Tfreeze        ! temperature at freezing              (K)
+USE multiconst,only:Tfreeze        ! temperature at freezing              (K)
+USE globalData,only:verySmall       ! a small number
+USE globalData,only:verySmaller     ! a smaller number than verySmall
 
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -52,14 +59,6 @@ USE var_lookup,only:iLookFLUX       ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 
-! provide access to the derived types to define the data structures
-USE data_types,only:&
-                    var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (rkind)
-                    var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (rkind)
-                    model_options   ! defines the model decisions
-
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
   qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
@@ -69,8 +68,8 @@ USE mDecisions_module,only:       &
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:       &
   closedForm,                     & ! use temperature with closed form heat capacity
-  enthalpyFormLU,                 & ! use enthalpy with soil temperature-enthalpy lookup tables
-  enthalpyForm                      ! use enthalpy with soil temperature-enthalpy analytical solution
+  enthalpyForm,                   & ! use enthalpy with soil temperature-enthalpy lookup tables
+  enthalpyFormAN                    ! use enthalpy with soil temperature-enthalpy analytical solution
  
 ! look-up values for method used to compute derivative
 USE mDecisions_module,only:       &
@@ -84,15 +83,15 @@ USE mDecisions_module,only:       &
  private::find_rootdir
  public::layerDisCont4ida
  private::getErrMessage
- public::summaSolve4ida
+ public::summaSolv4ida
 
 contains
 
 
 ! ************************************************************************************
-! * public subroutine summaSolve4ida: solve F(y,y') = 0 by IDA (y is the state vector)
+! * public subroutine summaSolv4ida: solve F(y,y') = 0 by IDA (y is the state vector)
 ! ************************************************************************************
-subroutine summaSolve4ida(&
+subroutine summaSolv4ida(&
                       dt_cur,                  & ! intent(in):    current stepsize
                       dt,                      & ! intent(in):    data time step
                       atol,                    & ! intent(in):    absolute tolerance
@@ -270,7 +269,7 @@ subroutine summaSolve4ida(&
     ) ! association to necessary variables for the residual computations
 
     ! initialize error control
-    err=0; message="summaSolve4ida/"
+    err=0; message="summaSolv4ida/"
     
     ! choose Jacobian type
     select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
@@ -389,17 +388,13 @@ subroutine summaSolve4ida(&
     if(detect_events)then
       nRoot = 0
       if(ixVegNrg/=integerMissing) nRoot = nRoot+1
-      if(nSnow>0)then
-        do i = 1,nSnow
-          if(ixSnowOnlyNrg(i)/=integerMissing) nRoot = nRoot+1
-        enddo
-      endif
-      if(nSoil>0)then
-        do i = 1,nSoil
-          if(ixSoilOnlyHyd(i)/=integerMissing) nRoot = nRoot+1
-          if(ixSoilOnlyNrg(i)/=integerMissing) nRoot = nRoot+1
-        enddo
-      endif
+      do i = 1,nSnow
+        if(ixSnowOnlyNrg(i)/=integerMissing) nRoot = nRoot+1
+      enddo
+      do i = 1,nSoil
+        if(ixSoilOnlyHyd(i)/=integerMissing) nRoot = nRoot+1
+        if(ixSoilOnlyNrg(i)/=integerMissing) nRoot = nRoot+1
+      enddo
       allocate( rootsfound(nRoot) )
       allocate( rootdir(nRoot) )
       rootdir = 0
@@ -488,7 +483,7 @@ subroutine summaSolve4ida(&
         if (eqns_data%err/=0)then; message=trim(message)//trim(eqns_data%message); return; endif ! fail from summa problem
         call getErrMessage(retvalr,cmessage) ! fail from solver problem
         message=trim(message)//trim(cmessage)
-        !if(retvalr==-1) err = -20 ! max iterations failure, exit and reduce the data window time in varSubStep
+        !if(retvalr==-1) err = -20 ! max iterations failure, exit and reduce the data window time in varSubstep
         exit
       end if
     
@@ -530,7 +525,7 @@ subroutine summaSolve4ida(&
       ! early return for non-feasible solutions, right now will just fail if goes infeasible
       if(.not.feasible)then
         idaSucceeds = .false.
-        message=trim(message)//trim(cmessage)//'non-feasible' ! err=0 is already set, could make this a warning and reduce the data window time in varSubStep
+        message=trim(message)//trim(cmessage)//'non-feasible' ! err=0 is already set, could make this a warning and reduce the data window time in varSubstep
         exit
       end if
     
@@ -597,7 +592,7 @@ subroutine summaSolve4ida(&
           retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
           if (retval /= 0) then; err=20; message=trim(message)//'error in FIDAReInit'; return; endif
           ! don't keep calling if step is small, or took many steps already (prevents root bouncing)
-          if(dt_last(1) < 1.e-6_rkind .or. abs(dt_diff) < 1.e-6_rkind &
+          if(dt_last(1) < verySmall .or. abs(dt_diff) < verySmall &
             .or. (mpar_data%var(iLookPARAM%idaMaxDataWindowSteps)%dat(1)<1.e10_rkind &
             .and. nSteps>=mpar_data%var(iLookPARAM%idaMaxDataWindowSteps)%dat(1)))then ! treat 1e10 as no limit on steps
             retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4ida))
@@ -669,7 +664,7 @@ subroutine summaSolve4ida(&
 
   end associate
 
-end subroutine summaSolve4ida
+end subroutine summaSolv4ida
 
 ! ----------------------------------------------------------------
 ! SetInitialCondition: routine to initialize u and up vectors.
@@ -820,35 +815,31 @@ subroutine find_rootdir(eqns_data,rootdir)
     if(eqns_data%scalarCanopyTempPrev > Tfreeze) rootdir(ind) = -1
   endif
 
-  if(nSnow>0)then
-    do i = 1,nSnow
-      ! identify the critical point when the snow layer begins to freeze
-      if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
-        ind = ind+1
-        rootdir(ind) = 1
-        if(eqns_data%mLayerTempPrev(i) > Tfreeze) rootdir(ind) = -1
-      endif
-    end do
-  endif
+  do i = 1,nSnow
+    ! identify the critical point when the snow layer begins to freeze
+    if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
+      ind = ind+1
+      rootdir(ind) = 1
+      if(eqns_data%mLayerTempPrev(i) > Tfreeze) rootdir(ind) = -1
+    endif
+  end do
 
-  if(nSoil>0)then
-    do i = 1,nSoil
-      xPsi = eqns_data%mLayerMatricHeadPrev(i)
-      ! identify the critical point when soil matrix potential goes below 0 and Tfreeze depends only on temp
-      if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
-        ind = ind+1
-        rootdir(ind) = 1
-        if(xPsi > 0._rkind ) rootdir(ind) = -1
-      endif
-      ! identify the critical point when the soil layer begins to freeze
-      if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
-        ind = ind+1
-        TcSoil = crit_soilT(xPsi)
-        rootdir(ind) = 1
-        if(eqns_data%mLayerTempPrev(i+nSnow) > TcSoil) rootdir(ind) = -1
-      endif
-    end do
-  endif
+  do i = 1,nSoil
+    xPsi = eqns_data%mLayerMatricHeadPrev(i)
+    ! identify the critical point when soil matrix potential goes below 0 and Tfreeze depends only on temp
+    if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
+      ind = ind+1
+      rootdir(ind) = 1
+      if(xPsi > 0._rkind ) rootdir(ind) = -1
+    endif
+    ! identify the critical point when the soil layer begins to freeze
+    if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
+      ind = ind+1
+      TcSoil = crit_soilT(xPsi)
+      rootdir(ind) = 1
+      if(eqns_data%mLayerTempPrev(i+nSnow) > TcSoil) rootdir(ind) = -1
+    endif
+  end do
 
 end subroutine find_rootdir
 
@@ -921,42 +912,38 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
     end if
   endif
 
-  if(nSnow>0)then
-    do i = 1,nSnow
-      ! identify the critical point when the snow layer begins to freeze
-      if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
-        ind = ind+1
-        if(enthalpyStateVec)then
-          gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i))
-        else
-          gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) - Tfreeze
-        end if
-      endif
-    end do
-  endif
-
-  if(nSoil>0)then
-    do i = 1,nSoil
-      ! identify the critical point when soil matrix potential goes below 0 and Tfreeze depends only on temp
-      if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
-        ind = ind+1
-        xPsi = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
-        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
+  do i = 1,nSnow
+    ! identify the critical point when the snow layer begins to freeze
+    if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
+      ind = ind+1
+      if(enthalpyStateVec)then
+        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i))
       else
-        xPsi = eqns_data%prog_data%var(iLookPROG%mLayerMatricHead)%dat(i)
-      endif
-      ! identify the critical point when the soil layer begins to freeze
-      if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
-        ind = ind+1
-        if(enthalpyStateVec)then
-          gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i))
-        else 
-          TcSoil = crit_soilT(xPsi)
-          gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
-        end if
-      endif
-    end do
-  endif
+        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) - Tfreeze
+      end if
+    endif
+  end do
+
+  do i = 1,nSoil
+    ! identify the critical point when soil matrix potential goes below 0 and Tfreeze depends only on temp
+    if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
+      ind = ind+1
+      xPsi = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
+      gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
+    else
+      xPsi = eqns_data%prog_data%var(iLookPROG%mLayerMatricHead)%dat(i)
+    endif
+    ! identify the critical point when the soil layer begins to freeze
+    if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
+      ind = ind+1
+      if(enthalpyStateVec)then
+        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i))
+      else 
+        TcSoil = crit_soilT(xPsi)
+        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
+      end if
+    endif
+  end do
 
   ! return success
   ierr = 0
@@ -1005,4 +992,4 @@ subroutine getErrMessage(retval,message)
 end subroutine getErrMessage
 
 
-end module summaSolve4ida_module
+end module summaSolv4ida_module

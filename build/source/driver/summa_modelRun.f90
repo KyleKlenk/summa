@@ -21,6 +21,8 @@
 module summa_modelRun
 ! calls the model physics
 
+USE,intrinsic :: ieee_arithmetic
+
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real number
@@ -48,10 +50,10 @@ contains
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
  ! data types
- USE nrtype                                                     ! variable types, etc.
+ USE nr_type                                                    ! variable types, etc.
  USE summa_type, only:summa1_type_dec                           ! master summa data type
  ! subroutines and functions
- USE nr_utility_module,only:indexx                              ! sort vectors in ascending order
+ USE nr_utils_module,only:indexx                                ! sort vectors in ascending order
  USE vegPhenlgy_module,only:vegPhenlgy                          ! module to compute vegetation phenology
  USE run_oneGRU_module,only:run_oneGRU                          ! module to run for one GRU
  USE time_utils_module,only:elapsedSec                          ! calculate the elapsed time
@@ -266,6 +268,10 @@ contains
                   bvarStruct%gru(iGRU),         & ! intent(inout): basin-average variables
                   ! error control
                   err,cmessage)                   ! intent(out):   error control
+
+  ! Underflow occurs benignly and overflow occurs rarely in the physics; we do not want to stop the model when they occur
+  call ieee_set_flag(ieee_underflow, .false.)
+  call ieee_set_flag(ieee_overflow, .false.)
 
   ! check errors
   call handle_err(err, cmessage)

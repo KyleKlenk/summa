@@ -21,7 +21,7 @@
 module indexState_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:var_ilength                            ! data vector with variable length dimension (i4b)
@@ -73,7 +73,7 @@ contains
                        indx_data,               & ! intent(inout): indices defining model states and layers
                        err,message)               ! intent(out):   error control
  ! provide access to the numerical recipes utility modules
- USE nr_utility_module,only:arth                           ! creates a sequence of numbers (start, incr, n)
+ USE nr_utils_module,only:arth                           ! use to build vectors with regular increments
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -213,8 +213,8 @@ contains
  ixStateType(ixNrgLayer) = iname_nrgLayer
 
  ! define the state type for the snow+soil domain (hydrology)
- if(nSnow>0) ixStateType( ixHydLayer(      1:nSnow)   ) = iname_watLayer
-             ixStateType( ixHydLayer(nSnow+1:nLayers) ) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
+ ixStateType( ixHydLayer(1:nLayers)) = iname_watLayer
+ if(nSoil>0) ixStateType( ixHydLayer(nSnow+1:nLayers) ) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
 
  ! define the state type for the aquifer
  if(includeAquifer) ixStateType( ixWatAquifer(1) ) = iname_watAquifer
@@ -228,13 +228,15 @@ contains
 
  ! define the domain type for snow
  if(nSnow>0)then
-  ixDomainType( ixNrgLayer(1:nSnow) ) = iname_snow
-  ixDomainType( ixHydLayer(1:nSnow) ) = iname_snow
+   ixDomainType( ixNrgLayer(1:nSnow) ) = iname_snow
+   ixDomainType( ixHydLayer(1:nSnow) ) = iname_snow
  endif
 
  ! define the domain type for soil
- ixDomainType( ixNrgLayer(nSnow+1:nLayers) ) = iname_soil
- ixDomainType( ixHydLayer(nSnow+1:nLayers) ) = iname_soil
+ if(nSoil>0)then
+   ixDomainType( ixNrgLayer(nSnow+1:nLayers) ) = iname_soil
+   ixDomainType( ixHydLayer(nSnow+1:nLayers) ) = iname_soil
+ endif
 
  ! define the domain type for the aquifer
  if(includeAquifer) ixDomainType( ixWatAquifer(1) ) = iname_aquifer
@@ -253,8 +255,10 @@ contains
  endif
 
  ! define the index of the each control volume in the soil domain
- ixControlVolume( ixNrgLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
- ixControlVolume( ixHydLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
+ if(nSoil>0)then
+   ixControlVolume( ixNrgLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
+   ixControlVolume( ixHydLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
+ endif
 
  ! define the index for the control volumes in the aquifer
  if(includeAquifer) ixControlVolume( ixWatAquifer(1) ) = 1
@@ -278,7 +282,7 @@ contains
                        out_indexSplit)                ! intent(out)   : error control
  ! external modules 
  USE f2008funcs_module,only:findIndex                 ! finds the index of the first value within a vector
- USE nr_utility_module,only:arth                      ! creates a sequence of numbers (start, incr, n)
+ USE nr_utils_module,only:arth                        ! use to build vectors with regular increments
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input
@@ -399,7 +403,7 @@ contains
    case(iLookINDEX%ixMatricHead);         call indxSubset(indx_data%var(iVar)%dat, ixSoilState,  matricHead_mask, err, cmessage)
    case default; cycle ! only need to process the above variables
   end select  ! iVar
-  if(err/=0)then; message=trim(message)//trim(cmessage)//'[varname='//trim(indx_meta(ivar)%varname)//']'; return; endif
+  if(err/=0)then; message=trim(message)//trim(cmessage)//'[varName='//trim(indx_meta(iVar)%varName)//']'; return; endif
 
  end do  ! looping through variables in the data structure
 
@@ -468,7 +472,7 @@ contains
   ! get the subset of indices
   ! NOTE: indxSubset(subset, fullVector, mask), provides subset of fullVector where mask==.true.
   call indxSubset(indx_data%var(iVar)%dat,ixSequence,stateTypeMask,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage)//'[varname='//trim(indx_meta(ivar)%varname)//']'; return; endif
+  if(err/=0)then; message=trim(message)//trim(cmessage)//'[varName='//trim(indx_meta(iVar)%varName)//']'; return; endif
 
  end do  ! looping through variables in the data structure
 
@@ -592,14 +596,14 @@ contains
   ! deallocate space
   deallocate(indx_data%var(iVar)%dat,stat=err)
   if(err/=0)then
-   message=trim(message)//'unable to deallocate space for variable '//trim(indx_meta(ivar)%varname)
+   message=trim(message)//'unable to deallocate space for variable '//trim(indx_meta(iVar)%varName)
    err=20; return
   endif
 
   ! allocate space
   allocate(indx_data%var(iVar)%dat(nVec),stat=err)
   if(err/=0)then
-   message=trim(message)//'unable to allocate space for variable '//trim(indx_meta(ivar)%varname)
+   message=trim(message)//'unable to allocate space for variable '//trim(indx_meta(iVar)%varName)
    err=20; return
   endif
 

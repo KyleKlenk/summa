@@ -18,10 +18,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module updateVars_module
+module updatDiagn_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -74,36 +74,36 @@ USE var_lookup,only:iLookPARAM            ! named variables for structure elemen
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
 ! provide access to routines to update states
-USE updatState_module,only:updateSnow     ! update snow states
-USE updatState_module,only:updateSoil     ! update soil states
+USE updatState_module,only:updatSnow      ! update snow states
+USE updatState_module,only:updatSoil      ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
-USE snow_utils_module,only:fracliquid          ! compute the fraction of liquid water (snow)
-USE snow_utils_module,only:dFracLiq_dTk        ! differentiate the freezing curve w.r.t. temperature (snow)
-USE soil_utils_module,only:dTheta_dTk          ! differentiate the freezing curve w.r.t. temperature (soil)
-USE soil_utils_module,only:dTheta_dPsi         ! derivative in the soil water characteristic (soil)
-USE soil_utils_module,only:matricHead          ! compute the matric head based on volumetric water content
-USE soil_utils_module,only:volFracLiq          ! compute volumetric fraction of liquid water
-USE soil_utils_module,only:crit_soilT          ! compute critical temperature below which ice exists
-USE soil_utils_module,only:liquidHead          ! compute the liquid water matric potential
-USE enthalpyTemp_module,only:T2enthTemp_cas    ! convert temperature to enthalpy for canopy air space
-USE enthalpyTemp_module,only:T2enthTemp_veg   ! convert temperature to enthalpy for vegetation
-USE enthalpyTemp_module,only:T2enthTemp_snow   ! convert temperature to enthalpy for snow
-USE enthalpyTemp_module,only:T2enthTemp_soil   ! convert temperature to enthalpy for soil 
+USE snow_utils_module,only:fracliquid                 ! compute the fraction of liquid water (snow)
+USE snow_utils_module,only:dFracLiq_dTk               ! differentiate the freezing curve w.r.t. temperature (snow)
+USE soil_utils_module,only:dTheta_dTk                 ! differentiate the freezing curve w.r.t. temperature (soil)
+USE soil_utils_module,only:dTheta_dPsi                ! derivative in the soil water characteristic (soil)
+USE soil_utils_module,only:matricHead                 ! compute the matric head based on volumetric water content
+USE soil_utils_module,only:volFracLiq                 ! compute volumetric fraction of liquid water
+USE soil_utils_module,only:crit_soilT                 ! compute critical temperature below which ice exists
+USE soil_utils_module,only:liquidHead                 ! compute the liquid water matric potential
+USE convertEnthalpyTemp_module,only:T2enthTemp_cas    ! convert temperature to enthalpy for canopy air space
+USE convertEnthalpyTemp_module,only:T2enthTemp_veg    ! convert temperature to enthalpy for vegetation
+USE convertEnthalpyTemp_module,only:T2enthTemp_snow   ! convert temperature to enthalpy for snow
+USE convertEnthalpyTemp_module,only:T2enthTemp_soil   ! convert temperature to enthalpy for soil 
 
 ! IEEE check
 USE, intrinsic :: ieee_arithmetic         ! check values (NaN, etc.)
 
 implicit none
 private
-public::updateVars
+public::updatDiagn
 
 contains
 
 ! **********************************************************************************************************
-! public subroutine updateVars: compute diagnostic variables and derivatives
+! public subroutine updatDiagn: compute diagnostic variables and derivatives
 ! **********************************************************************************************************
-subroutine updateVars(&
+subroutine updatDiagn(&
                       ! input
                       computeEnthTemp,                           & ! intent(in):    flag if computing temperature compoment of enthalpy
                       use_lookup,                                & ! intent(in):    flag to use the lookup table for soil enthalpy 
@@ -256,7 +256,7 @@ subroutine updateVars(&
     dPsiLiq_dTemp           => deriv_data%var(iLookDERIV%dPsiLiq_dTemp   )%dat        ,& ! intent(out): [dp(:)]  derivative in the liquid water matric potential w.r.t. temperature
     mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,& ! intent(out): [dp(:)]  derivative of volumetric liquid water content w.r.t. temperature
     dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,& ! intent(out): [dp]     derivative of volumetric liquid water content w.r.t. temperature
-    dFracLiqWat_dTk        => deriv_data%var(iLookDERIV%dFracLiqWat_dTk)%dat          ,& ! intent(out): [dp(:)]  derivative in fraction of liquid water w.r.t. temperature
+    dFracLiqWat_dTk         => deriv_data%var(iLookDERIV%dFracLiqWat_dTk)%dat         ,& ! intent(out): [dp(:)]  derivative in fraction of liquid water w.r.t. temperature
     dFracLiqVeg_dTkCanopy   => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy)%dat(1),& ! intent(out): [dp   ]  derivative in fraction of (throughfall + drainage) w.r.t. temperature
     ! derivatives inside solver for Jacobian only
     mLayerdTemp_dt          => deriv_data%var(iLookDERIV%mLayerdTemp_dt )%dat         ,& ! intent(out): [dp(:)]  timestep change in layer temperature
@@ -269,7 +269,7 @@ subroutine updateVars(&
     ! --------------------------------------------------------------------------------------------------------------------------------
 
     ! initialize error control
-    err=0; message='updateVars/'
+    err=0; message='updatDiagn/'
 
     ! allocate space and assign values to the flag vector
     allocate(computedCoupling(size(ixMapSubset2Full)),stat=err)        ! .true. if computed the coupling for a given state variable
@@ -492,7 +492,7 @@ subroutine updateVars(&
             case(iname_veg)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSnow(xTemp,                                        & ! intent(in):  temperature (K)
+              call updatSnow(xTemp,                                        & ! intent(in):  temperature (K)
                               scalarCanopyWatTrial/(iden_water*canopyDepth),& ! intent(in):  volumetric fraction of total water (-)
                               snowfrz_scale,                                & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
                               scalarVolFracLiq,                             & ! intent(out): trial volumetric fraction of liquid water (-)
@@ -510,7 +510,7 @@ subroutine updateVars(&
             case(iname_snow)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSnow(xTemp,                          & ! intent(in):  temperature (K)
+              call updatSnow(xTemp,                          & ! intent(in):  temperature (K)
                               mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
                               snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
                               mLayerVolFracLiqTrial(iLayer),  & ! intent(out): trial volumetric fraction of liquid water (-)
@@ -523,7 +523,7 @@ subroutine updateVars(&
             case(iname_soil)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSoil(xTemp,                                  & ! intent(in):  temperature (K)
+              call updatSoil(xTemp,                                  & ! intent(in):  temperature (K)
                               mLayerMatricHeadTrial(ixControlIndex),  & ! intent(in):  total water matric potential (m)
                               vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex), & ! intent(in): soil parameters
                               mLayerVolFracWatTrial(iLayer),          & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
@@ -768,7 +768,7 @@ subroutine updateVars(&
 
   end associate
 
- end subroutine updateVars
+ end subroutine updatDiagn
 
 
 ! **********************************************************************************************************
@@ -805,4 +805,4 @@ subroutine xTempSolve(&
   derivative = heatCap + LH_fus*iden_water*dLiq_dT  ! J m-3 K-1
 end subroutine xTempSolve
 
-end module updateVars_module
+end module updatDiagn_module

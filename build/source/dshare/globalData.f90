@@ -24,9 +24,8 @@
 
 MODULE globalData
   ! data types
-  USE nrtype
+  USE nr_type
   USE netcdf
-  USE,intrinsic :: ieee_arithmetic    ! IEEE arithmetic
   USE data_types,only:gru2hru_map     ! mapping between the GRUs and HRUs
   USE data_types,only:hru2gru_map     ! mapping between the GRUs and HRUs
   USE data_types,only:model_options   ! the model decision structure
@@ -37,6 +36,9 @@ MODULE globalData
   USE data_types,only:extended_info   ! extended metadata for variables in each model structure
   USE data_types,only:struct_info     ! summary information on all data structures
   USE data_types,only:var_i           ! vector of integers
+  USE data_types,only:gru_hru_int     ! x%gru(:)%hru(:)%var(:)     (i4b)
+  USE data_types,only:gru_hru_double  ! x%gru(:)%hru(:)%var(:)     (rkind)
+  USE data_types,only:gru_double      ! x%gru(:)%var(:)            (rkind)
   ! number of variables in each data structure
   USE var_lookup,only:maxvarTime      ! time:                     maximum number variables
   USE var_lookup,only:maxvarForc      ! forcing data:             maximum number variables
@@ -62,9 +64,9 @@ MODULE globalData
   ! ----------------------------------------------------------------------------------------------------------------
 
   ! define missing values
-  real(rkind),parameter,public                :: quadMissing    = nr_quadMissing    ! (from nrtype) missing quadruple precision number
-  real(rkind),parameter,public                :: realMissing    = nr_realMissing    ! (from nrtype) missing real number
-  integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nrtype) missing integer
+  real(rkind),parameter,public                :: quadMissing    = nr_quadMissing    ! (from nr_type) missing quadruple precision number
+  real(rkind),parameter,public                :: realMissing    = nr_realMissing    ! (from nr_type) missing real number
+  integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nr_type) missing integer
   ! define run modes
   integer(i4b),parameter,public               :: iRunModeFull=1                     ! named variable defining running mode as full run (all GRUs)
   integer(i4b),parameter,public               :: iRunModeGRU=2                      ! named variable defining running mode as GRU-parallelization run (GRU subset)
@@ -142,7 +144,6 @@ MODULE globalData
                    struct_info('lookup','LOOKUP',maxvarLookup)  /)                  ! the lookup table data structure
   ! fixed model decisions
   logical(lgt)          , parameter, public   :: overwriteRSMIN=.false.             ! flag to overwrite RSMIN
-  integer(i4b)          , parameter, public   :: maxSoilLayers=10000                ! Maximum Number of Soil Layers
 
   ! ----------------------------------------------------------------------------------------------------------------
   ! * part 2: globally constant variables/structures that require initialization
@@ -207,8 +208,10 @@ MODULE globalData
   character(len=256),save,public                 :: output_fileSuffix=''              ! suffix for the output file
   ! define controls on model output
   logical(lgt),dimension(maxvarFreq),save,public :: finalizeStats=.false.             ! flags to finalize statistics
+  logical(lgt),save,public                       :: allowRoutingOutput=.false.        ! flag to allow routing variable output (currently very large and slow to write, so turned off by default)
   integer(i4b),save,public                       :: maxLayers                         ! maximum number of layers
   integer(i4b),save,public                       :: maxSnowLayers                     ! maximum number of snow layers
+  integer(i4b),save,public                       :: maxSoilLayers                     ! maximum number of soil layers
   ! define control variables
   integer(i4b),save,public                       :: startGRU                          ! index of the starting GRU for parallelization run
   integer(i4b),save,public                       :: checkHRU                          ! index of the HRU for a single HRU run
@@ -232,6 +235,17 @@ MODULE globalData
   integer(i4b),save,public                       :: chunksize=1024                    ! chunk size for the netcdf read/write
   integer(i4b),save,public                       :: outputPrecision=nf90_double       ! variable type
   integer(i4b),save,public                       :: outputCompressionLevel=4          ! output netcdf file deflate level: 0-9. 0 is no compression.
+  ! define data structures for the buffered read
+  integer(i4b),save,public                       :: ixStartRead                       ! start index of the data read
+  real(rkind),save,public,allocatable            :: fulltimeVec(:)                    ! full time vector in an input file (nRead)
+  type(gru_hru_double),save,public,allocatable   :: fullforcingStruct(:)              ! x(:)%gru(:)%hru(:)%var(:) -- full model forcing data
+  ! define data structures for the buffered write
+  type(gru_hru_int),   save,public,allocatable   :: fullIndxSave(:)                   ! x(:)%gru(:)%hru(:)%var(:) -- saved output for indices
+  type(gru_hru_double),save,public,allocatable   :: fullForcSave(:)                   ! x(:)%gru(:)%hru(:)%var(:) -- saved output for forcing
+  type(gru_hru_double),save,public,allocatable   :: fullProgSave(:)                   ! x(:)%gru(:)%hru(:)%var(:) -- saved output for prognostic variables
+  type(gru_hru_double),save,public,allocatable   :: fullDiagSave(:)                   ! x(:)%gru(:)%hru(:)%var(:) -- saved output for diagnostic variables
+  type(gru_hru_double),save,public,allocatable   :: fullFluxSave(:)                   ! x(:)%gru(:)%hru(:)%var(:) -- saved output for flux variables
+  type(gru_double),    save,public,allocatable   :: fullBvarSave(:)                   ! x(:)%gru(:)%var(:)        -- saved output for basin variables
   ! define result from the time calls
   integer(i4b),dimension(8),save,public          :: startInit,endInit                 ! date/time for the start and end of the initialization
   integer(i4b),dimension(8),save,public          :: startSetup,endSetup               ! date/time for the start and end of the parameter setup
@@ -239,7 +253,7 @@ MODULE globalData
   integer(i4b),dimension(8),save,public          :: startRead,endRead                 ! date/time for the start and end of the data read
   integer(i4b),dimension(8),save,public          :: startWrite,endWrite               ! date/time for the start and end of the stats/write
   integer(i4b),dimension(8),save,public          :: startPhysics,endPhysics           ! date/time for the start and end of the physics
- ! define elapsed time
+  ! define elapsed time
   real(rkind),save,public                        :: elapsedInit                       ! elapsed time for the initialization
   real(rkind),save,public                        :: elapsedSetup                      ! elapsed time for the parameter setup
   real(rkind),save,public                        :: elapsedRestart                    ! elapsed time to read restart data
