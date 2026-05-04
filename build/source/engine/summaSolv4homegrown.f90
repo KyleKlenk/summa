@@ -984,8 +984,8 @@ contains
 
    ! check that we found the brackets
    if (iCheck==nCheck) then
-    ! check if we have too much energy going into a snow or ice layer, which could be the reason for not finding the brackets
-    if ((indx_data%var(iLookINDEX%nSnowOnlyNrg)%dat(1)>0 .or. indx_data%var(iLookINDEX%nGlceOnlyNrg)%dat(1)>0).and. rVec(1)<0._rkind) then
+    ! check if we have too much energy going into a snow layer, which could be the reason for not finding the brackets
+    if (indx_data%var(iLookINDEX%nSnowOnlyNrg)%dat(1)>0 .and. rVec(1)<0._rkind) then
       tooMuchMelt = .true.
       err=-20; return ! negative error code to denote a warning
     else
