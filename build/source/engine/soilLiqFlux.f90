@@ -857,10 +857,10 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   integer(i4b)                     :: iLayer                              ! index of soil layer
   real(rkind)                      :: Tcrit                               ! temperature where all water is unfrozen (K)
   real(rkind)                      :: fPart1,fPart2                       ! different parts of a function
-  real(rkind)                      :: dPart1(1:in_surfaceFlux % nSoil)     ! derivatives for different parts of a function
-  real(rkind)                      :: dPart2(1:in_surfaceFlux % nSoil)     ! derivatives for different parts of a function
-  real(rkind)                      :: dfracCap(1:in_surfaceFlux % nSoil)   ! derivatives for different parts of a function
-  real(rkind)                      :: dfInfRaw(1:in_surfaceFlux % nSoil)   ! derivatives for different parts of a function
+  real(rkind)                      :: dPart1(1:in_surfaceFlux % nSoil)    ! derivatives for different parts of a function
+  real(rkind)                      :: dPart2(1:in_surfaceFlux % nSoil)    ! derivatives for different parts of a function
+  real(rkind)                      :: dfracCap(1:in_surfaceFlux % nSoil)  ! derivatives for different parts of a function
+  real(rkind)                      :: dfInfRaw(1:in_surfaceFlux % nSoil)  ! derivatives for different parts of a function
   real(rkind)                      :: total_soil_depth                    ! total depth of soil (m)
   ! head boundary condition
   real(rkind)                      :: cFlux                               ! capillary flux (m s-1)
@@ -1140,8 +1140,8 @@ subroutine update_volFracLiq_derivatives
          end do
        case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
      end select 
-     dVolFracLiq_dTk(:) = dTheta_dTk(:) !already zeroed out if not below critical temperature
-     if(doIce) dVolFracIce_dTk(:) = -dVolFracLiq_dTk(:) !often can and will simplify one of these terms out
+     dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
+     if(doIce) dVolFracIce_dTk(:) = -dVolFracLiq_dTk(:) ! often can and will simplify one of these terms out
    end if
 
   end associate
@@ -1750,8 +1750,8 @@ subroutine update_volFracLiq_derivatives
    ! input: flux at the upper boundary
    scalarRainPlusMelt   => in_surfaceFlux % scalarRainPlusMelt, & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
    ! input-output: surface runoff and infiltration flux (m s-1)
-   xMaxInfilRate       => io_surfaceFlux % xMaxInfilRate    ,   & ! maximum infiltration rate (m s-1)
-   scalarInfilArea     => io_surfaceFlux % scalarInfilArea  ,   & ! fraction of area where water can infiltrate, may be frozen (-)
+   xMaxInfilRate       => io_surfaceFlux % xMaxInfilRate,       & ! maximum infiltration rate (m s-1)
+   scalarInfilArea     => io_surfaceFlux % scalarInfilArea,     & ! fraction of area where water can infiltrate, may be frozen (-)
    scalarSaturatedArea => io_surfaceFlux % scalarSaturatedArea, & ! fraction of area that is saturated (-)
    scalarSoilControl   => io_surfaceFlux % scalarSoilControl,   & ! soil control on infiltration for derivative
    scalarFrozenArea    => io_surfaceFlux % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
