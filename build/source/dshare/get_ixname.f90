@@ -706,7 +706,7 @@ contains
   case('scalarCanopyTranspiration'      ); get_ixFlux = iLookFLUX%scalarCanopyTranspiration        ! canopy transpiration (kg m-2 s-1)
   case('scalarCanopyEvaporation'        ); get_ixFlux = iLookFLUX%scalarCanopyEvaporation          ! canopy evaporation/condensation (kg m-2 s-1)
   case('scalarGroundEvaporation'        ); get_ixFlux = iLookFLUX%scalarGroundEvaporation          ! ground evaporation/condensation (below canopy or non-vegetated) (kg m-2 s-1)
-  case('mLayerTranspire'                ); get_ixFlux = iLookFLUX%mLayerTranspire                  ! transpiration loss from each soil layer (kg m-2 s-1)
+  case('mLayerTranspire'                ); get_ixFlux = iLookFLUX%mLayerTranspire                  ! transpiration loss from each soil layer (m s-1)
   ! liquid and solid water fluxes through the canopy
   case('scalarThroughfallSnow'          ); get_ixFlux = iLookFLUX%scalarThroughfallSnow            ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
   case('scalarThroughfallRain'          ); get_ixFlux = iLookFLUX%scalarThroughfallRain            ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
