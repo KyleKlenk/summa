@@ -250,7 +250,7 @@ contains
     ! deep aquifer (column outflow will be zero)
     bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)
    else
-    ! no deep aquifer (may have column outflow from shallow groundwater)
+    ! no deep aquifer (may have column outflow from shallow groundwater then soil drainage will be zero, else the converse is true)
     bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)
    endif
    
