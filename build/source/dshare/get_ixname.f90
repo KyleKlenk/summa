@@ -706,7 +706,7 @@ contains
   case('scalarCanopyTranspiration'      ); get_ixFlux = iLookFLUX%scalarCanopyTranspiration        ! canopy transpiration (kg m-2 s-1)
   case('scalarCanopyEvaporation'        ); get_ixFlux = iLookFLUX%scalarCanopyEvaporation          ! canopy evaporation/condensation (kg m-2 s-1)
   case('scalarGroundEvaporation'        ); get_ixFlux = iLookFLUX%scalarGroundEvaporation          ! ground evaporation/condensation (below canopy or non-vegetated) (kg m-2 s-1)
-  case('mLayerTranspire'                ); get_ixFlux = iLookFLUX%mLayerTranspire                  ! transpiration loss from each soil layer (kg m-2 s-1)
+  case('mLayerTranspire'                ); get_ixFlux = iLookFLUX%mLayerTranspire                  ! transpiration loss from each soil layer (m s-1)
   ! liquid and solid water fluxes through the canopy
   case('scalarThroughfallSnow'          ); get_ixFlux = iLookFLUX%scalarThroughfallSnow            ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
   case('scalarThroughfallRain'          ); get_ixFlux = iLookFLUX%scalarThroughfallRain            ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
@@ -837,7 +837,7 @@ contains
   case('dq_dNrgStateBelow'              ); get_ixDeriv = iLookDERIV%dq_dNrgStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   case('dq_dNrgStateLayerSurfVec'       ); get_ixDeriv = iLookDERIV%dq_dNrgStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layers
   case('dPsiLiq_dTemp'                  ); get_ixDeriv = iLookDERIV%dPsiLiq_dTemp                  ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
-  case('dPsiLiq_dPsi0'                  ); get_ixDeriv = iLookDERIV%dPsiLiq_dPsi0                  ! derivative in liquid matric potential w.r.t. total  matric potential (-)
+  case('dPsiLiq_dPsi0'                  ); get_ixDeriv = iLookDERIV%dPsiLiq_dPsi0                  ! derivative in liquid matric potential w.r.t. total matric potential (-)
  ! derivatives in soil transpiration w.r.t. canopy state variables
   case('mLayerdTrans_dTCanair'          ); get_ixDeriv = iLookDERIV%mLayerdTrans_dTCanair          ! derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
   case('mLayerdTrans_dTCanopy'          ); get_ixDeriv = iLookDERIV%mLayerdTrans_dTCanopy          ! derivatives in the soil layer transpiration flux w.r.t. canopy temperature

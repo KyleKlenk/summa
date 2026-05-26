@@ -575,7 +575,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopyTranspiration       = integerMissing ! canopy transpiration (kg m-2 s-1)
   integer(i4b)    :: scalarCanopyEvaporation         = integerMissing ! canopy evaporation/condensation (kg m-2 s-1)
   integer(i4b)    :: scalarGroundEvaporation         = integerMissing ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
-  integer(i4b)    :: mLayerTranspire                 = integerMissing ! transpiration loss from each soil layer (kg m-2 s-1)
+  integer(i4b)    :: mLayerTranspire                 = integerMissing ! transpiration loss from each soil layer (m s-1)
   ! liquid and solid water fluxes through the canopy
   integer(i4b)    :: scalarThroughfallSnow           = integerMissing ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
   integer(i4b)    :: scalarThroughfallRain           = integerMissing ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)

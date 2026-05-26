@@ -62,19 +62,12 @@ USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the
 
 ! provide access to look-up values for model decisions
 USE mDecisions_module,only:   &
-  ! look-up values for method used to compute derivative
-  numerical,                  & ! numerical solution
-  analytical,                 & ! analytical solution
   ! look-up values for the form of Richards' equation
   moisture,                   & ! moisture-based form of Richards' equation
   mixdform,                   & ! mixed form of Richards' equation
   ! look-up values for the type of hydraulic conductivity profile
   constant,                   & ! constant hydraulic conductivity with depth
   powerLaw_profile,           & ! power-law profile
-  ! look-up values for the choice of groundwater parameterization
-  qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
-  bigBucket,                  & ! a big bucket (lumped aquifer model)
-  noExplicit,                 & ! no explicit groundwater parameterization
   ! look-up values for the choice of boundary conditions for hydrology
   prescribedHead,             & ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
   funcBottomHead,             & ! function of matric head in the lower-most layer
@@ -857,10 +850,10 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   integer(i4b)                     :: iLayer                              ! index of soil layer
   real(rkind)                      :: Tcrit                               ! temperature where all water is unfrozen (K)
   real(rkind)                      :: fPart1,fPart2                       ! different parts of a function
-  real(rkind)                      :: dPart1(1:in_surfaceFlux % nSoil)     ! derivatives for different parts of a function
-  real(rkind)                      :: dPart2(1:in_surfaceFlux % nSoil)     ! derivatives for different parts of a function
-  real(rkind)                      :: dfracCap(1:in_surfaceFlux % nSoil)   ! derivatives for different parts of a function
-  real(rkind)                      :: dfInfRaw(1:in_surfaceFlux % nSoil)   ! derivatives for different parts of a function
+  real(rkind)                      :: dPart1(1:in_surfaceFlux % nSoil)    ! derivatives for different parts of a function
+  real(rkind)                      :: dPart2(1:in_surfaceFlux % nSoil)    ! derivatives for different parts of a function
+  real(rkind)                      :: dfracCap(1:in_surfaceFlux % nSoil)  ! derivatives for different parts of a function
+  real(rkind)                      :: dfInfRaw(1:in_surfaceFlux % nSoil)  ! derivatives for different parts of a function
   real(rkind)                      :: total_soil_depth                    ! total depth of soil (m)
   ! head boundary condition
   real(rkind)                      :: cFlux                               ! capillary flux (m s-1)
@@ -905,11 +898,11 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   real(rkind)                      :: zeta_crit_n                         ! critical topographic index value (power-transformed)
   real(rkind)                      :: n_topmodel                          ! TOPMODEL exponent exponent (must be sufficiently large to avoid divergence of lambda_n -- n>=3.5 or so)
   complex(rkind)                   :: lambda_n                            ! mean of the power-transformed topographic index
-   ! derivatives
-  real(rkind) :: dVolFracLiq_dWat(1:in_surfaceFlux % nSoil)  ! ... vol fraction of liquid w.r.t. water state variable in root layers
-  real(rkind) :: dVolFracIce_dWat(1:in_surfaceFlux % nSoil)  ! ... vol fraction of ice w.r.t. water state variable in root layers
-  real(rkind) :: dVolFracLiq_dTk(1:in_surfaceFlux % nSoil)   ! ... vol fraction of liquid w.r.t. temperature in root layers
-  real(rkind) :: dVolFracIce_dTk(1:in_surfaceFlux % nSoil)   ! ... vol fraction of ice w.r.t. temperature in root layers
+  ! derivatives
+  real(rkind) :: dVolFracLiq_dWat(1:in_surfaceFlux % nSoil)  ! ... vol fraction of liquid w.r.t. water state variable in soil layers
+  real(rkind) :: dVolFracIce_dWat(1:in_surfaceFlux % nSoil)  ! ... vol fraction of ice w.r.t. water state variable in soil layers
+  real(rkind) :: dVolFracLiq_dTk(1:in_surfaceFlux % nSoil)   ! ... vol fraction of liquid w.r.t. temperature in soil layers
+  real(rkind) :: dVolFracIce_dTk(1:in_surfaceFlux % nSoil)   ! ... vol fraction of ice w.r.t. temperature in soil layers
   real(rkind) :: dRootZoneLiq_dWat(1:in_surfaceFlux % nSoil) ! ... vol fraction of scalar root zone liquid w.r.t. water state variable in root layers
   real(rkind) :: dRootZoneIce_dWat(1:in_surfaceFlux % nSoil) ! ... vol fraction of scalar root zone ice w.r.t. water state variable in root layers
   real(rkind) :: dRootZoneLiq_dTk(1:in_surfaceFlux % nSoil)  ! ... vol fraction of scalar root zone liquid w.r.t. temperature in root layers
@@ -918,12 +911,12 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   real(rkind) :: dDepthWettingFront_dTk(1:in_surfaceFlux % nSoil)  ! ... scalar depth of wetting front w.r.t. temperature in root layers
   real(rkind) :: dxMaxInfilRate_dWat(1:in_surfaceFlux % nSoil) ! ... scalar max infiltration rate w.r.t. water state variable in root layers
   real(rkind) :: dxMaxInfilRate_dTk(1:in_surfaceFlux % nSoil)  ! ... scalar max infiltration rate w.r.t. temperature in root layers
-  real(rkind) :: dInfilArea_dWat(1:in_surfaceFlux % nSoil)  ! ... scalar infiltration rate w.r.t. water state variable in canopy or snow and root layers
-  real(rkind) :: dInfilArea_dTk(1:in_surfaceFlux % nSoil)   ! ... scalar infiltration rate w.r.t. temperature in canopy or snow and root layers
-  real(rkind) :: dFrozenArea_dWat(1:in_surfaceFlux % nSoil) ! ... scalar frozen area w.r.t. water state variable in canopy or snow and root layers
-  real(rkind) :: dFrozenArea_dTk(1:in_surfaceFlux % nSoil)  ! ... scalar frozen area w.r.t. temperature in canopy or snow and root layers
-  real(rkind) :: dInfilRate_dWat(1:in_surfaceFlux % nSoil)  ! ... scalar infiltration rate w.r.t. water state variable in canopy or snow and root layers
-  real(rkind) :: dInfilRate_dTk(1:in_surfaceFlux % nSoil)   ! ... scalar infiltration rate w.r.t. temperature in canopy or snow and root layers
+  real(rkind) :: dInfilArea_dWat(1:in_surfaceFlux % nSoil)  ! ... scalar infiltration rate w.r.t. water state variable in soil layers
+  real(rkind) :: dInfilArea_dTk(1:in_surfaceFlux % nSoil)   ! ... scalar infiltration rate w.r.t. temperature in soil layers
+  real(rkind) :: dFrozenArea_dWat(1:in_surfaceFlux % nSoil) ! ... scalar frozen area w.r.t. water state variable in soil layers
+  real(rkind) :: dFrozenArea_dTk(1:in_surfaceFlux % nSoil)  ! ... scalar frozen area w.r.t. temperature in soil layers
+  real(rkind) :: dInfilRate_dWat(1:in_surfaceFlux % nSoil)  ! ... scalar infiltration rate w.r.t. water state variable in soil layers
+  real(rkind) :: dInfilRate_dTk(1:in_surfaceFlux % nSoil)   ! ... scalar infiltration rate w.r.t. temperature in soil layers
   ! error control
   logical(lgt) :: return_flag ! logical flag for return statements
 
@@ -983,6 +976,13 @@ contains
    scalarSurfaceRunoff_IE    = 0._rkind  
    scalarSurfaceRunoff_SE    = 0._rkind  
    scalarSurfaceInfiltration = 0._rkind 
+  end associate
+
+  ! total soil depth is needed for infiltration area methods, so compute here
+  associate(&
+   mLayerDepth  => in_surfaceFlux % mLayerDepth      & ! depth of soil layers (m) 
+  &)
+   total_soil_depth = sum(mLayerDepth)
   end associate
 
  end subroutine initialize_surfaceFlux
@@ -1119,7 +1119,7 @@ subroutine update_volFracLiq_derivatives
      select case(ixRichards)  ! form of Richards' equation
        case(moisture)
          dVolFracLiq_dWat(:) = 1._rkind
-         dVolFracIce_dWat(:) = mLayerdPsi_dTheta(:) - 1._rkind
+         if(doIce) dVolFracIce_dWat(:) = mLayerdPsi_dTheta(:) - 1._rkind
        case(mixdform)
          do iLayer=1,nLayers
            Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
@@ -1133,8 +1133,8 @@ subroutine update_volFracLiq_derivatives
          end do
        case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
      end select 
-     dVolFracLiq_dTk(:) = dTheta_dTk(:) !already zeroed out if not below critical temperature
-     if(doIce) dVolFracIce_dTk(:) = -dVolFracLiq_dTk(:) !often can and will simplify one of these terms out
+     dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
+     if(doIce) dVolFracIce_dTk(:) = -dVolFracLiq_dTk(:) ! often can and will simplify one of these terms out
    end if
 
   end associate
@@ -1185,7 +1185,6 @@ subroutine update_volFracLiq_derivatives
    nSoil            => in_surfaceFlux % nSoil,            & ! number of soil layers
    mLayerVolFracLiq => in_surfaceFlux % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
    mLayerDepth      => in_surfaceFlux % mLayerDepth,      & ! depth of soil layers (m) 
-   iLayerHeight     => in_surfaceFlux % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
    theta_sat        => in_surfaceFlux % theta_sat,        & ! soil porosity (-)
    ! output: error control
    err     => out_surfaceFlux % err    , & ! error code
@@ -1206,7 +1205,7 @@ subroutine update_volFracLiq_derivatives
   ! compute water content in upper FUSE layer
    S1     = sum( mLayerDepth(:) * mLayerVolFracLiq(:) ) ! total water content in upper FUSE layer (m)
    if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
-   S1_max = iLayerHeight(nSoil) * theta_sat             ! max water storage for upper FUSE layer (m)
+   S1_max = total_soil_depth * theta_sat                ! max water storage for upper FUSE layer (m)
 
   ! compute tension water content
    S1_T_max = phi_tens * S1_max
@@ -1246,7 +1245,6 @@ subroutine update_volFracLiq_derivatives
    nSoil            => in_surfaceFlux % nSoil,            & ! number of soil layers
    mLayerVolFracLiq => in_surfaceFlux % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
    mLayerDepth      => in_surfaceFlux % mLayerDepth,      & ! depth of soil layers (m) 
-   iLayerHeight     => in_surfaceFlux % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
    theta_sat        => in_surfaceFlux % theta_sat,        & ! soil porosity (-)
    ! output: error control
    err     => out_surfaceFlux % err    , & ! error code
@@ -1262,7 +1260,7 @@ subroutine update_volFracLiq_derivatives
    ! compute water content in FUSE layers
    S1     = sum( mLayerDepth(:) * mLayerVolFracLiq(:) ) ! total water content in FUSE layers (m)
    if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
-   S1_max = iLayerHeight(nSoil) * theta_sat             ! max water storage for FUSE layers (m)
+   S1_max = total_soil_depth * theta_sat                ! max water storage for FUSE layers (m)
 
    ! Original FUSE: SatArea = 1 - (1-S1/S1_max)**b_arnovic
    ! Optional: smoothed to prevent negative bases using a smooth approximation of S1_star = min(S1,S1_max)
@@ -1325,7 +1323,6 @@ subroutine update_volFracLiq_derivatives
    nSoil            => in_surfaceFlux % nSoil,            & ! number of soil layers
    mLayerVolFracLiq => in_surfaceFlux % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
    mLayerDepth      => in_surfaceFlux % mLayerDepth,      & ! depth of soil layers (m) 
-   iLayerHeight     => in_surfaceFlux % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
    theta_sat        => in_surfaceFlux % theta_sat,        & ! soil porosity (-)
    ! output: error control
    err     => out_surfaceFlux % err    , & ! error code
@@ -1341,7 +1338,7 @@ subroutine update_volFracLiq_derivatives
    ! compute water content in lower FUSE layer, here the entire soil column is used
    S1     = sum( mLayerDepth(:) * mLayerVolFracLiq(:) ) ! total water content in lower FUSE layer (m)
    if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
-   S1_max = iLayerHeight(nSoil) * theta_sat             ! max water storage for lower FUSE layer (m)
+   S1_max = total_soil_depth * theta_sat                ! max water storage for lower FUSE layer (m)
 
    ! validate of parameters
    if ((lambda < 5._rkind ).or.(lambda > 10._rkind)) then
@@ -1625,7 +1622,6 @@ subroutine update_volFracLiq_derivatives
    xMaxInfilRate    => io_surfaceFlux % xMaxInfilRate  & ! maximum infiltration rate (m s-1)
   &)
    ! define the depth to the wetting front (m) and derivatives
-   total_soil_depth = sum(mLayerDepth(:))
    depthWettingFront = (rootZoneLiq/availCapacity)*min(rootingDepth,total_soil_depth)
    if(updateInfil)then
      dDepthWettingFront_dWat(:)=( dRootZoneLiq_dWat(:)*min(rootingDepth,total_soil_depth) + dRootZoneIce_dWat(:)*depthWettingFront )/availCapacity
@@ -1724,7 +1720,7 @@ subroutine update_volFracLiq_derivatives
       alpha = 1._rkind/(soilIceCV**2_i4b)     ! shape parameter in the Gamma distribution
       xLimg = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
      !if we use this, we will have a derivative of scalarFrozenArea w.r.t. water and temperature in each layer (through mLayerVolFracIce)
-     ! Should fix to deal with frozen area in the root zone, calculations would be expensive
+     ! Should fix to deal with frozen area in the root zone, calculations may be expensive
      !scalarFrozenArea = 1._rkind - gammp(alpha,xLimg)      ! fraction of frozen area
      !if(updateInfil)then
      !  dFrozenArea_dWat(:) = -dgammp_dx(alpha,xLimg)*(-alpha*soilIceScale/rootZoneIce**2_i4b)*dRootZoneIce_dWat(:)
@@ -1747,8 +1743,8 @@ subroutine update_volFracLiq_derivatives
    ! input: flux at the upper boundary
    scalarRainPlusMelt   => in_surfaceFlux % scalarRainPlusMelt, & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
    ! input-output: surface runoff and infiltration flux (m s-1)
-   xMaxInfilRate       => io_surfaceFlux % xMaxInfilRate    ,   & ! maximum infiltration rate (m s-1)
-   scalarInfilArea     => io_surfaceFlux % scalarInfilArea  ,   & ! fraction of area where water can infiltrate, may be frozen (-)
+   xMaxInfilRate       => io_surfaceFlux % xMaxInfilRate,       & ! maximum infiltration rate (m s-1)
+   scalarInfilArea     => io_surfaceFlux % scalarInfilArea,     & ! fraction of area where water can infiltrate, may be frozen (-)
    scalarSaturatedArea => io_surfaceFlux % scalarSaturatedArea, & ! fraction of area that is saturated (-)
    scalarSoilControl   => io_surfaceFlux % scalarSoilControl,   & ! soil control on infiltration for derivative
    scalarFrozenArea    => io_surfaceFlux % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
